@@ -73,20 +73,26 @@ protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface
 public:
-	/** Returns Mesh1P subobject **/
-	FORCEINLINE class USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
-	/** Returns FirstPersonCameraComponent subobject **/
-	FORCEINLINE class UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-
-	virtual void GiveWeapon(AWeaponBase *base);
+	//@ServerSide Gives a weapon to the player
+	virtual void GiveWeapon(FString base);
+	//@ServerSide Removes the current weapon the player holds
 	virtual void RemoveActiveWeapon();
+	//@ServerSide Removes all weapons this player is holding
 	virtual void StripWeapons();
+	//@Shared Returns all weapons
 	virtual AWeaponBase** GetWeapons();
+	//@Shared returns the weapon the player holds
 	virtual AWeaponBase* GetActiveWeapon();
+	//@ServerSide Switchs to another weapon slot
 	virtual void SwitchWeapon(uint8 id);
 private:
+	//The weapon matrix which stores all pointers to all AActors corresponding to those weapons
 	AWeaponBase *weapons[16];
+	//The current weapon slot id which corresponds to the weapon the player holds
 	uint8 curWeapon;
+	//This function is used to create an attachement between player and weapon
 	virtual void UpdateAttachement();
+	//This function is used to sync weapons with clients
+	virtual void OnSwitchChanged();
 };
 

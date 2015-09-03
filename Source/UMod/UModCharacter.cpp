@@ -185,23 +185,38 @@ AWeaponBase** AUModCharacter::GetWeapons()
 	return weapons;
 }
 
-void AUModCharacter::GiveWeapon(AWeaponBase *base)
+void AUModCharacter::GiveWeapon(FString base)
 {
 	if (Role != ROLE_Authority){
 		UE_LOG(CoreLogger, Error, TEXT("Tried to give weapon client side !"));
 		return;
 	}
 
+	FVector plyPos = GetActorLocation();
+
+	FVector pos = plyPos + GunOffset;
+	
+	UObject* obj = ANY_PACKAGE;
+
+	UClass* cl = FindObject<UClass>(obj, *base, true);
+	
+	AWeaponBase* b = GetWorld()->SpawnActor<AWeaponBase>(cl, pos, FRotator(0, 0, 0).ZeroRotator);
+
 	for (int i = 0; i < 16; i++) {
 		if (weapons[i] == NULL) {
-			weapons[i] = base;
+			weapons[i] = b;
 			break;
 		}
-	}	
+	}
 }
 
 void AUModCharacter::SwitchWeapon(uint8 id)
 {
+	if (Role != ROLE_Authority) {
+		UE_LOG(CoreLogger, Error, TEXT("Tried to switch weapon client side !"));
+		return;
+	}
+
 	if (id == curWeapon){
 		return;
 	}
@@ -212,4 +227,9 @@ void AUModCharacter::SwitchWeapon(uint8 id)
 void AUModCharacter::UpdateAttachement()
 {
 	//TODO : Make attachement system
+}
+
+void AUModCharacter::OnSwitchChanged()
+{
+	//TODO : Make data updating system using APlayerState
 }
