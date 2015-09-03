@@ -6,8 +6,6 @@
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
-
 //////////////////////////////////////////////////////////////////////////
 // AUModCharacter
 
@@ -53,11 +51,7 @@ void AUModCharacter::SetupPlayerInputComponent(class UInputComponent* InputCompo
 	InputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	InputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	
-	//InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &AUModCharacter::TouchStarted);
-	if( EnableTouchscreenMovement(InputComponent) == false )
-	{
-		InputComponent->BindAction("Fire", IE_Pressed, this, &AUModCharacter::OnFire);
-	}
+	InputComponent->BindAction("Fire", IE_Pressed, this, &AUModCharacter::OnFire);
 	
 	InputComponent->BindAxis("MoveForward", this, &AUModCharacter::MoveForward);
 	InputComponent->BindAxis("MoveRight", this, &AUModCharacter::MoveRight);
@@ -73,8 +67,17 @@ void AUModCharacter::SetupPlayerInputComponent(class UInputComponent* InputCompo
 
 void AUModCharacter::OnFire()
 { 
-	if (Role != ROLE_Authority){ return; }
+	if (Role != ROLE_Authority) { 
+		UE_LOG(CoreLogger, Error, TEXT("Tried to fire weapon client side !"));		
+		return;
+	}
 
+	if (weapons[curWeapon] != NULL) {
+		AWeaponBase* w = weapons[curWeapon];
+		w->OnPlayerFire(0);
+	}
+
+	/* Will switch that in a test weapon when done the attachement system and network system
 	// try and fire a projectile
 	if (ProjectileClass != NULL)
 	{
@@ -105,68 +108,8 @@ void AUModCharacter::OnFire()
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
-	}
+	}*/
 
-}
-
-void AUModCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if( TouchItem.bIsPressed == true )
-	{
-		return;
-	}
-	TouchItem.bIsPressed = true;
-	TouchItem.FingerIndex = FingerIndex;
-	TouchItem.Location = Location;
-	TouchItem.bMoved = false;
-}
-
-void AUModCharacter::EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if (TouchItem.bIsPressed == false)
-	{
-		return;
-	}
-	if( ( FingerIndex == TouchItem.FingerIndex ) && (TouchItem.bMoved == false) )
-	{
-		OnFire();
-	}
-	TouchItem.bIsPressed = false;
-}
-
-void AUModCharacter::TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if ((TouchItem.bIsPressed == true) && ( TouchItem.FingerIndex==FingerIndex))
-	{
-		if (TouchItem.bIsPressed)
-		{
-			if (GetWorld() != nullptr)
-			{
-				UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport();
-				if (ViewportClient != nullptr)
-				{
-					FVector MoveDelta = Location - TouchItem.Location;
-					FVector2D ScreenSize;
-					ViewportClient->GetViewportSize(ScreenSize);
-					FVector2D ScaledDelta = FVector2D( MoveDelta.X, MoveDelta.Y) / ScreenSize;									
-					if (ScaledDelta.X != 0.0f)
-					{
-						TouchItem.bMoved = true;
-						float Value = ScaledDelta.X * BaseTurnRate;
-						AddControllerYawInput(Value);
-					}
-					if (ScaledDelta.Y != 0.0f)
-					{
-						TouchItem.bMoved = true;
-						float Value = ScaledDelta.Y* BaseTurnRate;
-						AddControllerPitchInput(Value);
-					}
-					TouchItem.Location = Location;
-				}
-				TouchItem.Location = Location;
-			}
-		}
-	}
 }
 
 void AUModCharacter::MoveForward(float Value)
@@ -199,15 +142,74 @@ void AUModCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
-bool AUModCharacter::EnableTouchscreenMovement(class UInputComponent* InputComponent)
+void AUModCharacter::RemoveActiveWeapon()
 {
-	bool bResult = false;
-	if(FPlatformMisc::GetUseVirtualJoysticks() || GetDefault<UInputSettings>()->bUseMouseForTouch )
-	{
-		bResult = true;
-		InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &AUModCharacter::BeginTouch);
-		InputComponent->BindTouch(EInputEvent::IE_Released, this, &AUModCharacter::EndTouch);
-		InputComponent->BindTouch(EInputEvent::IE_Repeat, this, &AUModCharacter::TouchUpdate);
+	if (Role != ROLE_Authority) {
+		UE_LOG(CoreLogger, Error, TEXT("Tried to remove weapon client side !"));
+		return;
 	}
-	return bResult;
+
+	if (weapons[curWeapon] == NULL) {
+		UE_LOG(CoreLogger, Warning, TEXT("Tried to access invalid pointer !"));
+		return;
+	}
+
+	AWeaponBase* w = weapons[curWeapon];
+	w->Destroy();
+	weapons[curWeapon] = NULL;
+}
+
+void AUModCharacter::StripWeapons()
+{
+	if (Role != ROLE_Authority) {
+		UE_LOG(CoreLogger, Error, TEXT("Tried to remove weapon client side !"));
+		return;
+	}
+
+	for (int i = 0; i < 16; i++){
+		if (weapons[i] != NULL) {
+			AWeaponBase* w = weapons[i];
+			w->Destroy();
+			weapons[i] = NULL;
+		}
+	}		
+}
+
+AWeaponBase* AUModCharacter::GetActiveWeapon()
+{
+	return weapons[curWeapon];
+}
+
+AWeaponBase** AUModCharacter::GetWeapons()
+{
+	return weapons;
+}
+
+void AUModCharacter::GiveWeapon(AWeaponBase *base)
+{
+	if (Role != ROLE_Authority){
+		UE_LOG(CoreLogger, Error, TEXT("Tried to give weapon client side !"));
+		return;
+	}
+
+	for (int i = 0; i < 16; i++) {
+		if (weapons[i] == NULL) {
+			weapons[i] = base;
+			break;
+		}
+	}	
+}
+
+void AUModCharacter::SwitchWeapon(uint8 id)
+{
+	if (id == curWeapon){
+		return;
+	}
+	curWeapon = id;
+	this->UpdateAttachement();
+}
+
+void AUModCharacter::UpdateAttachement()
+{
+	//TODO : Make attachement system
 }

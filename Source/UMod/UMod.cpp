@@ -5,3 +5,4 @@
 
 IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, UMod, "UMod");
  
+DEFINE_LOG_CATEGORY(CoreLogger);
