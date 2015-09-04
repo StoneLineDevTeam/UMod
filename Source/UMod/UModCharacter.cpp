@@ -6,6 +6,8 @@
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"
 
+#include "UnrealNetwork.h"
+
 //////////////////////////////////////////////////////////////////////////
 // AUModCharacter
 
@@ -68,7 +70,9 @@ void AUModCharacter::SetupPlayerInputComponent(class UInputComponent* InputCompo
 void AUModCharacter::OnFire()
 { 
 	if (Role != ROLE_Authority) { 
-		UE_LOG(CoreLogger, Error, TEXT("Tried to fire weapon client side !"));		
+		if (weapons[curWeapon] != NULL) {
+			OnPlayerClick(0);
+		}
 		return;
 	}
 
@@ -200,13 +204,19 @@ void AUModCharacter::GiveWeapon(FString base)
 
 	UClass* cl = FindObject<UClass>(obj, *base, true);
 	
-	AWeaponBase* b = GetWorld()->SpawnActor<AWeaponBase>(cl, pos, FRotator(0, 0, 0).ZeroRotator);
+	AWeaponBase* b = GetWorld()->SpawnActor<AWeaponBase>(cl, pos, FRotator::ZeroRotator);
 
+	int slot = 0;
 	for (int i = 0; i < 16; i++) {
 		if (weapons[i] == NULL) {
 			weapons[i] = b;
+			slot = i;
 			break;
 		}
+	}
+
+	if (slot == curWeapon){
+		this->UpdateAttachement();
 	}
 }
 
@@ -232,4 +242,33 @@ void AUModCharacter::UpdateAttachement()
 void AUModCharacter::OnSwitchChanged()
 {
 	//TODO : Make data updating system using APlayerState
+	if (Role != ROLE_Authority) {
+		UE_LOG(CoreLogger, Error, TEXT("Tried to update weapon switch client side !"));
+		return;
+	}
+}
+
+void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AUModCharacter, weapons);
+	DOREPLIFETIME(AUModCharacter, curWeapon);
+}
+
+void AUModCharacter::UpdateClientSideData()
+{
+
+}
+
+void AUModCharacter::OnPlayerClick_Implementation(uint8 but)
+{
+	weapons[curWeapon]->OnPlayerFire(but);
+}
+bool AUModCharacter::OnPlayerClick_Validate(uint8 but)
+{	
+	if (weapons[curWeapon] == NULL) {
+		return false;
+	}
+	return true;
 }

@@ -85,14 +85,27 @@ public:
 	virtual AWeaponBase* GetActiveWeapon();
 	//@ServerSide Switchs to another weapon slot
 	virtual void SwitchWeapon(uint8 id);
+
+	virtual void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;	
 private:
 	//The weapon matrix which stores all pointers to all AActors corresponding to those weapons
+	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
 	AWeaponBase *weapons[16];
 	//The current weapon slot id which corresponds to the weapon the player holds
+	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
 	uint8 curWeapon;
 	//This function is used to create an attachement between player and weapon
 	virtual void UpdateAttachement();
 	//This function is used to sync weapons with clients
 	virtual void OnSwitchChanged();
+
+	//Function to be called right after some vars have been replicated.
+	UFUNCTION()
+	void UpdateClientSideData();
+
+	UFUNCTION(Server, UnReliable, WithValidation)
+	void OnPlayerClick(uint8 but);
+	void OnPlayerClick_Implementation(uint8 but);
+	bool OnPlayerClick_Validate(uint8 but);
 };
 
