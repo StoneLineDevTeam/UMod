@@ -41,7 +41,7 @@ AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer)
 	// Note: The ProjectileClass and the skeletal mesh/anim blueprints for Mesh1P are set in the
 	// derived blueprint asset named MyCharacter (to avoid direct content references in C++)
 
-	GiveWeapon(TEXT("Weapons/WeaponTest"));
+	//GiveWeapon(TEXT("WeaponTest"));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -204,6 +204,8 @@ void AUModCharacter::GiveWeapon(FString base)
 	
 	UObject* obj = ANY_PACKAGE;
 
+	FString src = FString("/Game/UMod/Weapons/");
+	
 	UClass* cl = FindObject<UClass>(obj, *base, true);
 
 	if (cl == NULL) {
