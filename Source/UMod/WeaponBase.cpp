@@ -15,12 +15,16 @@ AWeaponBase::AWeaponBase()
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();	
+
+	this->OnInit();
 }
 
 // Called every frame
 void AWeaponBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	this->OnTick();
 }
 
 void AWeaponBase::DoInit(AUModCharacter *ply)
@@ -51,6 +55,16 @@ void AWeaponBase::OnSecondaryFire()
 }
 
 void AWeaponBase::OnReload()
+{
+
+}
+
+void AWeaponBase::OnInit()
+{
+
+}
+
+void AWeaponBase::OnTick()
 {
 
 }

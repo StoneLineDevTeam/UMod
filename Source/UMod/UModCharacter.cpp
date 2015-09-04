@@ -40,6 +40,8 @@ AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// Note: The ProjectileClass and the skeletal mesh/anim blueprints for Mesh1P are set in the
 	// derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+
+	GiveWeapon(TEXT("Weapons/WeaponTest"));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -203,6 +205,11 @@ void AUModCharacter::GiveWeapon(FString base)
 	UObject* obj = ANY_PACKAGE;
 
 	UClass* cl = FindObject<UClass>(obj, *base, true);
+
+	if (cl == NULL) {
+		UE_LOG(CoreLogger, Error, TEXT("Unable to spawn weapon : FindObject returned an Invalid Pointer !"));
+		return;
+	}
 	
 	AWeaponBase* b = GetWorld()->SpawnActor<AWeaponBase>(cl, pos, FRotator::ZeroRotator);
 
@@ -214,6 +221,8 @@ void AUModCharacter::GiveWeapon(FString base)
 			break;
 		}
 	}
+
+	b->DoInit(this);
 
 	if (slot == curWeapon){
 		this->UpdateAttachement();
@@ -237,15 +246,6 @@ void AUModCharacter::SwitchWeapon(uint8 id)
 void AUModCharacter::UpdateAttachement()
 {
 	//TODO : Make attachement system
-}
-
-void AUModCharacter::OnSwitchChanged()
-{
-	//TODO : Make data updating system using APlayerState
-	if (Role != ROLE_Authority) {
-		UE_LOG(CoreLogger, Error, TEXT("Tried to update weapon switch client side !"));
-		return;
-	}
 }
 
 void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const

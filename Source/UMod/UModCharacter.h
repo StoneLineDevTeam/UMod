@@ -96,8 +96,6 @@ private:
 	uint8 curWeapon;
 	//This function is used to create an attachement between player and weapon
 	virtual void UpdateAttachement();
-	//This function is used to sync weapons with clients
-	virtual void OnSwitchChanged();
 
 	//Function to be called right after some vars have been replicated.
 	UFUNCTION()
