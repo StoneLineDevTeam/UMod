@@ -17,7 +17,7 @@ All:
 
 Coders:
 - You have to know C++ basics
-- You have to know LUA
+- If you want to help integrate LUA, you may need to know LUA
 
 Modders:
 - Knowledge of how to make models and export them into FBX format
