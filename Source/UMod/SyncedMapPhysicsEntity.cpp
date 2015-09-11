@@ -3,6 +3,8 @@
 #include "UMod.h"
 #include "SyncedMapPhysicsEntity.h"
 
+#include "UnrealNetwork.h"
+
 
 // Sets default values
 ASyncedMapPhysicsEntity::ASyncedMapPhysicsEntity()
@@ -27,26 +29,30 @@ void ASyncedMapPhysicsEntity::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (Role == ROLE_Authority){
-		//Send physx simulation data
-		UE_LOG(CoreLogger, Warning, TEXT("%s"), *GetActorLocation().ToString());
-		FVector loc = GetActorLocation();
-		FRotator rot = GetActorRotation();
-		PhysicsPacket(loc, rot);
+		//Send physx simulation data		
+		desiredPos = GetActorLocation();
+		desiredRot = GetActorRotation();
+		//PhysicsPacket(loc, rot);
 	} else {
 		//Interpolate between cur pos and new pos received from server
-		//FVector a = GetActorLocation();
-		//FVector b = desiredPos;
-		//FVector newPos = FMath::Lerp(a, b, 1.5F);
-		SetActorLocation(desiredPos);
+		FVector a = GetActorLocation();
+		FVector b = desiredPos;
+		FVector newPos = FMath::Lerp(a, b, 0.25F);
+		SetActorLocation(newPos);
 
-		//FVector a1 = GetActorRotation().Vector();
-		//FVector b1 = desiredRot.Vector();
-		//FVector lerped = FMath::Lerp(a1, b1, 1.5F);		
-		SetActorRotation(desiredRot);
+		FVector a1 = GetActorRotation().Vector();
+		FVector b1 = desiredRot.Vector();
+		FVector lerped = FMath::Lerp(a1, b1, 0.25F);		
+		SetActorRotation(lerped.Rotation());
 	}
 }
 
-void ASyncedMapPhysicsEntity::PhysicsPacket_Implementation(FVector newPos, FRotator newRot)
+FString ASyncedMapPhysicsEntity::GetName()
+{
+	return TEXT("SyncedMapPhysicsEntity");
+}
+
+/*void ASyncedMapPhysicsEntity::PhysicsPacket_Implementation(FVector newPos, FRotator newRot)
 {
 	if (Role == ROLE_Authority) {
 		return;
@@ -54,5 +60,13 @@ void ASyncedMapPhysicsEntity::PhysicsPacket_Implementation(FVector newPos, FRota
 
 	desiredPos = newPos;
 	desiredRot = newRot;
+}*/
+
+void ASyncedMapPhysicsEntity::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASyncedMapPhysicsEntity, desiredPos);
+	DOREPLIFETIME(ASyncedMapPhysicsEntity, desiredRot);
 }
 

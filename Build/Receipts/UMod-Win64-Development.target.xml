@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BuildReceipt xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Properties>
+    <Property Name="TargetName" Value="UMod" />
+    <Property Name="Platform" Value="Win64" />
+    <Property Name="Configuration" Value="Development" />
+    <Property Name="Precompile" Value="False" />
+  </Properties>
+  <BuildProducts>
+    <BuildProduct Path="$(ProjectDir)\Binaries\Win64\UMod.exe" Type="Executable" />
+    <BuildProduct Path="$(ProjectDir)\Binaries\Win64\UMod.pdb" Type="SymbolFile" />
+  </BuildProducts>
+  <RuntimeDependencies>
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/PhysX3PROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/PhysX3GpuPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/PhysX3CommonPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/PhysX3CookingPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/nvToolsExt64_1.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/PhysX-3.3/Win64/VS2013/PhysXDevice64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/APEX_ClothingPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/APEX_DestructiblePROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/APEX_LegacyPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/APEX_LoaderPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/APEX_ParticlesPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/PhysX/APEX-1.3/Win64/VS2013/ApexFrameworkPROFILE_x64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS2013/libogg_64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS2013/libvorbis_64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS2013/libvorbisfile_64.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/Leap/Win64/Leap.dll" />
+    <RuntimeDependency Path="$(EngineDir)/Binaries/ThirdParty/OpenVR/OpenVRv000/Win64/openvr_api.dll" />
+  </RuntimeDependencies>
+  <bRequireDependenciesToExist>true</bRequireDependenciesToExist>
+</BuildReceipt>

@@ -14,9 +14,15 @@ public:
 	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
 
+	void DrawSimpleText(FString text, float x, float y, int size, FColor color);
+
+	FVector2D ScreenSize();
+
 private:
 	/** Crosshair asset pointer */
 	class UTexture2D* CrosshairTex;
 
+	class UFont* HUDFont;
+	
 };
 
