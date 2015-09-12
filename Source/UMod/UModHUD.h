@@ -14,7 +14,8 @@ public:
 	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
 
-	void DrawSimpleText(FString text, float x, float y, int size, FColor color);
+	void DrawSimpleText(FString String, float X, float Y, float Size, FColor Color, float Alligment);
+	void DrawRect(float X, float Y, float W, float H, FLinearColor Color);
 
 	FVector2D ScreenSize();
 
