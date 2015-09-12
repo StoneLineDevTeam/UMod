@@ -46,8 +46,15 @@ private:
 
 	UFUNCTION(Server, UnReliable, WithValidation)
 		void OnPlayerClick(uint8 but);
+
 	void OnPlayerClick_Implementation(uint8 but);
 	bool OnPlayerClick_Validate(uint8 but);
+
+	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
+		uint32 playerHealth;
+	
+	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
+		uint32 playerMaxHealth;
 protected:
 	
 	/** Fires a projectile. */
@@ -87,18 +94,35 @@ public:
 	/* UMod Specific */
 
 	//@ServerSide Gives a weapon to the player
-	virtual void GiveWeapon(FString base);
+	void GiveWeapon(UClass* cl);
 	//@ServerSide Removes the current weapon the player holds
-	virtual void RemoveActiveWeapon();
+	void RemoveActiveWeapon();
 	//@ServerSide Removes all weapons this player is holding
-	virtual void StripWeapons();
+	void StripWeapons();
 	//@Shared Returns all weapons
-	virtual AWeaponBase** GetWeapons();
+	AWeaponBase** GetWeapons();
 	//@Shared returns the weapon the player holds
-	virtual AWeaponBase* GetActiveWeapon();
+	AWeaponBase* GetActiveWeapon();
 	//@ServerSide Switchs to another weapon slot
-	virtual void SwitchWeapon(uint8 id);
+	void SwitchWeapon(uint8 id);
 	//@Shared Sets the world model for this player
-	virtual void SetModel(FString path);
+	void SetModel(FString path);
+	
+	//Health system
+	void SetHealth(int32 var);
+
+	void SetMaxHealth(uint32 var);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Damage Player", Keywords = "damage player"), Category = UMod_Specific)
+		void DamagePlayer(int32 force);
+	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Kill Player", Keywords = "kill player"), Category = UMod_Specific)
+		void KillPlayer();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Heal Player", Keywords = "heal player"), Category = UMod_Specific)
+		void HealPlayer(int32 amount);
+
+	uint32 GetHealth();
+	uint32 GetMaxHealth();
 };
 

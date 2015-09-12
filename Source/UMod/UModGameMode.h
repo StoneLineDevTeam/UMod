@@ -3,6 +3,8 @@
 #include "GameFramework/GameMode.h"
 #include "UModGameMode.generated.h"
 
+class AUModCharacter;
+
 UCLASS(minimalapi)
 class AUModGameMode : public AGameMode
 {
@@ -10,6 +12,8 @@ class AUModGameMode : public AGameMode
 
 public:
 	AUModGameMode(const FObjectInitializer& ObjectInitializer);
+
+	void OnPlayerDeath(AUModCharacter* player);
 };
 
 

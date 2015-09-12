@@ -7,6 +7,8 @@
 
 #include "UnrealNetwork.h"
 
+#include "UModGameMode.h"
+
 //////////////////////////////////////////////////////////////////////////
 // AUModCharacter
 
@@ -32,6 +34,10 @@ AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer)	: Su
 	PlayerModel->bCastDynamicShadow = false;
 	PlayerModel->CastShadow = false;
 
+	if (Role == ROLE_Authority) {
+		playerHealth = 100;
+		playerMaxHealth = 100;
+	}
 	//GiveWeapon(TEXT("WeaponTest"));
 }
 
@@ -88,11 +94,6 @@ void AUModCharacter::MoveRight(float Value)
 }
 void AUModCharacter::HandleUse()
 {
-	/*if (Role != ROLE_Authority) {
-		UE_LOG(CoreLogger, Error, TEXT("Tried to use something client side !"));
-		return;
-	}*/
-
 	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, this);
 	RV_TraceParams.bTraceComplex = true;
 	RV_TraceParams.bTraceAsyncScene = true;
@@ -164,7 +165,7 @@ AWeaponBase** AUModCharacter::GetWeapons()
 	return weapons;
 }
 
-void AUModCharacter::GiveWeapon(FString base)
+void AUModCharacter::GiveWeapon(UClass* cl)
 {
 	if (Role != ROLE_Authority){
 		UE_LOG(UMod_Game, Error, TEXT("Tried to give weapon client side !"));
@@ -176,12 +177,8 @@ void AUModCharacter::GiveWeapon(FString base)
 	FVector pos = plyPos + GunOffset;
 	
 	UObject* obj = ANY_PACKAGE;
-
-	FString src = FString("/Game/UMod/Weapons/");
-	
-	UClass* cl = FindObject<UClass>(obj, *base, true);
-
-	if (cl == NULL) {
+		
+	if (cl == NULL || cl->GetSuperClass() != AWeaponBase::StaticClass()) {
 		UE_LOG(UMod_Game, Error, TEXT("Unable to spawn weapon : FindObject returned an Invalid Pointer !"));
 		return;
 	}
@@ -229,6 +226,7 @@ void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefau
 
 	DOREPLIFETIME(AUModCharacter, weapons);
 	DOREPLIFETIME(AUModCharacter, curWeapon);
+	DOREPLIFETIME(AUModCharacter, playerHealth);
 }
 
 void AUModCharacter::UpdateClientSideData()
@@ -250,7 +248,92 @@ bool AUModCharacter::OnPlayerClick_Validate(uint8 but)
 
 void AUModCharacter::SetModel(FString path)
 {
+	if (Role != ROLE_Authority){
+		return;
+	}
+
 	FString realPath = FString("/Game/Models/") + path;
 	USkeletalMesh *m = LoadObjFromPath<USkeletalMesh>(*realPath);
 	PlayerModel->SetSkeletalMesh(m);
+}
+
+void AUModCharacter::SetHealth(int32 var)
+{
+	if (Role != ROLE_Authority){
+		return;
+	}
+
+	uint32 a = (uint32)var;
+
+	if (a > playerMaxHealth){
+		UE_LOG(UMod_Game, Error, TEXT("Tried to set health to more than max health : this is not allowed !"));
+		return;
+	}
+
+	playerHealth = a;
+}
+
+void AUModCharacter::SetMaxHealth(uint32 var)
+{
+	if (Role != ROLE_Authority){
+		return;
+	}
+
+	playerMaxHealth = var;
+}
+
+void AUModCharacter::DamagePlayer(int32 force)
+{
+	if (Role != ROLE_Authority){
+		return;
+	}
+
+	uint32 a = (uint32)force;
+
+	if (playerHealth > a){
+		playerHealth -= a;
+	} else if (playerHealth == a) {
+		KillPlayer();
+	} else if (playerHealth < a) {
+		KillPlayer();
+	}
+}
+
+void AUModCharacter::KillPlayer()
+{
+	if (Role != ROLE_Authority){
+		return;
+	}
+
+	playerHealth = 0;
+	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+	gm->OnPlayerDeath(this);
+	
+	PlayerModel->SetSimulatePhysics(true);	
+}
+
+uint32 AUModCharacter::GetHealth()
+{
+	return playerHealth;
+}
+
+uint32 AUModCharacter::GetMaxHealth()
+{
+	return playerMaxHealth;
+}
+
+
+void AUModCharacter::HealPlayer(int32 amount)
+{
+	if (Role != ROLE_Authority){
+		return;
+	}
+
+	uint32 a = (uint32)amount;
+
+	if (a > playerMaxHealth){
+		UE_LOG(UMod_Game, Error, TEXT("Tried to set health to more than max health : this is not allowed !"));
+		return;
+	}
+	playerHealth += a;
 }

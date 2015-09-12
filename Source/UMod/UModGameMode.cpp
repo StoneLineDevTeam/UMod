@@ -6,8 +6,7 @@
 #include "UModCharacter.h"
 #include "UModGameState.h"
 
-AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// set default pawn class to our Blueprinted character
 	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(TEXT("/Game/Internal/Blueprints/UModPlayer"));
@@ -19,4 +18,9 @@ AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer)
 	
 	// use our custom HUD class
 	HUDClass = AUModHUD::StaticClass();
+}
+
+void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
+{
+	//TODO : make something when player die
 }
