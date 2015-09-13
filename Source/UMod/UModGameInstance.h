@@ -17,4 +17,7 @@ class UMOD_API UUModGameInstance : public UGameInstance
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Log Message", Keywords = "ue_log log"), Category = UMod_Specific)
 		static void LogMessage(FString msg, uint8 level);
+
+	virtual void Init();
+	virtual void Shutdown();
 };

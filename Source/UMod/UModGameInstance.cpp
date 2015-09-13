@@ -15,3 +15,20 @@ void UUModGameInstance::LogMessage(FString msg, uint8 level)
 		break;
 	}
 }
+
+void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
+{
+
+}
+
+//Game startup
+void UUModGameInstance::Init()
+{
+	GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure);
+}
+
+//Game shutdown
+void UUModGameInstance::Shutdown()
+{
+
+}

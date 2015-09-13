@@ -24,3 +24,21 @@ void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
 {
 	//TODO : make something when player die
 }
+
+//Loggs in the player
+APlayerController *AUModGameMode::Login(class UPlayer *NewPlayer, ENetRole InRemoteRole, const FString & Portal, const FString & Options, const TSharedPtr< const FUniqueNetId > & UniqueId, FString & ErrorMessage)
+{
+	return Super::Login(NewPlayer, InRemoteRole, Portal, Options, UniqueId, ErrorMessage);
+}
+
+//Player disconnected (Server)
+void AUModGameMode::Logout(AController *ctrl)
+{
+
+}
+
+//Login Success
+void AUModGameMode::PostLogin(APlayerController *ctrl)
+{
+
+}
