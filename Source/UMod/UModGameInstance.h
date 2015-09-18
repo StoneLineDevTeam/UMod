@@ -37,11 +37,17 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Net Load Status", Keywords = "get net load status"), Category = UMod_Specific)
 		int32 GetNetLoadStatus();
-
+		
 	void SetLoadData(int32 total, int32 cur, int32 status);
-	void Disconnect(FString error);
 
-	bool JoinGame(FString ip, int port);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Disconnect Client", Keywords = "disconnect client"), Category = UMod_Specific)
+		void Disconnect(FString error);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Join Gale", Keywords = "game join"), Category = UMod_Specific)
+		bool JoinGame(FString ip, int32 port);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Return To MeniMenu", Keywords = "main menu return"), Category = UMod_Specific)
+		void ReturnToMainMenu();
 
 	virtual void Init();
 	virtual void Shutdown();

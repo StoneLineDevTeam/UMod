@@ -47,6 +47,7 @@ void UUModGameInstance::DestroyCurSession(IOnlineSessionPtr Sessions)
 	CurSessionName = TEXT("");
 
 	Sessions->EndSession(str);
+	Sessions->DestroySession(str);
 }
 
 bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString map, FString hostName)
@@ -116,7 +117,7 @@ bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString
 	return Sessions->CreateSession(*UserId, name, *SessionSettings);
 }
 
-bool UUModGameInstance::JoinGame(FString ip, int port)
+bool UUModGameInstance::JoinGame(FString ip, int32 port)
 {
 	IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 
@@ -291,4 +292,11 @@ int32 UUModGameInstance::GetCurLoadedObjectNum()
 int32 UUModGameInstance::GetNetLoadStatus()
 {
 	return status;
+}
+
+void UUModGameInstance::ReturnToMainMenu()
+{
+	netError = TEXT("");
+	ULocalPlayer* const Player = GetFirstGamePlayer();
+	Player->PlayerController->ClientTravel("MainMenu", ETravelType::TRAVEL_Absolute);
 }

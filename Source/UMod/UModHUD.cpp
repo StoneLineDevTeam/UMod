@@ -8,6 +8,8 @@
 
 #include "UModCharacter.h"
 
+#include "UModGameInstance.h"
+
 const uint8 TEXT_ALIGN_CENTER = 1;
 const uint8 TEXT_ALIGN_LEFT = 0;
 const uint8 TEXT_ALIGN_RIGHT = 2;
@@ -34,8 +36,8 @@ struct Button {
 };
 
 const Button* Buttons[16] = {
-	new Button(0, FString("Test Button")),
-	new Button(1, FString("Test Button 1"))
+	new Button(0, FString("Back to game")),
+	new Button(1, FString("Disconnect"))
 };
 
 AUModHUD::AUModHUD(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -102,9 +104,22 @@ bool IsMouseInRect(float msPosX, float msPosY, float x, float y, float w, float 
 
 bool IngameMenu = false;
 bool clickDown = false;
+bool escapeDown = false;
 void AUModHUD::OnButtonClick(uint8 id)
 {
-
+	APlayerController *ctrl = GetOwningPlayerController();
+	switch (id)	{
+	case 0:
+		IngameMenu = !IngameMenu;
+		ctrl->bShowMouseCursor = IngameMenu;
+		ctrl->SetIgnoreLookInput(IngameMenu);
+		ctrl->SetIgnoreMoveInput(IngameMenu);
+		escapeDown = false;
+		break;
+	case 1:		
+		UUModGameInstance *game = Cast<UUModGameInstance>(GetGameInstance());
+		game->Disconnect(FString("You disconnected !"));
+	}
 }
 void AUModHUD::DrawIngameMenu()
 {
@@ -136,7 +151,6 @@ void AUModHUD::DrawIngameMenu()
 		}
 	}
 }
-bool escapeDown = false;
 void AUModHUD::DrawHUD()
 {
 	Super::DrawHUD();
