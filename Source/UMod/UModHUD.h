@@ -19,10 +19,17 @@ public:
 
 	FVector2D ScreenSize();
 
+	//virtual void BeginDestroy();
+
 private:
 	/** Crosshair asset pointer */
 	class UTexture2D* CrosshairTex;
 
 	class UFont* HUDFont;
+
+	void DrawIngameMenu();
+
+	void OnButtonClick(uint8 id);
+	
 };
 

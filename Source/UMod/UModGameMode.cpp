@@ -34,11 +34,11 @@ APlayerController *AUModGameMode::Login(class UPlayer *NewPlayer, ENetRole InRem
 //Player disconnected (Server)
 void AUModGameMode::Logout(AController *ctrl)
 {
-
+	Super::Logout(ctrl);
 }
 
 //Login Success
 void AUModGameMode::PostLogin(APlayerController *ctrl)
 {
-
+	Super::PostLogin(ctrl);
 }

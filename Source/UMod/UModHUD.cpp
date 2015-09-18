@@ -12,6 +12,32 @@ const uint8 TEXT_ALIGN_CENTER = 1;
 const uint8 TEXT_ALIGN_LEFT = 0;
 const uint8 TEXT_ALIGN_RIGHT = 2;
 
+const FColor Back = FColor(50, 50, 50, 255);
+const FColor DarkGrey = FColor(0, 0, 0, 255);
+const FColor Black = FColor(0, 0, 0, 255);
+const FColor White = FColor(255, 255, 255, 255);
+const FColor Red = FColor(55, 0, 0, 255);
+const FColor Green = FColor(0, 255, 0, 255);
+const FColor Yellow = FColor(255, 255, 0, 255);
+const FColor AmmoCol = FColor(255, 180, 0, 255);
+
+//((void (*)(void)) ptr)();
+
+struct Button {	
+	FString text;
+	uint8 id;
+
+	Button(uint8 i, FString t) {		
+		text = t;
+		id = i;
+	}
+};
+
+const Button* Buttons[16] = {
+	new Button(0, FString("Test Button")),
+	new Button(1, FString("Test Button 1"))
+};
+
 AUModHUD::AUModHUD(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// Set the crosshair texture
@@ -64,6 +90,53 @@ FVector2D AUModHUD::ScreenSize()
 	return ScrSize;
 }
 
+bool IsMouseInRect(float msPosX, float msPosY, float x, float y, float w, float h)
+{
+	if (msPosX >= x && msPosX <= (x + w)) {
+		if (msPosY >= y && msPosY <= (y + h)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IngameMenu = false;
+bool clickDown = false;
+void AUModHUD::OnButtonClick(uint8 id)
+{
+
+}
+void AUModHUD::DrawIngameMenu()
+{
+	APlayerController *ctrl = GetOwningPlayerController();
+
+	FVector2D size = ScreenSize();
+
+	float msPosX;
+	float msPosY;
+
+	ctrl->GetMousePosition(msPosX, msPosY);
+	
+	DrawSimpleText("UMod - IngameMenu", size.X / 2, 100, 4, DarkGrey, TEXT_ALIGN_CENTER);
+	for (int i = 0; i < 16; i++) {
+		const Button* but = Buttons[i];
+		if (but != NULL) {
+			if (IsMouseInRect(msPosX, msPosY, size.X / 2 - 256, 200 + i * 70, 512, 64)) {
+				if (ctrl->IsInputKeyDown(EKeys::LeftMouseButton)) {
+					clickDown = true;
+				} else if (!ctrl->IsInputKeyDown(EKeys::LeftMouseButton) && clickDown) {
+					clickDown = false;
+					OnButtonClick(but->id);
+				}
+				DrawRect(size.X / 2 - 256, 200 + i * 70, 512, 64, FColor(200, 200, 200, 200));
+			} else {
+				DrawRect(size.X / 2 - 256, 200 + i * 70, 512, 64, FColor(133, 133, 133, 200));				
+			}			
+			DrawSimpleText(but->text, size.X / 2 - 256, 200 + i * 70 + 10, 4, White, TEXT_ALIGN_LEFT);
+		}
+	}
+}
+bool escapeDown = false;
 void AUModHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -83,10 +156,11 @@ void AUModHUD::DrawHUD()
 
 	FVector2D size = ScreenSize();
 	
-
 	AUModCharacter *localPlyCL = Cast<AUModCharacter>(GetOwningPawn());
+	APlayerController *ctrl = GetOwningPlayerController();
+
 	//DrawText(FString("Test"), FVector2D(0, 0), HUDFont, FVector2D()
-	if (localPlyCL == NULL || localPlyCL->PlayerState == NULL) {
+	if (localPlyCL == NULL || localPlyCL->PlayerState == NULL || ctrl == NULL) {
 		DrawSimpleText(FString("THIS CLIENT IS ERRORED"), 16, 16, 2, FColor(255, 0, 0),1);
 		return;
 	}
@@ -94,17 +168,8 @@ void AUModHUD::DrawHUD()
 	DrawSimpleText(FString("Playing as ") + txt, 16, 16, 2, FColor(255, 0, 0),1);
 	
 	//Health and Armor Box
-	//Colors
-	const FColor Back = FColor(50, 50, 50, 255);
-	const FColor DarkGrey = FColor(0, 0, 0, 255);
-	const FColor Black = FColor(0, 0, 0, 255);
-	const FColor White = FColor(255, 255, 255, 255);
-	const FColor Red = FColor(55, 0, 0, 255);
-	const FColor Green = FColor(0, 255, 0, 255);
-	const FColor Yellow = FColor(255, 255, 0, 255);
-	const FColor AmmoCol = FColor(255, 180, 0, 255);
-	//Variables
-	
+
+	//Variables	
 	uint32 Health = localPlyCL->GetHealth(); //Yeah I know, I could add that more quickly... @See UModCharacter.h for usefull functions : Now blueprint compatible ! Use "UMod Specific" category on blueprints to manage the player health or use C++.
 	uint32 MaxHealth = localPlyCL->GetMaxHealth(); //Yeah I know, I could add that more quickly... @See UModCharacter.h for usefull functions : Now blueprint compatible ! Use "UMod Specific" category on blueprints to manage the player health or use C++.
 	int Armor = 45; //Why !? There is no armor feature planned, if you want armor feature tell me.
@@ -148,4 +213,34 @@ void AUModHUD::DrawHUD()
 	DrawRect((size.X / 4.5 *3.5), (size.Y / 9 * 8) - 5 + AmmoSizeY/2, AmmoSizeX - 10, AmmoSizeY / 3, DarkGrey);
 	DrawRect((size.X / 4.5 *3.5), (size.Y / 9 * 8) - 5 + AmmoSizeY / 2, ((AmmoSizeX - 10) / 100) * AmmoPerc, AmmoSizeY / 3, AmmoCol);
 	DrawSimpleText(FString::FromInt(Ammo) + FString(" | ") + FString::FromInt(ReloadAmmo), size.X / 4.5 *3.5, (size.Y / 9 * 8) + AmmoSizeY / 2, 1.5, White, TEXT_ALIGN_LEFT);
+
+
+
+	//This code must rest at the end of this function !	
+	if (ctrl->IsInputKeyDown(EKeys::Escape)) {
+		escapeDown = true;
+	} else if (escapeDown && !ctrl->IsInputKeyDown(EKeys::Escape)) {
+		IngameMenu = !IngameMenu;
+		ctrl->bShowMouseCursor = IngameMenu;
+		ctrl->SetIgnoreLookInput(IngameMenu);
+		ctrl->SetIgnoreMoveInput(IngameMenu);
+		escapeDown = false;
+	}
+	if (IngameMenu) {
+		DrawIngameMenu();
+	}
 }
+
+/*void AUModHUD::BeginDestroy()
+{
+	for (int i = 0; i < 16; i++) {
+		const Button *but = Buttons[i];
+		if (but != NULL) {
+			delete but;
+		}
+	}
+	delete [] &Buttons;
+
+	delete CrosshairTex;
+	delete HUDFont;
+}*/

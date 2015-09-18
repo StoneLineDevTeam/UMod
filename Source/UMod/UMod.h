@@ -4,6 +4,8 @@
 #define __UMOD_H__
 
 #include "Engine.h"
+#include "UnrealNetwork.h"
+#include "Online.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Game, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);

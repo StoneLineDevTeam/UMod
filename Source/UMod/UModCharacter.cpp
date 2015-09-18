@@ -5,8 +5,6 @@
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"
 
-#include "UnrealNetwork.h"
-
 #include "UModGameMode.h"
 
 //////////////////////////////////////////////////////////////////////////
