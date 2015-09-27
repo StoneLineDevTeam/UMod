@@ -3,7 +3,11 @@
 #include "UMod.h"
 #include "UModGameInstance.h"
 
-#include "UModGameMode.h"
+#include "Game/UModGameMode.h"
+
+const FString GVersion = FString("0.1 - Alpha");
+const FString LuaVersion = FString("NULL");
+const FString LuaEngineVersion = FString("NULL");
 
 UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -24,6 +28,26 @@ void UUModGameInstance::LogMessage(FString msg, uint8 level)
 	}
 }
 
+FString UUModGameInstance::GetGameVersion()
+{
+	return GVersion;
+}
+
+FString UUModGameInstance::GetEngineVersion()
+{
+	int32 vers = GEngine->GetLinkerUE4Version();
+
+	return FString::FromInt(vers);
+}
+
+FLuaEngineVersion UUModGameInstance::GetLuaEngineVersion()
+{
+	FLuaEngineVersion l = FLuaEngineVersion();	
+	l.LuaVersion = LuaVersion;
+	l.LuaEngineVersion = LuaEngineVersion;
+	return l;
+}
+
 void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
 
@@ -32,7 +56,16 @@ void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type f
 //Game startup
 void UUModGameInstance::Init()
 {
-	//GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure);	
+	int32 vers = GEngine->GetLinkerUE4Version();
+	
+	FString lua = FString("LuaEngine V.") + LuaEngineVersion + FString(" | Lua V.") + LuaVersion;
+
+	UE_LOG(UMod_Game, Log, TEXT("UMod - V.%s | Engine V.%s"), *GetGameVersion(), *FString::FromInt(vers));
+	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
+
+	//GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure);
+	//Found a way to set port !
+	GConfig->SetInt(TEXT("URL"), TEXT("Port"), 25565, GEngineIni);
 }
 
 //Game shutdown
@@ -139,7 +172,7 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 	}
 
 	ULocalPlayer* const Player = GetFirstGamePlayer();
-	FString str = ip;
+	FString str = ip + FString(":");	
 	str.AppendInt(port);
 	ConnectIP = str;
 

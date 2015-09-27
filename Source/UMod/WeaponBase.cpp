@@ -3,20 +3,41 @@
 #include "UMod.h"
 #include "WeaponBase.h"
 
+#include "Player/UModCharacter.h"
+
 
 // Sets default values
 AWeaponBase::AWeaponBase()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	ViewModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ViewModel"));
+	WorldModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldModel"));
+
+	if (!this->GetModel().IsEmpty()) {
+		FString vMdlPath = FString("/Game/Content/Models/Weapons/V_") + this->GetModel();
+		FString wMdlPath = FString("/Game/Content/Models/Weapons/W_") + this->GetModel();
+		UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
+		UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
+
+		ViewModel->SetStaticMesh(vMesh);
+		ViewModel->SetOnlyOwnerSee(true);
+
+		WorldModel->SetStaticMesh(wMesh);
+		WorldModel->SetOwnerNoSee(true);
+	}
+
+	ViewModel->SetVisibility(false, true);
+	WorldModel->SetVisibility(false, true);
+
+	bReplicates = 1;
 }
 
 // Called when the game starts or when spawned
 void AWeaponBase::BeginPlay()
 {
-	Super::BeginPlay();	
-
-	this->OnInit();
+	Super::BeginPlay();		
 }
 
 // Called every frame
@@ -28,33 +49,66 @@ void AWeaponBase::Tick(float DeltaTime)
 }
 
 void AWeaponBase::DoInit(AUModCharacter *ply)
-{
+{	
 	player = ply;
+	SetActorLocation(ply->GetActorLocation() + GetGunOffset());
+	AttachRootComponentToActor(ply);	
+
+	this->OnInit();
+		
+	WorldModel->AttachTo(ply->PlayerModel, "R_Middle_A", EAttachLocation::SnapToTarget);
 }
 
-void AWeaponBase::OnPlayerFire(uint8 but)
+void AWeaponBase::Equip()
 {
+	WorldModel->SetVisibility(true, true);
+	ViewModel->SetVisibility(true, true);
+}
+
+void AWeaponBase::UnEquip()
+{
+	ViewModel->SetVisibility(false, true);
+	WorldModel->SetVisibility(false, true);
+}
+
+void AWeaponBase::OnPlayerFire(uint8 but, AWeaponBase::EFireState state)
+{
+	if (player == NULL) {
+		return;
+	}
+
+	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, this);
+	RV_TraceParams.AddIgnoredActor(player);
+	RV_TraceParams.bTraceComplex = true;
+	RV_TraceParams.bTraceAsyncScene = true;
+	RV_TraceParams.bReturnPhysicalMaterial = false;
+
+	FHitResult result(ForceInit);
+	FVector p = player->GetEyeLocation();
+	FVector rot = player->GetEyeAngles().Vector();
+	bool hit = GetWorld()->LineTraceSingleByChannel(result,	p, p + (rot * 2000), ECC_Pawn, RV_TraceParams);
+	
 	//Using this wrapping function in case we want to add code before / after fire (like animation)
 	if (but == 0) {
-		this->OnPrimaryFire();
+		this->OnPrimaryFire(state, hit, result);
 	} else if (but == 1) {
-		this->OnSecondaryFire();
+		this->OnSecondaryFire(state, hit, result);
 	} else if (but == 2) {
-		this->OnReload();
+		this->OnReload(hit, result);
 	}
 }
 
-void AWeaponBase::OnPrimaryFire()
+void AWeaponBase::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit, FHitResult traceResult)
 {
 
 }
 
-void AWeaponBase::OnSecondaryFire()
+void AWeaponBase::OnSecondaryFire(AWeaponBase::EFireState state, bool traceHit, FHitResult traceResult)
 {
 
 }
 
-void AWeaponBase::OnReload()
+void AWeaponBase::OnReload(bool traceHit, FHitResult traceResult)
 {
 
 }
@@ -69,17 +123,32 @@ void AWeaponBase::OnTick()
 
 }
 
+AWeaponBase::EFireType AWeaponBase::GetPrimaryFireType()
+{
+	return AWeaponBase::EFireType::SIMPLE;
+}
+
+AWeaponBase::EFireType AWeaponBase::GetSecondaryFireType()
+{
+	return AWeaponBase::EFireType::SIMPLE;
+}
+
+FString AWeaponBase::GetNiceName()
+{
+	return TEXT("ERROR");
+}
+
+FVector AWeaponBase::GetGunOffset()
+{
+	return FVector(100.0f, 30.0f, 10.0f);
+}
+
 FString AWeaponBase::GetClass()
 {
 	return TEXT("weapon_null");
 }
 
-FString AWeaponBase::GetWorldModel()
-{
-	return TEXT("null");
-}
-
-FString AWeaponBase::GetViewModel()
+FString AWeaponBase::GetModel()
 {
 	return TEXT("null");
 }

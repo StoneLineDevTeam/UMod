@@ -13,7 +13,21 @@ class UMOD_API AWeaponBase : public AActor
 {
 	GENERATED_BODY()
 	
+	class UStaticMeshComponent* ViewModel;
+	class UStaticMeshComponent* WorldModel;
 public:
+
+	enum EFireType {
+		CONTINUES,
+		SIMPLE
+	};
+
+	enum EFireState {
+		STARTED,
+		FIRING,
+		ENDED
+	};
+
 	// Sets default values for this actor's properties
 	AWeaponBase();
 	
@@ -24,19 +38,25 @@ public:
 	virtual void BeginPlay() override;
 	
 	// Called every frame
-	virtual void Tick( float DeltaSeconds ) override;
+	virtual void Tick(float DeltaSeconds) override;
 	
-	virtual void OnPlayerFire(uint8 but);
+	void OnPlayerFire(uint8 but, EFireState state);
+		
+	virtual void OnPrimaryFire(EFireState state, bool traceHit, FHitResult traceResult);
+	virtual void OnSecondaryFire(EFireState state, bool traceHit, FHitResult traceResult);
+	virtual void OnReload(bool traceHit, FHitResult traceResult);
+	virtual void OnTick();
+	virtual void OnInit();
+	virtual FVector GetGunOffset();
+	virtual FString GetClass();
+	virtual FString GetNiceName();
+	virtual FString GetModel();
+	virtual EFireType GetPrimaryFireType();
+	virtual EFireType GetSecondaryFireType();
 
-	virtual void DoInit(AUModCharacter *ply);
-	
-	void OnPrimaryFire();
-	void OnSecondaryFire();
-	void OnReload();
-	void OnTick();
-	void OnInit();
-	FString GetClass();
-	FString GetName();	
-	FString GetWorldModel();
-	FString GetViewModel();
+	/* Internal methods don't call them */
+	void DoInit(AUModCharacter *ply);
+	void Equip();
+	void UnEquip();
+	/* End */	
 };

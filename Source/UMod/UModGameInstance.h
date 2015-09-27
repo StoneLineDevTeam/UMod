@@ -5,6 +5,20 @@
 #include "Engine/GameInstance.h"
 #include "UModGameInstance.generated.h"
 
+USTRUCT(BlueprintType)
+struct FLuaEngineVersion {
+	GENERATED_USTRUCT_BODY()
+
+	FLuaEngineVersion()
+	{
+	}
+
+	UPROPERTY()
+	FString LuaVersion;
+
+	UPROPERTY()
+	FString LuaEngineVersion;
+};
 
 /**
  * 
@@ -43,11 +57,20 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Disconnect Client", Keywords = "disconnect client"), Category = UMod_Specific)
 		void Disconnect(FString error);
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Join Gale", Keywords = "game join"), Category = UMod_Specific)
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Join Game", Keywords = "game join"), Category = UMod_Specific)
 		bool JoinGame(FString ip, int32 port);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Return To MeniMenu", Keywords = "main menu return"), Category = UMod_Specific)
 		void ReturnToMainMenu();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Version", Keywords = "game version get"), Category = UMod_Specific)
+		static FString GetGameVersion();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Engine Version", Keywords = "engine version get"), Category = UMod_Specific)
+		static FString GetEngineVersion();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get LuaEngine Version", Keywords = "lua engine version get"), Category = UMod_Specific)
+		static FLuaEngineVersion GetLuaEngineVersion();
 
 	virtual void Init();
 	virtual void Shutdown();

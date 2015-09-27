@@ -9,6 +9,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Game, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(UMod_Input, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(UMod_Lua, Log, All);
 
 template <typename ObjClass>
 static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)

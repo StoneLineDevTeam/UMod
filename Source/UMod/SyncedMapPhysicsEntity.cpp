@@ -11,15 +11,34 @@ ASyncedMapPhysicsEntity::ASyncedMapPhysicsEntity()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	EntityModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EntityModel"));
+	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(TEXT("/Game/Models/RoundedCube"));
+	EntityModel->SetStaticMesh(model);
+
+	SetRootComponent(EntityModel);
+
+	EntityModel->SetMobility(EComponentMobility::Movable);
+
+	bReplicates = true;
+
+	if (Role == ROLE_Authority) {
+		EntityModel->SetSimulatePhysics(true);		
+	} else {
+		DisableComponentsSimulatePhysics();
+		EntityModel->SetSimulatePhysics(false);
+	}
+
+	EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
 // Called when the game starts or when spawned
 void ASyncedMapPhysicsEntity::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	if (Role != ROLE_Authority) {
-		DisableComponentsSimulatePhysics();
+
+	if (Role == ROLE_Authority) {
+		EntityModel->WakeRigidBody();
 	}
 }
 

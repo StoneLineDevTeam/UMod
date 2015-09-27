@@ -10,6 +10,8 @@ class UMOD_API ASyncedMapPhysicsEntity : public AActor
 {
 	GENERATED_BODY()
 	
+	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
+		class UStaticMeshComponent *EntityModel;
 public:	
 	// Sets default values for this actor's properties
 	ASyncedMapPhysicsEntity();

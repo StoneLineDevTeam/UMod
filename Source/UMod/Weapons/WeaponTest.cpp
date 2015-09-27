@@ -2,53 +2,53 @@
 
 #include "UMod.h"
 #include "WeaponTest.h"
-#include "UModCharacter.h"
+#include "Player/UModCharacter.h"
 
-
-void AWeaponTest::OnPrimaryFire()
+void EnableGravityOnActor(AActor *act, bool enable)
 {
-	UE_LOG(UMod_Game, Warning, TEXT("You fired with weapon_test !"));
+	TArray<UStaticMeshComponent*> comps;
+	act->GetComponents<UStaticMeshComponent>(comps);
 
-	/* Will switch that in a test weapon when done the attachement system and network system
-	// try and fire a projectile
-	if (ProjectileClass != NULL)
-	{
-	const FRotator SpawnRotation = GetControlRotation();
-	// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-	const FVector SpawnLocation = GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
-
-	UWorld* const World = GetWorld();
-	if (World != NULL)
-	{
-	// spawn the projectile at the muzzle
-	World->SpawnActor<AUModProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
+	for (int i = 0; i < comps.Num(); i++) {
+		UStaticMeshComponent *c = comps[i];
+		c->SetSimulatePhysics(enable);
 	}
-	}
-
-	// try and play the sound if specified
-	if (FireSound != NULL)
-	{
-	UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-	}
-
-	// try and play a firing animation if specified
-	if(FireAnimation != NULL)
-	{
-	// Get the animation object for the arms mesh
-	UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-	if(AnimInstance != NULL)
-	{
-	AnimInstance->Montage_Play(FireAnimation, 1.f);
-	}
-	}*/
 }
 
-void AWeaponTest::OnSecondaryFire()
+void AWeaponTest::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit, FHitResult traceResult)
+{
+	if (state == AWeaponBase::EFireState::ENDED && PickedUp != NULL) {
+		UE_LOG(UMod_Game, Warning, TEXT("You stopped to fire with weapon_test !"));
+		EnableGravityOnActor(PickedUp, true);
+		PickedUp = NULL;
+		OffsetPos = FVector(0, 0, 0);
+		ObjectDistance = 100;
+		return;
+	}
+
+	if (state == AWeaponBase::EFireState::STARTED && traceHit) {
+		UE_LOG(UMod_Game, Warning, TEXT("You started to fire with weapon_test !"));
+		AActor *act = traceResult.GetActor();
+		PickedUp = act;
+		EnableGravityOnActor(PickedUp, false);
+		OffsetPos = player->PlayerCamera->GetComponentLocation() - act->GetActorLocation();
+		ObjectDistance = FVector::Dist(player->GetEyeLocation(), act->GetActorLocation());
+	}
+
+	if (state == AWeaponBase::EFireState::FIRING && PickedUp != NULL) {
+		FRotator rot = PickedUp->GetActorRotation();
+		FVector pos = player->GetEyeLocation() + (player->GetEyeAngles().Vector() * ObjectDistance);
+		PickedUp->SetActorLocation(pos);
+		PickedUp->SetActorRotation(rot);
+	}
+}
+
+void AWeaponTest::OnSecondaryFire(AWeaponBase::EFireState state, bool traceHit, FHitResult traceResult)
 {
 
 }
 
-void AWeaponTest::OnReload()
+void AWeaponTest::OnReload(bool traceHit, FHitResult traceResult)
 {
 
 }
@@ -68,21 +68,22 @@ FString AWeaponTest::GetClass()
 	return TEXT("weapon_test");
 }
 
-FString AWeaponTest::GetName()
+FString AWeaponTest::GetNiceName()
 {
 	return TEXT("Test Weapon");
 }
 
-FString AWeaponTest::GetWorldModel()
+FString AWeaponTest::GetModel()
 {
-	return TEXT("null");
+	return TEXT("PhysicsGun");
 }
 
-FString AWeaponTest::GetViewModel()
+AWeaponBase::EFireType AWeaponTest::GetPrimaryFireType()
 {
-	return TEXT("null");
+	return AWeaponBase::EFireType::CONTINUES;
 }
 
-
-
-
+AWeaponBase::EFireType AWeaponTest::GetSecondaryFireType()
+{
+	return AWeaponBase::EFireType::SIMPLE;
+}

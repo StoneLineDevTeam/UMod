@@ -15,13 +15,20 @@ class UMOD_API AWeaponTest : public AWeaponBase
 	
 	
 public:
-	virtual void OnPrimaryFire();
-	virtual void OnSecondaryFire();
-	virtual void OnReload();
+	virtual void OnPrimaryFire(EFireState state, bool traceHit, FHitResult traceResult);
+	virtual void OnSecondaryFire(EFireState state, bool traceHit, FHitResult traceResult);
+	virtual void OnReload(bool traceHit, FHitResult traceResult);
 	virtual void OnTick();
 	virtual void OnInit();
 	virtual FString GetClass();
-	virtual FString GetName();
-	virtual FString GetWorldModel();
-	virtual FString GetViewModel();	
+	virtual FString GetNiceName();
+	virtual FString GetModel();	
+	virtual EFireType GetPrimaryFireType();
+	virtual EFireType GetSecondaryFireType();
+
+private:
+	AActor *PickedUp = NULL;
+	FVector OffsetPos;	
+
+	float ObjectDistance = 100;
 };
