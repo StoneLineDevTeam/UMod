@@ -31,9 +31,7 @@ void BindKeyFromConfigIfExists(FString category, FString name, FKey &key)
 
 void AUModController::InitInputSystem()
 {
-	if (PlayerInput == NULL) {
-		PlayerInput = NewObject<UPlayerInput>(this);		
-	}
+	Super::InitInputSystem();
 	
 	FKey moveForwardKey = EKeys::Z;
 	FKey moveBackwardKey = EKeys::S;

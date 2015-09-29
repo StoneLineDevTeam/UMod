@@ -5,7 +5,7 @@
 
 #include "Game/UModGameMode.h"
 
-const FString GVersion = FString("0.1 - Alpha");
+const FString GVersion = FString("0.2 - Alpha");
 const FString LuaVersion = FString("NULL");
 const FString LuaEngineVersion = FString("NULL");
 
@@ -48,9 +48,22 @@ FLuaEngineVersion UUModGameInstance::GetLuaEngineVersion()
 	return l;
 }
 
-void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
+void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
+	FString err = ErrorMessage;
+	Disconnect(err);	
+}
 
+void OnNetworkFailure1(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
+{
+	
+}
+
+bool mustDisplayMainMenu = false;
+void UUModGameInstance::InitializeStandalone()
+{	
+	mustDisplayMainMenu = true;
+	GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure1);
 }
 
 //Game startup
@@ -62,10 +75,9 @@ void UUModGameInstance::Init()
 
 	UE_LOG(UMod_Game, Log, TEXT("UMod - V.%s | Engine V.%s"), *GetGameVersion(), *FString::FromInt(vers));
 	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
-
-	//GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure);
+	
 	//Found a way to set port !
-	GConfig->SetInt(TEXT("URL"), TEXT("Port"), 25565, GEngineIni);
+	GConfig->SetInt(TEXT("URL"), TEXT("Port"), 25565, GEngineIni);	
 }
 
 //Game shutdown
@@ -180,7 +192,7 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 
 	DelayedServerConnect = true;
 
-	return false;
+	return true;
 }
 
 void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -226,7 +238,18 @@ void UUModGameInstance::OnStartOnlineGameComplete(FName SessionName, bool bWasSu
 
 uint32 ticks = 0;
 void UUModGameInstance::Tick(float DeltaTime)
-{	
+{
+	if (mustDisplayMainMenu) {
+		FString MapPackageLongName = GetWorld()->GetCurrentLevel()->GetOutermost()->GetName();
+		FString MapPackageShortName = FPackageName::GetShortName(MapPackageLongName);
+		if (MapPackageShortName != FString("MainMenu")) {
+			ULocalPlayer* const Player = GetFirstGamePlayer();
+			Player->PlayerController->ClientTravel("MainMenu", ETravelType::TRAVEL_Absolute);
+		} else {
+			mustDisplayMainMenu = false;
+		}
+	}
+
 	if (DelayedRunMap) {
 		ticks++;
 		if (ticks >= 5) {
@@ -249,10 +272,11 @@ void UUModGameInstance::Tick(float DeltaTime)
 			ULocalPlayer* const Player = GetFirstGamePlayer();
 			Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
 			ticks = 0;
+			DelayedServerConnect = false;
 		}
 	}
 
-	if (!CurSessionName.IsEmpty()) {
+	/*if (!CurSessionName.IsEmpty()) {
 		IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 		IOnlineSessionPtr Sessions = NULL;
 		if (OnlineSub == NULL) {
@@ -267,7 +291,7 @@ void UUModGameInstance::Tick(float DeltaTime)
 		if (state == EOnlineSessionState::Ended) {
 			Disconnect(FString("Lost Connection..."));
 		}
-	}
+	}*/
 }
 
 bool UUModGameInstance::IsTickable() const

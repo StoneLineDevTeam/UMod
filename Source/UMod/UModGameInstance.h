@@ -75,6 +75,8 @@ public:
 	virtual void Init();
 	virtual void Shutdown();
 
+	virtual void InitializeStandalone();
+
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
 	void OnStartOnlineGameComplete(FName SessionName, bool bWasSuccessful);
 
@@ -89,6 +91,8 @@ private:
 	bool DelayedServerConnect;
 
 	void DestroyCurSession(IOnlineSessionPtr Sessions);
+
+	void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage);
 
 	FOnCreateSessionCompleteDelegate OnCreateSessionCompleteDelegate;
 	FOnStartSessionCompleteDelegate OnStartSessionCompleteDelegate;
