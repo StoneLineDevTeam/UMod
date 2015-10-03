@@ -29,6 +29,26 @@ void BindKeyFromConfigIfExists(FString category, FString name, FKey &key)
 	}
 }
 
+/**
+ * Console system destroyer (will replace by my own implementation for Lua)
+ * Note to Epic : Do you know that making horrible black windows is realy easy ? I can make one in a few seconds ! A real window in an ingame menu for the console would have been much better (See GMod for more) !
+ */
+FString AUModController::ConsoleCommand(const FString& Cmd, bool bWriteToLog) //Make commands doing nothing
+{
+	return FString(); //No.
+}
+void AUModController::ConsoleKey(FKey Key) //Just to assure that console commannds would never be working again
+{
+	//Seriously I said No console
+}
+void AUModController::SendToConsole(const FString& Command) //Be sure nobody finds a workarroud
+{
+	//Realy I don't want any console
+}
+/**
+ * End
+ */
+
 void AUModController::InitInputSystem()
 {
 	Super::InitInputSystem();

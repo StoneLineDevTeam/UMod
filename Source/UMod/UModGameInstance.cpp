@@ -3,9 +3,14 @@
 #include "UMod.h"
 #include "UModGameInstance.h"
 
-#include "Game/UModGameMode.h"
+#include "Player/UModPlayerState.h"
 
-const FString GVersion = FString("0.2 - Alpha");
+#include "Game/UModGameMode.h"
+#include "Game/MenuGameMode.h"
+
+#include "ConsoleDestroyer.h"
+
+const FString GVersion = FString("0.3 - Alpha");
 const FString LuaVersion = FString("NULL");
 const FString LuaEngineVersion = FString("NULL");
 
@@ -50,20 +55,49 @@ FLuaEngineVersion UUModGameInstance::GetLuaEngineVersion()
 
 void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
+	UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
+
 	FString err = ErrorMessage;
 	Disconnect(err);	
 }
 
-void OnNetworkFailure1(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
+void UUModGameInstance::OnTravelFailure(UWorld *world, ETravelFailure::Type type, const FString &ErrorMessage)
 {
-	
+	UE_LOG(UMod_Game, Error, TEXT("Travel error occured !"));
+
+	FString err = ErrorMessage;
+	Disconnect(err);
 }
 
-bool mustDisplayMainMenu = false;
 void UUModGameInstance::InitializeStandalone()
 {	
-	mustDisplayMainMenu = true;
-	GEngine->NetworkFailureEvent.AddStatic(OnNetworkFailure1);
+}
+
+TArray<FUModMap> UUModGameInstance::GetAllMapNames()
+{
+	UObjectLibrary *ObjectLibrary = UObjectLibrary::CreateLibrary(UWorld::StaticClass(), false, true);
+	ObjectLibrary->LoadAssetDataFromPath(TEXT("/Game/Maps"));
+	TArray<FAssetData> AssetDatas;
+	ObjectLibrary->GetAssetDataList(AssetDatas);	
+
+	TArray<FUModMap> Maps = TArray<FUModMap>();
+
+	for (int32 i = 0; i < AssetDatas.Num(); ++i)
+	{
+		FAssetData& AssetData = AssetDatas[i];
+
+		FString name = AssetData.AssetName.ToString();
+		FString path = AssetData.ObjectPath.ToString();
+		path = path.Replace(TEXT("/Game/Maps/"), TEXT(""));		
+		FString cat = AssetData.PackageName.ToString();
+		cat = cat.Replace(TEXT("/Game/"), TEXT(""));
+		cat = cat.Replace(TEXT("/"), TEXT(""));
+
+		FUModMap map = FUModMap(path, name, cat);
+
+		Maps.Add(map);
+	}
+	return Maps;
 }
 
 //Game startup
@@ -75,9 +109,28 @@ void UUModGameInstance::Init()
 
 	UE_LOG(UMod_Game, Log, TEXT("UMod - V.%s | Engine V.%s"), *GetGameVersion(), *FString::FromInt(vers));
 	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
-	
+
+	GEngine->ConsoleClass = UConsoleDestroyer::StaticClass();
+
+	GEngine->NetworkFailureEvent.AddUObject(this, &UUModGameInstance::OnNetworkFailure);
+	GEngine->TravelFailureEvent.AddUObject(this, &UUModGameInstance::OnTravelFailure);
+
+
 	//Found a way to set port !
-	GConfig->SetInt(TEXT("URL"), TEXT("Port"), 25565, GEngineIni);	
+	int32 ServerPort = 0;
+	FString MapToLoad;
+	GConfig->GetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	if (ServerPort == 0) {
+		ServerPort = 25565;
+		GConfig->SetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+	if (MapToLoad.IsEmpty()) {
+		MapToLoad = FString("FirstPersonExampleMap");
+		GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+		
+	GConfig->SetInt(TEXT("URL"), TEXT("Port"), ServerPort, GEngineIni);
 }
 
 //Game shutdown
@@ -99,7 +152,7 @@ bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString
 {
 	ULocalPlayer* const Player = GetFirstGamePlayer();
 
-	Player->PlayerController->ClientTravel("LoadScreen", ETravelType::TRAVEL_Absolute);
+	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
 	
 	TSharedPtr<const FUniqueNetId> UserId = Player->GetPreferredUniqueNetId();
 
@@ -153,13 +206,36 @@ bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString
 
 	OnCreateSessionCompleteDelegateHandle = Sessions->AddOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegate);
 
-	CurSessionMapName = map;
+	CurSessionMapName = FString("/Game/Maps/") + map;
 
 	FName name = FName(*hostName);
 
 	CurSessionName = hostName;
 
 	return Sessions->CreateSession(*UserId, name, *SessionSettings);
+}
+
+FString ResolveIP(FString dns, FString &ResolvedIP)
+{
+	ISocketSubsystem* var = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	ANSICHAR *t = TCHAR_TO_ANSI(*dns);
+	FResolveInfo *inf = var->GetHostByName(t);
+	while (!inf->IsComplete());
+
+	if (inf->GetErrorCode() != 0) {
+		ResolvedIP = FString("");
+		return FString("ERROR_RESOLVE_FAILURE");
+	}
+
+	const FInternetAddr *addr = &inf->GetResolvedAddress();
+	uint32 ip;
+	addr->GetIp(ip);
+
+	FString res = FString::Printf(TEXT("%d.%d.%d.%d"), 0xff & (ip >> 24), 0xff & (ip >> 16), 0xff & (ip >> 8), 0xff & ip);
+
+	ResolvedIP = res;
+
+	return FString("");
 }
 
 bool UUModGameInstance::JoinGame(FString ip, int32 port)
@@ -184,15 +260,31 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 	}
 
 	ULocalPlayer* const Player = GetFirstGamePlayer();
-	FString str = ip + FString(":");	
-	str.AppendInt(port);
-	ConnectIP = str;
 
-	Player->PlayerController->ClientTravel("LoadScreen", ETravelType::TRAVEL_Absolute);
+	//Run first checks
+	if (Player->GetWorld() != NULL) {
+		FString WorkedIP;
+		FString Error = ResolveIP(ip, WorkedIP); //Resolve the IP address the user entered
 
-	DelayedServerConnect = true;
+		UE_LOG(UMod_Game, Warning, TEXT("IP Resolver result is : %s"), *WorkedIP);
+		if (Error.IsEmpty()) { //Ok we can connect (IP is valid)
+			FString str = WorkedIP + FString(":");
+			str.AppendInt(port);
+			ConnectIP = str;
 
-	return true;
+			Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
+			
+			DelayedServerConnect = true;
+			return true;
+		} else { //Don't connect : IP is not valid
+			Disconnect(Error);
+			return false;
+		}
+	} else { //Here would be a realy strange error
+		Disconnect("ERROR_NULL_POINTER");
+		return false;
+	}
+	//End
 }
 
 void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -211,6 +303,8 @@ void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSucc
 				OnStartSessionCompleteDelegateHandle = Sessions->AddOnStartSessionCompleteDelegate_Handle(OnStartSessionCompleteDelegate);
 
 				Sessions->StartSession(SessionName);
+			} else {
+				Disconnect("Unable to create session : OnCreateSessionComplete.bWasSuccessful is false !");
 			}
 		}
 	}
@@ -233,23 +327,24 @@ void UUModGameInstance::OnStartOnlineGameComplete(FName SessionName, bool bWasSu
 	if (bWasSuccessful)
 	{
 		DelayedRunMap = true;
-	}	
+	} else {
+		Disconnect("Unable to start session : OnStartOnlineGameComplete.bWasSuccessful is false !");
+	}
+}
+
+/**
+ * This function is intended to prevent user connecting to itself (yes indeed UE4 loves to connect to maps that are internal)
+ * Note : Epic Games seriously you realy should think of making a better network system. I like your Engine I find realy usefull for easy rendering/physics but again please FIIIIIXXXXX network !
+ * PS : I'm realy tired to have to come behind fixing your network issues ! Anyways I still find your Engine better than Unity (obviously Unity has a much more broken network so...)
+ */
+void CreateNetworkHackerActor()
+{
+
 }
 
 uint32 ticks = 0;
 void UUModGameInstance::Tick(float DeltaTime)
-{
-	if (mustDisplayMainMenu) {
-		FString MapPackageLongName = GetWorld()->GetCurrentLevel()->GetOutermost()->GetName();
-		FString MapPackageShortName = FPackageName::GetShortName(MapPackageLongName);
-		if (MapPackageShortName != FString("MainMenu")) {
-			ULocalPlayer* const Player = GetFirstGamePlayer();
-			Player->PlayerController->ClientTravel("MainMenu", ETravelType::TRAVEL_Absolute);
-		} else {
-			mustDisplayMainMenu = false;
-		}
-	}
-
+{	
 	if (DelayedRunMap) {
 		ticks++;
 		if (ticks >= 5) {
@@ -270,8 +365,16 @@ void UUModGameInstance::Tick(float DeltaTime)
 		ticks++;
 		if (ticks >= 5) {
 			ULocalPlayer* const Player = GetFirstGamePlayer();
+						
 			Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
-			ticks = 0;
+			AUModPlayerState *state = Cast<AUModPlayerState>(Player->PlayerController->PlayerState);
+			if (state == NULL) {
+				Disconnect(FString("An unexpected error has occured."));
+				return;
+			}
+			state->InitPlayerConnection(256);
+			
+			ticks = 0;			
 			DelayedServerConnect = false;
 		}
 	}
@@ -310,6 +413,19 @@ int32 total;
 int32 status;
 void UUModGameInstance::Disconnect(FString error)
 {
+	if (!ConnectIP.IsEmpty()) {
+		ULocalPlayer * const ply = GetFirstGamePlayer();
+		if (ply->GetWorld() != NULL && ply->GetWorld()->GetNetDriver() != NULL) {
+			ply->GetWorld()->GetNetDriver()->Shutdown();
+		}
+		ConnectIP = "";
+
+		netError = error;
+		ULocalPlayer* const Player = GetFirstGamePlayer();
+		Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
+		return;
+	}
+
 	IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 	IOnlineSessionPtr Sessions = NULL;
 	if (OnlineSub == NULL) {
@@ -320,13 +436,12 @@ void UUModGameInstance::Disconnect(FString error)
 		return;
 	}
 	if (!CurSessionName.IsEmpty()) {
-		DestroyCurSession(Sessions);		
+		DestroyCurSession(Sessions);
 	}	
 
 	netError = error;
-
-	ULocalPlayer* const Player = GetFirstGamePlayer();
-	Player->PlayerController->ClientTravel("LoadScreen", ETravelType::TRAVEL_Absolute);
+	ULocalPlayer* const Player = GetFirstGamePlayer();	
+	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
 }
 void UUModGameInstance::SetLoadData(int32 total1, int32 cur1, int32 status1)
 {
@@ -355,5 +470,5 @@ void UUModGameInstance::ReturnToMainMenu()
 {
 	netError = TEXT("");
 	ULocalPlayer* const Player = GetFirstGamePlayer();
-	Player->PlayerController->ClientTravel("MainMenu", ETravelType::TRAVEL_Absolute);
+	Player->PlayerController->ClientTravel("MainMenu?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
 }

@@ -5,6 +5,7 @@
 #include "UModHUD.h"
 #include "Player/UModCharacter.h"
 #include "Player/UModController.h"
+#include "Player/UModPlayerState.h"
 #include "Game/UModGameState.h"
 
 #include "Weapons/WeaponTest.h"
@@ -23,6 +24,8 @@ AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer) : Supe
 	
 	// use our custom HUD class
 	HUDClass = AUModHUD::StaticClass();
+
+	PlayerStateClass = AUModPlayerState::StaticClass();
 }
 
 void AUModGameMode::OnPlayerDeath(AUModCharacter* player)

@@ -28,7 +28,7 @@ public:
 
 private:
 	AActor *PickedUp = NULL;
-	FVector OffsetPos;	
-
+	FVector OffsetPos;
+	
 	float ObjectDistance = 100;
 };

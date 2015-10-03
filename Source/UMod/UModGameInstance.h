@@ -13,11 +13,36 @@ struct FLuaEngineVersion {
 	{
 	}
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FString LuaVersion;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FString LuaEngineVersion;
+};
+
+USTRUCT(BlueprintType)
+struct FUModMap {
+	GENERATED_USTRUCT_BODY()
+
+	FUModMap()
+	{
+	}
+
+	FUModMap(FString a, FString b, FString c)
+	{
+		Path = a;
+		NiceName = b;
+		Category = c;
+	}
+
+	UPROPERTY(BlueprintReadOnly)
+	FString Path;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString NiceName;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString Category;
 };
 
 /**
@@ -72,6 +97,9 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get LuaEngine Version", Keywords = "lua engine version get"), Category = UMod_Specific)
 		static FLuaEngineVersion GetLuaEngineVersion();
 
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Map List", Keywords = "map list get"), Category = UMod_Specific)
+		TArray<FUModMap> GetAllMapNames();
+
 	virtual void Init();
 	virtual void Shutdown();
 
@@ -93,6 +121,8 @@ private:
 	void DestroyCurSession(IOnlineSessionPtr Sessions);
 
 	void OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage);
+
+	void OnTravelFailure(UWorld *world, ETravelFailure::Type type, const FString &ErrorMessage);
 
 	FOnCreateSessionCompleteDelegate OnCreateSessionCompleteDelegate;
 	FOnStartSessionCompleteDelegate OnStartSessionCompleteDelegate;

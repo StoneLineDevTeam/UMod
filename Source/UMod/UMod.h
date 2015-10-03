@@ -4,8 +4,20 @@
 #define __UMOD_H__
 
 #include "Engine.h"
+
+//NET
 #include "UnrealNetwork.h"
 #include "Online.h"
+#include "Networking.h"
+#include "Sockets.h"
+#include "SocketSubsystem.h"
+
+//UMG
+#include "Runtime/UMG/Public/UMG.h"
+#include "Runtime/UMG/Public/UMGStyle.h"
+#include "Runtime/UMG/Public/Slate/SObjectWidget.h"
+#include "Runtime/UMG/Public/IUMGModule.h"
+#include "Runtime/UMG/Public/Blueprint/UserWidget.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Game, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);

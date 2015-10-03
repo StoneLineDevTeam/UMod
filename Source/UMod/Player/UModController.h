@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get KeyBinding", Keywords = "key binding get"), Category = UMod_Specific)
 		FKey LookupKeyBinding(EKeyBindings in);
 
+	virtual FString ConsoleCommand(const FString& Cmd, bool bWriteToLog);
+	virtual void ConsoleKey(FKey Key);
+	virtual void SendToConsole(const FString& Command);
 private:
 	FInputAxisKeyMapping moveForward;
 	FInputAxisKeyMapping moveBackward;

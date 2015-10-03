@@ -12,24 +12,18 @@ AWeaponBase::AWeaponBase()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	ViewModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ViewModel"));
+	USceneComponent *RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+
+	ViewModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ViewModel"));	
 	WorldModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldModel"));
 
-	if (!this->GetModel().IsEmpty()) {
-		FString vMdlPath = FString("/Game/Content/Models/Weapons/V_") + this->GetModel();
-		FString wMdlPath = FString("/Game/Content/Models/Weapons/W_") + this->GetModel();
-		UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
-		UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
+	SetRootComponent(RootComponent);
 
-		ViewModel->SetStaticMesh(vMesh);
-		ViewModel->SetOnlyOwnerSee(true);
+	//ViewModel->SetVisibility(false, true);
+	//WorldModel->SetVisibility(false, true);
 
-		WorldModel->SetStaticMesh(wMesh);
-		WorldModel->SetOwnerNoSee(true);
-	}
-
-	ViewModel->SetVisibility(false, true);
-	WorldModel->SetVisibility(false, true);
+	ViewModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WorldModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	bReplicates = 1;
 }
@@ -50,25 +44,38 @@ void AWeaponBase::Tick(float DeltaTime)
 
 void AWeaponBase::DoInit(AUModCharacter *ply)
 {	
+	if (!this->GetModel().IsEmpty() && !this->GetModel().Equals("null")) {
+		FString vMdlPath = FString("/Game/Models/Weapons/V_") + this->GetModel();
+		FString wMdlPath = FString("/Game/Models/Weapons/W_") + this->GetModel();
+		UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
+		UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
+
+		ViewModel->SetStaticMesh(vMesh);
+		//ViewModel->SetOnlyOwnerSee(true);
+
+		WorldModel->SetStaticMesh(wMesh);
+		//WorldModel->SetOwnerNoSee(true);
+	}
+
 	player = ply;
-	SetActorLocation(ply->GetActorLocation() + GetGunOffset());
-	AttachRootComponentToActor(ply);	
+	SetActorLocation(ply->GetActorLocation());
+	AttachRootComponentToActor(ply);
+			
+	WorldModel->AttachTo(ply->PlayerModel, "RHand_AttachPoint", EAttachLocation::SnapToTarget);
 
 	this->OnInit();
-		
-	WorldModel->AttachTo(ply->PlayerModel, "R_Middle_A", EAttachLocation::SnapToTarget);
 }
 
 void AWeaponBase::Equip()
 {
-	WorldModel->SetVisibility(true, true);
-	ViewModel->SetVisibility(true, true);
+	//WorldModel->SetVisibility(true, true);
+	//ViewModel->SetVisibility(true, true);
 }
 
 void AWeaponBase::UnEquip()
 {
-	ViewModel->SetVisibility(false, true);
-	WorldModel->SetVisibility(false, true);
+	//ViewModel->SetVisibility(false, true);
+	//WorldModel->SetVisibility(false, true);
 }
 
 void AWeaponBase::OnPlayerFire(uint8 but, AWeaponBase::EFireState state)

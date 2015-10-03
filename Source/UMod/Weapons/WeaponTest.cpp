@@ -4,6 +4,14 @@
 #include "WeaponTest.h"
 #include "Player/UModCharacter.h"
 
+bool ActorHasMesh(AActor *act)
+{
+	TArray<UStaticMeshComponent*> comps;
+	act->GetComponents<UStaticMeshComponent>(comps);
+
+	return comps.Num() > 0;
+}
+
 void EnableGravityOnActor(AActor *act, bool enable)
 {
 	TArray<UStaticMeshComponent*> comps;
@@ -12,6 +20,38 @@ void EnableGravityOnActor(AActor *act, bool enable)
 	for (int i = 0; i < comps.Num(); i++) {
 		UStaticMeshComponent *c = comps[i];
 		c->SetSimulatePhysics(enable);
+	}
+}
+
+bool IsActorMovable(AActor *act)
+{
+	TArray<UStaticMeshComponent*> comps;
+	act->GetComponents<UStaticMeshComponent>(comps);
+
+	bool b = true;
+
+	for (int i = 0; i < comps.Num(); i++) {
+		UStaticMeshComponent *c = comps[i];		
+		if (c->Mobility == EComponentMobility::Static) {
+			b = false;
+		}
+	}
+
+	return b;
+}
+
+void EnableMobilityOnActor(AActor *act, bool enable)
+{
+	TArray<UStaticMeshComponent*> comps;
+	act->GetComponents<UStaticMeshComponent>(comps);
+
+	for (int i = 0; i < comps.Num(); i++) {
+		UStaticMeshComponent *c = comps[i];
+		if (enable) {
+			c->SetMobility(EComponentMobility::Movable);
+		} else {
+			c->SetMobility(EComponentMobility::Static);
+		}
 	}
 }
 
@@ -29,7 +69,10 @@ void AWeaponTest::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit, FH
 	if (state == AWeaponBase::EFireState::STARTED && traceHit) {
 		UE_LOG(UMod_Game, Warning, TEXT("You started to fire with weapon_test !"));
 		AActor *act = traceResult.GetActor();
-		PickedUp = act;
+		if (!ActorHasMesh(act) || !IsActorMovable(act)) {
+			return;
+		}		
+		PickedUp = act;		
 		EnableGravityOnActor(PickedUp, false);
 		OffsetPos = player->PlayerCamera->GetComponentLocation() - act->GetActorLocation();
 		ObjectDistance = FVector::Dist(player->GetEyeLocation(), act->GetActorLocation());
