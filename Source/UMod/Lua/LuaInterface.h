@@ -1,0 +1,89 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+extern "C"
+{
+	#include <lua.h>
+	#include <lauxlib.h>
+	#include <lualib.h>
+}
+
+//class UUModGameInstance;
+
+enum ELuaErrorType {
+	PARSER,
+	RUNTIME,
+	MEMORY,
+	HANDLER,
+	NONE
+};
+
+enum ELuaType {
+	TABLE,
+	STRING,
+	NUMBER,
+	BOOLS,
+	ENTITY,
+	COLOR,
+	VECTOR,
+	UNKNOWN,
+	NIL
+};
+
+/**
+ * The Lua Interface used as bridge between UE4C++ and Lua
+ * As you can see I thought uisng a basic C++ class would be better to assure no memory leaks (UE4 uses it's own Garbage Collector, so...).
+ * ----------------------------------------------------------------------------------------------------------------------------------------
+ * Needs the lua dlls to be inside the bin dir
+ */
+class UMOD_API LuaInterface
+{
+public:
+	static LuaInterface* New();
+	static LuaInterface Get(lua_State *L);
+
+	void PushString(FString str);
+	void PushInt(int i);	
+	void PushNum(double d);	
+	void PushBool(bool b);
+	void PushCFunction(lua_CFunction f);
+	void PushNil();
+	//Copies value at id and push on top of stack
+	void PushValue(int id);
+	//Future methods that requires further understanding of lua tables
+	void PushColor(FColor col);
+	void PushVector(FVector vec);
+
+	void SetGlobal(FString str);
+	void NewTable();
+	//Takes table index and reads key at slot id - 1
+	void GetTable(int id);
+	//Takes table index and reads key at slot id - 1 sets value at slot id - 2
+	void SetTable(int id);
+	void GetMetaTable(int id);
+	void SetMetaTable(int id);
+	void GetGlobal(FString str);
+	ELuaType GetType(int id);
+	void OpenLibs();
+	ELuaErrorType LoadFile(FString file);
+
+	void ThrowError(FString msg);
+	ELuaErrorType PCall(int argNum, int resultNum, int handler);
+
+	FString CheckString(int id);
+	FString ToString(int id);
+	int CheckInt(int id);
+	double CheckNum(int id);	
+	bool CheckBool(int id);
+	bool CheckTable(int id);
+	//Future methods that requires further understanding of lua tables
+	FColor CheckColor(int id);
+	FVector CheckVector(int id);
+
+	FString GetVersion();
+
+	void Close();
+private:
+	lua_State *luaVM;
+};
