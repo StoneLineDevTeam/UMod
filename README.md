@@ -1,8 +1,10 @@
-# UMod
+# UMod Alpha
 
 This is the official repository for the UMod project.
 Yuri6037 and me (SuperPlayer) are playing Garry's Mod. But with the time we got upset about the limitations source engine has.
 We decided that we want to try to create a completely new sandbox game. As an engine we choosed unreal.
+
+We are currently at branch Alpha, this branch will be set as default.
 
 Our plans are to add LUA as the engine laguage because its easy and pretty powerful.
 Due to the fact that we are just two coders and that we are just humans, we are going to need a team.
