@@ -3,6 +3,7 @@
 #include "UMod.h"
 #include "WeaponPhysgun.h"
 #include "Player/UModCharacter.h"
+#include "Entities/EntityBase.h"
 
 #include "Renderer/LaserBeamRenderer.h"
 
@@ -12,17 +13,6 @@ bool ActorHasMesh(AActor *act)
 	act->GetComponents<UStaticMeshComponent>(comps);
 
 	return comps.Num() > 0;
-}
-
-void EnableGravityOnActor(AActor *act, bool enable)
-{
-	TArray<UStaticMeshComponent*> comps;
-	act->GetComponents<UStaticMeshComponent>(comps);
-
-	for (int i = 0; i < comps.Num(); i++) {
-		UStaticMeshComponent *c = comps[i];
-		c->SetSimulatePhysics(enable);
-	}
 }
 
 bool IsActorMovable(AActor *act)
@@ -63,7 +53,7 @@ void AWeaponPhysgun::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit,
 		BeamEmitter->Destroy();
 
 		UE_LOG(UMod_Game, Warning, TEXT("You stopped to fire with the physics gun !"));
-		EnableGravityOnActor(PickedUp, true);
+		PickedUp->Unfreeze();
 		PickedUp = NULL;
 		OffsetPos = FVector(0, 0, 0);
 		ObjectDistance = 100;
@@ -73,11 +63,11 @@ void AWeaponPhysgun::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit,
 	if (state == AWeaponBase::EFireState::STARTED && traceHit) {		
 		UE_LOG(UMod_Game, Warning, TEXT("You started to fire with the physics gun !"));
 		AActor *act = traceResult.GetActor();
-		if (!ActorHasMesh(act) || !IsActorMovable(act)) {
+		if (!act->GetClass()->IsChildOf(AEntityBase::StaticClass())) {
 			return;
-		}		
-		PickedUp = act;		
-		EnableGravityOnActor(PickedUp, false);
+		}
+		PickedUp = Cast<AEntityBase>(act);
+		PickedUp->Freeze();
 		OffsetPos = act->GetActorLocation() - traceResult.ImpactPoint;
 		ObjectDistance = FVector::Dist(player->GetEyeLocation(), traceResult.ImpactPoint);
 		ObjectRotation = act->GetActorRotation();
@@ -102,7 +92,11 @@ void AWeaponPhysgun::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit,
 void AWeaponPhysgun::OnSecondaryFire(AWeaponBase::EFireState state, bool traceHit, FHitResult traceResult)
 {
 	if (traceHit) {
-		EnableGravityOnActor(traceResult.GetActor(), false);
+		AActor* act = traceResult.GetActor();
+		if (act->GetClass()->IsChildOf(AEntityBase::StaticClass())) {
+			AEntityBase *b = Cast<AEntityBase>(act);
+			b->Freeze();
+		}
 	}	
 }
 

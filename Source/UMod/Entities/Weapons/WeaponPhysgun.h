@@ -5,6 +5,8 @@
 #include "Entities/WeaponBase.h"
 #include "WeaponPhysgun.generated.h"
 
+class AEntityBase;
+
 /**
  * 
  */
@@ -31,7 +33,7 @@ public:
 private:
 	class ALaserBeamRenderer *BeamEmitter;
 
-	AActor *PickedUp = NULL;
+	AEntityBase *PickedUp = NULL;
 	FVector OffsetPos;
 	FRotator ObjectRotation;
 	

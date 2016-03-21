@@ -64,6 +64,8 @@ enum ELogLevel {
 	LOG_ERROR
 };
 
+class AUModCharacter;
+
 /**
  * 
  */
@@ -155,6 +157,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Show Fatal Message", Keywords = "fatal message"), Category = UMod_Specific)
 	static void ShowFatalMessage(FString content);
+
+	AUModCharacter* GetLocalPlayer();
 private:
 	bool IsDedicated;
 

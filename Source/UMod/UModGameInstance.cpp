@@ -11,6 +11,8 @@
 #include "Console/ConsoleDestroyer.h"
 #include "Console/UModConsoleManager.h"
 
+#include "Player/UModCharacter.h"
+
 const FString GVersion = FString("0.4 - Alpha");
 FString LuaVersion;
 const FString LuaEngineVersion = FString("NULL");
@@ -644,4 +646,14 @@ void UUModGameInstance::ReturnToMainMenu()
 	netError = TEXT("");
 	ULocalPlayer* const Player = GetFirstGamePlayer();
 	Player->PlayerController->ClientTravel("MainMenu?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
+}
+
+AUModCharacter* UUModGameInstance::GetLocalPlayer()
+{
+	ULocalPlayer* const Player = GetFirstGamePlayer();
+	ACharacter *c = Player->PlayerController->GetCharacter();
+	if (c != NULL) {
+		return Cast<AUModCharacter>(c);
+	}
+	return NULL;
 }

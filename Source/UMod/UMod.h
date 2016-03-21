@@ -35,6 +35,13 @@ static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
 	return Cast<ObjClass>(StaticLoadObject(ObjClass::StaticClass(), NULL, *Path.ToString()));
 }
 
+static FORCEINLINE FString GetObjPath(UObject* obj)
+{
+	FStringAssetReference path = FStringAssetReference(obj);
+	if (!path.IsValid()) { return FString(); }
+	return path.ToString().Mid(6, path.ToString().Len());
+}
+
 class FUModGameModule : public FDefaultGameModuleImpl
 {	
 	virtual void StartupModule() override;

@@ -12,8 +12,7 @@ const FString AWeaponBase::NULLAmmoType = FString();
 // Sets default values
 AWeaponBase::AWeaponBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+ 	PrimaryActorTick.bCanEverTick = true;
 
 	USceneComponent *RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 

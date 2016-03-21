@@ -2,6 +2,7 @@
 #pragma once
 #include "GameFramework/Character.h"
 #include "Entities/WeaponBase.h"
+#include "Entities/EntityBase.h"
 
 #include "UModCharacter.generated.h"
 
@@ -127,6 +128,9 @@ public:
 	uint32 GetHealth();
 	uint32 GetMaxHealth();
 	//End
+
+	//Get the water level of the level
+	EWaterLevel GetWaterLevel();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Damage Player", Keywords = "damage player"), Category = "UMod_Specific|Player")
 		void DamagePlayer(int32 force);

@@ -3,6 +3,8 @@
 #include "GameFramework/HUD.h"
 #include "UModHUD.generated.h"
 
+class AUModCharacter;
+
 UCLASS()
 class AUModHUD : public AHUD
 {
@@ -14,20 +16,22 @@ public:
 	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
 
-	void DrawSimpleText(FString String, float X, float Y, float Size, FColor Color, uint8 Alligment);
-	void DrawRect(float X, float Y, float W, float H, FLinearColor Color);
-
 	FVector2D ScreenSize();
 
 	//virtual void BeginDestroy();
 
 private:
-	/** Crosshair asset pointer */
-	class UTexture2D* CrosshairTex;
+	/** Textures */
+	uint32 CrosshairTex;
 
-	class UFont* HUDFont;
+	uint32 HUDFont;
 
+	void MainHUDRender();
 	void DrawIngameMenu();
+	void DrawPlayerStats(AUModCharacter *localPlyCL);
+	void DrawWeaponStats(AUModCharacter *localPlyCL);
+	void DrawWeaponSwitch(AUModCharacter *localPlyCL);
+	void DrawUnderwaterHUD();
 
 	void OnButtonClick(uint8 id);
 	
