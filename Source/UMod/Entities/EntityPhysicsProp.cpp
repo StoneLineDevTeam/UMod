@@ -11,8 +11,13 @@ AEntityPhysicsProp::AEntityPhysicsProp()
 	} else {
 		SetModel("RoundedCube");
 	}*/
-	SetModel(Model);
-	SetGravityScale(GravityScale);
+	/*FString InModel = "RoundedCube";
+	float InGravityScale = 1.0F;
+	GetInitProperty<FString>("Model", InModel);
+	GetInitProperty<float>("GravityScale", InGravityScale);
+	SetModel(InModel);
+	SetGravityScale(InGravityScale);*/
+	SetModel("RoundedCube");
 	SetPhysicsEnabled(true);
 	SetCollisionEnabled(true);
 	Construct();
@@ -25,6 +30,10 @@ FString AEntityPhysicsProp::GetClass()
 
 void AEntityPhysicsProp::OnInit()
 {
-	SetModel(Model);
-	SetGravityScale(GravityScale);
+	FString InModel = "RoundedCube";
+	float InGravityScale = 1.0F;
+	GetInitProperty<FString>("Model", InModel);
+	GetInitProperty<float>("GravityScale", InGravityScale);
+	SetModel(InModel);
+	SetGravityScale(InGravityScale);
 }

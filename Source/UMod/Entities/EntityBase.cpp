@@ -127,12 +127,54 @@ void AEntityBase::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, cl
 {
 
 }
+#if WITH_EDITOR
+void AEntityBase::PostEditChangeProperty(struct FPropertyChangedEvent &e)
+{
+	UProperty *p = e.Property;
+	if (p != NULL) {
+
+	}
+}
+void AEntityBase::PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e)
+{
+
+}
+#endif
 /*End*/
 
-FString* AEntityBase::GetInitProperty(FString name)
+/*template <>
+bool AEntityBase::GetInitProperty<FString>(FString name, FString &out)
 {
-	return InitProperties.Find(name);
+	for (int i = 0; i < InitProperties.Num(); i++) {
+		if (InitProperties[i] == name) {
+			out = InitProperties[i].Value;
+			return true;
+		}
+	}
+	return false;
 }
+template <>
+bool AEntityBase::GetInitProperty<float>(FString name, float &out)
+{
+	for (int i = 0; i < InitProperties.Num(); i++) {
+		if (InitProperties[i] == name) {
+			out = FCString::Atof(*InitProperties[i].Value);
+			return true;
+		}
+	}
+	return false;
+}
+template <>
+bool AEntityBase::GetInitProperty<int>(FString name, int &out)
+{
+	for (int i = 0; i < InitProperties.Num(); i++) {
+		if (InitProperties[i] == name) {
+			out = FCString::Atoi(*InitProperties[i].Value);
+			return true;
+		}
+	}
+	return false;
+}*/
 
 void AEntityBase::SetPhysicsEnabled(bool b)
 {

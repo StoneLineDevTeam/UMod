@@ -11,6 +11,28 @@ enum EWaterLevel {
 	NULL_SUMBERGED
 };
 
+USTRUCT()
+struct FInitProperty {
+	GENERATED_USTRUCT_BODY()
+
+	FInitProperty(FString n, FString v) {
+		Name = n;
+		Value = v;
+	}
+
+	FInitProperty() {
+	}
+
+	UPROPERTY(EditAnywhere)
+	FString Name;
+	UPROPERTY(EditAnywhere)
+	FString Value;
+
+	bool operator==(FString other){
+		return other == Name;
+	}
+};
+
 UCLASS()
 class UMOD_API AEntityBase : public AActor
 {
@@ -40,7 +62,7 @@ private:
 	FString* ServerMATSync;
 
 	UPROPERTY(EditAnywhere)
-	TMap<FString, FString> InitProperties;
+	TArray<FInitProperty> InitProperties;
 
 	UFUNCTION()
 	void UpdateClientMDL();
@@ -60,6 +82,10 @@ public:
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor);
 	virtual void NotifyActorEndOverlap(AActor* OtherActor);
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent &e);
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e);
+#endif
 	/*End*/
 
 	/* Begin entity base lib */
@@ -70,8 +96,8 @@ public:
 	float GetGravityScale(); //ServerSide
 	void SetMassScale(float f); //ServerSide
 	float GetMassScale(); //ServerSide
-	void AddForceCenter(FVector Force);
-	void AddForceOffset(FVector Offset, FVector Force);
+	void AddForceCenter(FVector Force); //ServerSide
+	void AddForceOffset(FVector Offset, FVector Force); //ServerSide
 	void SetVelocity(FVector NewVel);
 	FString GetModel();
 	void Construct();
@@ -80,7 +106,41 @@ public:
 	FString GetMaterial();
 	FString GetSubMaterial(int32 index);
 	int32 GetSubMaterialsNum();
-	FString* GetInitProperty(FString name);
+	template <typename T>
+	bool GetInitProperty(FString name, T &out);
+	template <>
+	bool GetInitProperty<float>(FString name, float &out)
+	{
+		for (int i = 0; i < InitProperties.Num(); i++) {
+			if (InitProperties[i] == name) {
+				out = FCString::Atof(*InitProperties[i].Value);
+				return true;
+			}
+		}
+		return false;
+	}
+	template <>
+	bool GetInitProperty<FString>(FString name, FString &out)
+	{
+		for (int i = 0; i < InitProperties.Num(); i++) {
+			if (InitProperties[i] == name) {
+				out = InitProperties[i].Value;
+				return true;
+			}
+		}
+		return false;
+	}
+	template <>
+	bool GetInitProperty<int>(FString name, int &out)
+	{
+		for (int i = 0; i < InitProperties.Num(); i++) {
+			if (InitProperties[i] == name) {
+				out = FCString::Atoi(*InitProperties[i].Value);
+				return true;
+			}
+		}
+		return false;
+	}
 	void Freeze(); //ServerSide
 	void Unfreeze(); //ServerSide
 	//NW Vars (Future)

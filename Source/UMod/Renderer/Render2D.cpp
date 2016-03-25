@@ -2,6 +2,7 @@
 
 #include "UMod.h"
 #include "Render2D.h"
+#include "CanvasScissorRect.h"
 
 //Statics here as linker is unable to link correctly with static vars inside H file
 static FVector2D FontScale;
@@ -153,7 +154,8 @@ void URender2D::DrawRoundedRect(int x, int y, int w, int h)
 //Set the scissoring rectangle (NOTE : need special code...)
 void URender2D::SetScissorRect(int x, int y, int w, int h)
 {
-
+	FCanvasScissorRectItem item = FCanvasScissorRectItem(x, y, w, h);
+	Context->DrawItem(item);
 }
 
 //Draws a string
