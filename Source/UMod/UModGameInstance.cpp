@@ -112,7 +112,7 @@ void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENet
 	UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
 
 	FString err = ErrorMessage;
-	Disconnect(err);	
+	Disconnect(err);
 }
 
 void UUModGameInstance::OnTravelFailure(UWorld *world, ETravelFailure::Type type, const FString &ErrorMessage)
@@ -144,7 +144,7 @@ void UUModGameInstance::Init()
 	GEngine->NetworkFailureEvent.AddUObject(this, &UUModGameInstance::OnNetworkFailure);
 	GEngine->TravelFailureEvent.AddUObject(this, &UUModGameInstance::OnTravelFailure);
 
-
+	/*Hack NET vars*/
 	//Found a way to set port !
 	int32 ServerPort = 0;
 	GConfig->GetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
@@ -153,7 +153,36 @@ void UUModGameInstance::Init()
 		GConfig->SetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
 	}
 	GConfig->SetInt(TEXT("URL"), TEXT("Port"), ServerPort, GEngineIni);
-
+	//Found a hacky way to set the timeout and the connection timeout
+	float ConnectTimeout = 0;
+	float Timeout = 0;
+	GConfig->GetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	GConfig->GetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	if (ConnectTimeout == 0) {
+		ConnectTimeout = 5;
+		GConfig->SetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+	if (Timeout == 0) {
+		Timeout = 45;
+		GConfig->SetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+	GConfig->SetFloat(TEXT("/Script/OnlineSubsystemUtils.OnlineBeacon"), TEXT("BeaconConnectionInitialTimeout"), ConnectTimeout, GEngineIni);
+	GConfig->SetFloat(TEXT("/Script/OnlineSubsystemUtils.OnlineBeacon"), TEXT("BeaconConnectionTimeout"), Timeout, GEngineIni);
+	GConfig->SetFloat(TEXT("/Script/Lobby.LobbyBeaconClient"), TEXT("BeaconConnectionInitialTimeout"), ConnectTimeout, GEngineIni);
+	GConfig->SetFloat(TEXT("/Script/Lobby.LobbyBeaconClient"), TEXT("BeaconConnectionTimeout"), Timeout, GEngineIni);
+	//Retrieve host name
+	GConfig->GetString(TEXT("Common"), TEXT("HostName"), HostName, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	if (HostName.IsEmpty()) {
+		HostName = "A UMod Server";
+		GConfig->SetString(TEXT("Common"), TEXT("HostName"), *HostName, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+	//Retrieve lua GameMode
+	GConfig->GetString(TEXT("Common"), TEXT("GameMode"), GameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	if (GameMode.IsEmpty()) {
+		GameMode = FString("Sandbox");
+		GConfig->SetString(TEXT("Common"), TEXT("GameMode"), *GameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+	/*End*/
 
 	UE_LOG(UMod_Game, Log, TEXT("UMod - Starting Lua Engine..."));
 	//Lua = new LuaInterface(this);
@@ -287,6 +316,9 @@ bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString
 	if (single) {
 		hostName = TEXT("UMod_SinglePlayer");
 	}
+	
+	CurConnectedIP = "127.0.0.1";
+	CurConnectedAddress = "localhost";
 
 	OnCreateSessionCompleteDelegateHandle = Sessions->AddOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegate);
 
@@ -355,6 +387,12 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 			FString str = WorkedIP + FString(":");
 			str.AppendInt(port);
 			ConnectIP = str;
+
+			//Set vars for gloabl host ip/name retrieve
+			CurConnectedIP = ConnectIP;
+			CurConnectedAddress = ip + ":";
+			CurConnectedAddress.AppendInt(port);
+			//End
 
 			Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
 			
@@ -614,6 +652,11 @@ void UUModGameInstance::Disconnect(FString error)
 
 	AssetsManager->HandleServerDisconnect();
 
+	//Set gloabl host ip/address vars
+	CurConnectedIP = FString();
+	CurConnectedAddress = FString();
+	//End
+
 	netError = error;
 	ULocalPlayer* const Player = GetFirstGamePlayer();	
 	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
@@ -656,4 +699,24 @@ AUModCharacter* UUModGameInstance::GetLocalPlayer()
 		return Cast<AUModCharacter>(c);
 	}
 	return NULL;
+}
+
+FString UUModGameInstance::GetHostIP()
+{
+	return CurConnectedIP;
+}
+
+FString UUModGameInstance::GetHostAddress()
+{
+	return CurConnectedAddress;
+}
+
+FString UUModGameInstance::GetHostName()
+{
+	return HostName;
+}
+
+FString UUModGameInstance::GetGameMode()
+{
+	return GameMode;
 }

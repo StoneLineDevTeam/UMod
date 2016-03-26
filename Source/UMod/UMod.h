@@ -42,6 +42,11 @@ static FORCEINLINE FString GetObjPath(UObject* obj)
 	return path.ToString().Mid(6, path.ToString().Len());
 }
 
+static FORCEINLINE FString StringFromBool(bool b)
+{
+	return b ? "True" : "False";
+}
+
 class FUModGameModule : public FDefaultGameModuleImpl
 {	
 	virtual void StartupModule() override;

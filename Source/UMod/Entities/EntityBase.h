@@ -5,6 +5,12 @@
 #include "GameFramework/Actor.h"
 #include "EntityBase.generated.h"
 
+enum ECollisionType {
+	COLLISION_NONE, //No collisions
+	COLLISION_PHYSICS, //Collides with everything used for physics simulation
+	COLLISION_NOT_PLAYER, //Collides with everything but not player
+	COLLISION_WORLD_ONLY //Collides only with non dynamic entities
+};
 enum EWaterLevel {
 	FULL_SUBMERGED,
 	HALF_SUBMERGED,
@@ -46,15 +52,16 @@ private:
 	UPROPERTY(Replicated)
 	FRotator DesiredRot;
 
-	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
-	bool Collides = true;
-
 	//Does this entity manages physics
 	bool PhysEnabled = false;
 
 	bool Initializing = false;
 
 	FString CurMdl;
+#if WITH_EDITOR
+	//FIX : Editor not updating model
+	FString EditorCurMdl;
+#endif
 
 	UPROPERTY(ReplicatedUsing = UpdateClientMDL)
 	FString ServerMDLSync;
@@ -72,25 +79,28 @@ private:
 	void UpdateClientMAT();
 
 	float GravityScale = 1;
+
+	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
+	uint8 CurCollisionProfile;
 public:	
 	AEntityBase();
 
 	/*Begin AActor interface*/
 	virtual void BeginPlay() override;	
 	virtual void Tick(float DeltaSeconds) override;
-	void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor);
 	virtual void NotifyActorEndOverlap(AActor* OtherActor);
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent &e);
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e);
 #endif
 	/*End*/
 
 	/* Begin entity base lib */
 	void SetPhysicsEnabled(bool b); //Works only in OnInit(), used to remove the synced physics system, ServerSide
-	void SetCollisionEnabled(bool b); //ServerSide
+	void SetCollisions(ECollisionType collision); //ServerSide
+	ECollisionType GetCollisions();
 	void SetModel(FString path);
 	void SetGravityScale(float f); //ServerSide
 	float GetGravityScale(); //ServerSide

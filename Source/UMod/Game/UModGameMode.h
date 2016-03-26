@@ -26,7 +26,8 @@ public:
 
 	virtual void Logout(AController *ctrl);
 
+	virtual void BeginPlay();
+
 private:
-	FString LuaGameMode;
 	UUModGameInstance *Game;
 };

@@ -25,19 +25,16 @@ AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer) : Supe
 	HUDClass = AUModHUD::StaticClass();
 
 	PlayerStateClass = AUModPlayerState::StaticClass();
+}
 
+void AUModGameMode::BeginPlay()
+{
 	//Lua change : start implementing call to GM functions
-	GConfig->GetString(TEXT("Common"), TEXT("GameMode"), LuaGameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
-	if (LuaGameMode.IsEmpty()) {
-		LuaGameMode = FString("");
-		GConfig->SetString(TEXT("Common"), TEXT("GameMode"), *LuaGameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
-	}
-	
+
 	//Init Lua GameMode (only loads init.lua gamemode file currently)
-	//Tried to init lua : result = crash because of UE4 : GetGameInstance crashes AActor
-	//I'll try a few hacks/tricks in case I can fix this (at least I have the GetInstance way... (Yeah I know it's not realy clean but if UE4 wants to block me I have to fuck it up !)
-	//If I can't get the game instance from an Actor then it's already finished...
-	/*Game = Cast<UUModGameInstance>(GetGameInstance());
+	//Run test V2.0 using BeginPlay instead of constructor
+	Game = Cast<UUModGameInstance>(GetGameInstance());
+	FString LuaGameMode = Game->GetGameMode();
 	if (Game == NULL) {
 		UE_LOG(UMod_Game, Error, TEXT("UModGameInstance failed to retrieve in UModGameMode. Lua may be disfunctional..."));
 		return;
@@ -48,18 +45,19 @@ AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer) : Supe
 		} else {
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/init.lua"));
 		}
-	} else {
-		if (FPaths::FileExists(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua")) {
+	} else { //This part will not work because GameMode is server only.... I need the GameState for that...
+		/*if (FPaths::FileExists(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua")) {
 			Game->Lua->RunScript(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua");
 		} else {
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/cl_init.lua"));
-		}
-	}*/
+		}*/
+	}
 }
 
 void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
 {
 	//TODO : make something when player die
+	player->StripWeapons();
 }
 
 void AUModGameMode::OnPlayerInitialSpawn(AUModCharacter *player)

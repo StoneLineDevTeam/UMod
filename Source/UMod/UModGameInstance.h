@@ -144,6 +144,15 @@ public:
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
 	void OnStartOnlineGameComplete(FName SessionName, bool bWasSuccessful);
 
+	//Get the host IP that this client is connected to
+	FString GetHostIP();
+	//Get the host address (input from user inside menu text box) that this client is connected to
+	FString GetHostAddress();
+	//Retrieve Server hostname
+	FString GetHostName();
+	//Retrieve Server GameMode
+	FString GetGameMode();
+
 	//Start to implement lua
 	LuaEngine *Lua;
 
@@ -160,6 +169,18 @@ public:
 
 	AUModCharacter* GetLocalPlayer();
 private:
+	//Global connected host vars
+	FString CurConnectedIP;
+	FString CurConnectedAddress;
+	FString CurConnectedName;
+	//End
+
+	//Server vars
+	FString HostName;
+	FString IP; //A bit more complicated to get
+	FString GameMode;
+	//End
+
 	bool IsDedicated;
 
 	bool IsDisplayCreated;

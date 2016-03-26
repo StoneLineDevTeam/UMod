@@ -9,11 +9,15 @@ AEntityBase::AEntityBase()
 	Initializing = true;
 	PrimaryActorTick.bCanEverTick = true;
 
+	bReplicates = true;
+
 	EntityModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EntityModel"));
 }
 void AEntityBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	this->OnInit();
 
 	if (PhysEnabled) {
 		if (Role == ROLE_Authority) {
@@ -24,14 +28,13 @@ void AEntityBase::BeginPlay()
 			EntityModel->SetSimulatePhysics(false);
 		}
 	}
-	this->OnInit();
 }
 void AEntityBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (PhysEnabled) {
-		if (Role == ROLE_Authority) {
+	if (Role == ROLE_Authority) {
+		if (PhysEnabled) {
 			//TODO : Physics hack (gravity scale/maybe direction in future)
 			if (GravityScale < 1 && GravityScale > 0) {
 				APhysicsVolume *v = EntityModel->GetPhysicsVolume();
@@ -39,22 +42,22 @@ void AEntityBase::Tick(float DeltaTime)
 				FVector GravityVec = FVector(0, 0, grav);
 				EntityModel->AddForce(GravityVec);
 			}
-
-			//Send physx simulation data		
-			DesiredPos = GetActorLocation();
-			DesiredRot = GetActorRotation();
-		} else {
-			//Interpolate between cur pos and new pos received from server
-			FVector a = GetActorLocation();
-			FVector b = DesiredPos;
-			FVector newPos = FMath::Lerp(a, b, 0.5F);
-			SetActorLocation(newPos);
-
-			FVector a1 = GetActorRotation().Vector();
-			FVector b1 = DesiredRot.Vector();
-			FVector lerped = FMath::Lerp(a1, b1, 0.25F);
-			SetActorRotation(DesiredRot);
 		}
+
+		//Send physx simulation data		
+		DesiredPos = GetActorLocation();
+		DesiredRot = GetActorRotation();
+	} else {
+		//Interpolate between cur pos and new pos received from server
+		FVector a = GetActorLocation();
+		FVector b = DesiredPos;
+		FVector newPos = FMath::Lerp(a, b, 0.5F);
+		SetActorLocation(newPos);
+
+		FVector a1 = GetActorRotation().Vector();
+		FVector b1 = DesiredRot.Vector();
+		FVector lerped = FMath::Lerp(a1, b1, 0.5F);
+		SetActorRotation(DesiredRot);
 	}
 	this->OnTick();
 }
@@ -66,7 +69,7 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 	DOREPLIFETIME(AEntityBase, DesiredRot);
 	DOREPLIFETIME(AEntityBase, ServerMDLSync);
 	//DOREPLIFETIME(AEntityBase, ServerMATSync);
-	DOREPLIFETIME(AEntityBase, Collides);
+	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
 }
 void AEntityBase::UpdateClientMDL()
 {
@@ -85,8 +88,15 @@ void AEntityBase::UpdateClientMAT()
 }
 void AEntityBase::UpdateCollisionStatus()
 {
-	if (Collides) {
+	ECollisionType t = (ECollisionType)CurCollisionProfile;
+	if (t != ECollisionType::COLLISION_NONE) {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		switch (t) {
+		case ECollisionType::COLLISION_NOT_PLAYER:
+			EntityModel->SetCollisionProfileName("OverlapOnlyPawn");
+		case ECollisionType::COLLISION_WORLD_ONLY:
+			EntityModel->SetCollisionProfileName("OverlapAllDynamic");
+		}
 	} else {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
@@ -95,8 +105,6 @@ void AEntityBase::Construct()
 {
 	EntityModel->SetMobility(EComponentMobility::Movable);
 	SetRootComponent(EntityModel);
-
-	bReplicates = true;
 
 	if (PhysEnabled) {
 		EntityModel->bGenerateOverlapEvents = true;
@@ -128,53 +136,20 @@ void AEntityBase::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, cl
 
 }
 #if WITH_EDITOR
-void AEntityBase::PostEditChangeProperty(struct FPropertyChangedEvent &e)
-{
-	UProperty *p = e.Property;
-	if (p != NULL) {
-
-	}
-}
+//FIX : Editor not updating model
 void AEntityBase::PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e)
 {
-
+	FString EditorNewMdl;
+	bool b = GetInitProperty<FString>("Model", EditorNewMdl);
+	if (EditorCurMdl != EditorNewMdl && b) {
+		EditorCurMdl = EditorNewMdl;
+		SetModel(EditorCurMdl);
+		UE_LOG(UMod_Maps, Warning, TEXT("Test"));
+	}
 }
 #endif
 /*End*/
 
-/*template <>
-bool AEntityBase::GetInitProperty<FString>(FString name, FString &out)
-{
-	for (int i = 0; i < InitProperties.Num(); i++) {
-		if (InitProperties[i] == name) {
-			out = InitProperties[i].Value;
-			return true;
-		}
-	}
-	return false;
-}
-template <>
-bool AEntityBase::GetInitProperty<float>(FString name, float &out)
-{
-	for (int i = 0; i < InitProperties.Num(); i++) {
-		if (InitProperties[i] == name) {
-			out = FCString::Atof(*InitProperties[i].Value);
-			return true;
-		}
-	}
-	return false;
-}
-template <>
-bool AEntityBase::GetInitProperty<int>(FString name, int &out)
-{
-	for (int i = 0; i < InitProperties.Num(); i++) {
-		if (InitProperties[i] == name) {
-			out = FCString::Atoi(*InitProperties[i].Value);
-			return true;
-		}
-	}
-	return false;
-}*/
 
 void AEntityBase::SetPhysicsEnabled(bool b)
 {
@@ -228,18 +203,30 @@ FString AEntityBase::GetModel()
 	return "Models/" + CurMdl;
 }
 
-void AEntityBase::SetCollisionEnabled(bool b)
+void AEntityBase::SetCollisions(ECollisionType collision)
 {
 	if (Role != ROLE_Authority) { return; }
-	if (b) {
+	if (collision != ECollisionType::COLLISION_NONE) {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		EntityModel->bGenerateOverlapEvents = false;
 		EntityModel->SetNotifyRigidBodyCollision(true);
+		switch (collision) {
+		case ECollisionType::COLLISION_NOT_PLAYER:
+			EntityModel->SetCollisionProfileName("OverlapOnlyPawn");
+		case ECollisionType::COLLISION_WORLD_ONLY:
+			EntityModel->SetCollisionProfileName("OverlapAllDynamic");
+		}
 	} else {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		EntityModel->bGenerateOverlapEvents = true;
 		EntityModel->SetNotifyRigidBodyCollision(false);
-	}	
+	}
+	CurCollisionProfile = (uint8)collision;
+}
+
+ECollisionType AEntityBase::GetCollisions()
+{
+	return (ECollisionType)CurCollisionProfile;
 }
 
 void AEntityBase::SetMaterial(FString path)

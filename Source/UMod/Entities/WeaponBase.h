@@ -102,7 +102,7 @@ public:
 	AWeaponBase();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void AWeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	UFUNCTION(NetMulticast, Unreliable)
 	void RunFireSound();
 	void RunFireSound_Implementation();

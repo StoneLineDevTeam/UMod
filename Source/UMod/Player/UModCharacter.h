@@ -89,7 +89,7 @@ public:
 	AUModCharacter(const FObjectInitializer& ObjectInitializer);
 
 	/* Network interface */
-	virtual void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	
 	virtual void BeginPlay();
 
