@@ -4,6 +4,7 @@
 #include "UModHUD.generated.h"
 
 class AUModCharacter;
+class UUModGameInstance;
 
 UCLASS()
 class AUModHUD : public AHUD
@@ -15,6 +16,8 @@ public:
 
 	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
+
+	virtual void BeginPlay();
 
 	FVector2D ScreenSize();
 
@@ -34,6 +37,8 @@ private:
 	void DrawUnderwaterHUD();
 
 	void OnButtonClick(uint8 id);
+
+	UUModGameInstance *Game;
 	
 };
 

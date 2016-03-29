@@ -1,5 +1,12 @@
 # UMod Alpha
 
+#GAME_CURRENT_STATE : WARNING Networked multiplayer (JoinGame) is unplayable as the UE4 networking protocol destroyer is in development and is currently only accepting NMT_Hello, NMT_UModStart and NMT_UModPoll messages
+#TODO LIST :
+	- Add runtime cached font support for URender2D::GetTextSize()
+	- Finish custom network preload system
+	- Add command system
+	- Fix lua always bugging with tables in C API
+
 This is the official repository for the UMod project.
 Yuri6037 and me (SuperPlayer) are playing Garry's Mod. But with the time we got upset about the limitations source engine has.
 We decided that we want to try to create a completely new sandbox game. As an engine we choosed unreal.

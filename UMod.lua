@@ -18,7 +18,6 @@ function GM:Initialize(str) --"str" is always a nil value and I don't know why @
 	for k, v in pairs(tbl1) do
 		log.Warning("NewModel : " .. v.Path)
 	end
-	--draw.ColoredRect() --Error "Not in a 2D rendering context" (Normal)
 	
 	--Now it's time to crash the game !
 	--More infos : when calling UUModGameInstance->Disconnect(FString) when no connection are established or if running dedicated server then game instantly crash as it tries to kill NULL session...
@@ -28,8 +27,28 @@ function GM:Initialize(str) --"str" is always a nil value and I don't know why @
 	--And yeah that's not the best function I ever added...
 	--game.ShowFatalMessage("Yuri6037 and Lua are having fun time !!")
 	
+	local tbl = Color(255, 0, 0, 255) --Test : the Color function should return a table with r, g, b and a values
+	print(tbl.R)
+	print(tbl.G)
+	print(tbl.B)
+	print(tbl.A)
+	
+	print(0)
+	print(true)
+	print(nil)
+	
 	local t = 52
 	print(type(t))
-	print(type(t) == Type.NUMBER)
-	print(type(t) == Type.BOOL)
+end
+
+
+--Big test, just to know if URender2D bridge works (Server is able to load a texture !! Server is CRAZY !)
+--First real scrip part : render some squares on the HUD !
+local id = surface.LoadTexture("Internal/Textures/FirstPersonCrosshair")
+function GM:DrawHUD()
+	surface.ResetTexture()
+	local col = Color(255, 255, 255, 128)
+	print(col.R .. "," .. col.G .. "," .. col.B .. "," .. col.A)
+	surface.SetColor(col)
+	surface.DrawRect(0, 0, 1300, 720)
 end

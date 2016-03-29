@@ -14,7 +14,7 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 			return;
 		}
 		UE_LOG(UMod_Maps, Error, TEXT("You tried to load an Internal client map ! This server will shut down to prevent future crash !"));
-		FGenericPlatformMisc::RequestExit(false);
+		FGenericPlatformMisc::RequestExit(true);
 		return;
 	}	
 	
@@ -50,7 +50,7 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 			return;
 		}
 		UE_LOG(UMod_Maps, Error, TEXT("The specified map has no start ! Please contact the map provider !"));
-		FGenericPlatformMisc::RequestExit(false);
+		FGenericPlatformMisc::RequestExit(true);
 	}
 }
 

@@ -46,6 +46,7 @@ public:
 	void PushString(FString str);
 	void PushInt(int i);	
 	void PushNum(double d);	
+	void PushFloat(float f);
 	void PushBool(bool b);
 	void PushCFunction(lua_CFunction f);
 	void PushNil();
@@ -68,13 +69,19 @@ public:
 	void OpenLibs();
 	ELuaErrorType LoadFile(FString file);
 
+	//Used to iterate lua tables
+	int Next(int id);
+	void Pop(int id);
+	//End
+
 	void ThrowError(FString msg);
 	ELuaErrorType PCall(int argNum, int resultNum, int handler);
 
 	FString CheckString(int id);
 	FString ToString(int id);
 	int CheckInt(int id);
-	double CheckNum(int id);	
+	double CheckNum(int id);
+	float CheckFloat(int id);
 	bool CheckBool(int id);
 	bool CheckTable(int id);
 	//Future methods that requires further understanding of lua tables

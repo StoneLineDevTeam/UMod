@@ -3,6 +3,8 @@
 #include "UMod.h"
 #include "LuaEngine.h"
 #include "UModGameInstance.h"
+#include "Renderer/Render2D.h"
+#include "LuaLibSurface.h"
 
 static UUModGameInstance *Game;
 
@@ -17,6 +19,18 @@ static int Type(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	ELuaType t = Lua.GetType(-1);
 	Lua.PushInt((int)t);
+	return 1;
+}
+/*End*/
+
+/*Global methods*/
+static int Color(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	int r = Lua.CheckInt(-4);
+	int g = Lua.CheckInt(-3);
+	int b = Lua.CheckInt(-2);
+	int a = Lua.CheckInt(-1);
+	Lua.PushColor(FColor(r, g, b, a));
 	return 1;
 }
 /*End*/
@@ -106,61 +120,12 @@ static int GameDisconnect(lua_State *L) {
 static int GameShowFatalMessage(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	FString msg = Lua.CheckString(-1);
-	Game->ShowFatalMessage(msg);
+	UUModGameInstance::ShowFatalMessage(msg);
 	return 0;
 }
-/*End*/
-
-/*Base draw.* library*/
-static bool Check2DRenderingContext(lua_State *L) {
+static int GameExit(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	if (Game->Current2DDrawContext == NULL) {
-		Lua.ThrowError("Not in a 2D rendering context.");
-		return false;
-	}
-	return true;
-}
-static int DrawColoredRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-static int DrawTexturedRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-static int DrawSimpleText(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-static int DrawDrawTriangles(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-static int DrawGetTextSize(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-//FUTURE METHODS : NEEDS UE4 C++ TRICKS
-static int DrawSetScissor(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
-	return 0;
-}
-static int DrawDrawPoly(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	//TODO: Implement body
+	UUModGameInstance::ExitGame();
 	return 0;
 }
 /*End*/
@@ -203,6 +168,9 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Remove os lib (will replace by a system lib which will bridge with UE4)
 	Lua->PushNil();
 	Lua->SetGlobal("os");
+	//Add Color() function
+	Lua->PushCFunction(Color);
+	Lua->SetGlobal("Color");
 
 	//Custom UMod libs
 	BeginLibReg("log");
@@ -217,16 +185,7 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	AddLibFunction("Disconnect", GameDisconnect);
 	AddLibFunction("ShowFatalMessage", GameShowFatalMessage);
 	CreateLibrary();
-	BeginLibReg("draw");
-	AddLibFunction("ColoredRect", DrawColoredRect);
-	AddLibFunction("TexturedRect", DrawTexturedRect);
-	AddLibFunction("SimpleText", DrawSimpleText);
-	AddLibFunction("GetTextSize", DrawGetTextSize);
-	AddLibFunction("SetScissor", DrawSetScissor);
-	//The most tricky functions to implement in Lua
-	AddLibFunction("DrawTriangles", DrawDrawTriangles);
-	AddLibFunction("DrawPoly", DrawDrawPoly);
-	CreateLibrary();
+	LuaLibSurface::RegisterSurfaceLib(this);
 
 	//Enums
 	BeginLibReg("AssetType");

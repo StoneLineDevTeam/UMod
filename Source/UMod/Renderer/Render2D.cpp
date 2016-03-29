@@ -13,7 +13,9 @@ static uint32 CurTexture;
 static bool NoTex;
 static UCanvas *Context;
 static TMap<uint32, UTexture2D*> Textures;
-static TMap<uint32, UFont*> Fonts;
+static TMap<uint32, FRuntimeCachedFont*> Fonts;
+static TMap<FString, uint32> StringTextures;
+static TMap<FString, uint32> StringFonts;
 
 static uint32 EmptyTextureSlot;
 static uint32 EmptyFontSlot;
@@ -78,11 +80,18 @@ void URender2D::SetFont(uint32 id)
 }
 
 //Loads font from path
-uint32 URender2D::LoadFont(FString path)
+uint32 URender2D::LoadFont(FString path, uint32 Size, FName ComposeType)
 {
+	uint32 *ID = StringFonts.Find(path);
+	if (ID != NULL) {
+		return *ID;
+	}
+
 	uint32 id = EmptyFontSlot;
-	UFont* fnt = LoadObjFromPath<UFont>(*("/Game/Fonts/" + path));
+	UFont* obj = LoadObjFromPath<UFont>(*("/Game/Fonts/" + path));
+	FRuntimeCachedFont *fnt = new FRuntimeCachedFont(obj, Size, ComposeType);
 	Fonts.Add(id, fnt);
+	StringFonts.Add(path, id);
 	FindNextFontMapSlot();
 	return id;
 }
@@ -97,9 +106,15 @@ void URender2D::UnloadFont(uint32 id)
 //Loads texture from path
 uint32 URender2D::LoadTexture(FString path)
 {
+	uint32 *ID = StringTextures.Find(path);
+	if (ID != NULL) {
+		return *ID;
+	}
+
 	uint32 id = EmptyTextureSlot;
 	UTexture2D* tex = LoadObjFromPath<UTexture2D>(*("/Game/" + path));
 	Textures.Add(id, tex);
+	StringTextures.Add(path, id);
 	FindNextTextureMapSlot();
 	return id;
 }
@@ -112,7 +127,7 @@ void URender2D::UnloadTexture(uint32 id)
 }
 
 //Draws a rectangle
-void URender2D::DrawRect(int x, int y, int w, int h)
+void URender2D::DrawRect(float x, float y, float w, float h)
 {
 	FCanvasTileItem Rectangle(FVector2D(x, y), FVector2D(w, h), FLinearColor(CurColor));
 	if (!NoTex && Textures[CurTexture] != NULL) {
@@ -125,7 +140,7 @@ void URender2D::DrawRect(int x, int y, int w, int h)
 }
 
 //Draw an outline rectangle
-void URender2D::DrawOutlineRect(int x, int y, int w, int h, int stroke)
+void URender2D::DrawOutlineRect(float x, float y, float w, float h, float stroke)
 {
 	DrawRect(x, y, x + stroke, h);
 	DrawRect((x + w) - stroke, y, stroke, h);
@@ -140,13 +155,13 @@ void URender2D::DrawPoly(TArray<FVertex> vertices)
 }
 
 //Draw a circle with given rayon (NOTE : need special code...)
-void URender2D::DrawCircle(int x, int y, int r)
+void URender2D::DrawCircle(float x, float y, int r)
 {
 
 }
 
 //Draw a rounded rectangle (NOTE : need special code...)
-void URender2D::DrawRoundedRect(int x, int y, int w, int h)
+void URender2D::DrawRoundedRect(float x, float y, float w, float h, int rayon)
 {
 
 }
@@ -159,9 +174,9 @@ void URender2D::SetScissorRect(int x, int y, int w, int h)
 }
 
 //Draws a string
-void URender2D::DrawText(FString str, int x, int y, uint8 align)
+void URender2D::DrawText(FString str, float x, float y, uint8 align)
 {
-	UFont *fnt = Fonts[CurFont];
+	FRuntimeCachedFont *fnt = Fonts[CurFont];
 	if (fnt == NULL) {
 		return;
 	}
@@ -185,7 +200,7 @@ void URender2D::DrawText(FString str, int x, int y, uint8 align)
 		break;
 	}
 
-	FCanvasTextItem Text(FVector2D(TextX, TextY), FText::FromString(str), fnt, CurColor);
+	FCanvasTextItem Text(FVector2D(TextX, TextY), FText::FromString(str), FSlateFontInfo(fnt->FontObject, fnt->FontSize, fnt->TypeName), CurColor);
 	Text.Scale = FontScale;
 	Context->DrawItem(Text);
 }
@@ -197,15 +212,25 @@ void URender2D::SetFontScale(float sx, float sy)
 
 void URender2D::GetTextSize(FString str, float& w, float& h)
 {
-	UFont *fnt = Fonts[CurFont];
+	//TODO : Remake Context->TextSize function as it does not support runtime cached fonts !
+	//NOTE TO EPIC GAMES : Please fix this issue... You allow us to use fonts at runtime with different sizes, but you forget to implement C++ HUD support.
+	//Sometimes, there are people that wants to render texts that are intended to change each frame which is not good for UMG.
+	//There are also other cases where you want a dynmaic HUD that uses variables from C++ (so UMG is not suitable here)...
+	//I know you prefer that we use BP but seriously, I want to say, if you add C++, then you can be sure I will always prefer it as BP !
+	FRuntimeCachedFont *fnt = Fonts[CurFont];
 	if (fnt == NULL) {
 		return;
 	}
 
-	Context->TextSize(fnt, str, w, h, FontScale.X, FontScale.Y);
+	Context->TextSize(fnt->FontObject, str, w, h, FontScale.X, FontScale.Y);
 }
 
 void URender2D::DrawLine(float x, float y, float x1, float y1, float stroke)
 {
 	Context->K2_DrawLine(FVector2D(x, y), FVector2D(x1, y1), stroke, FLinearColor(CurColor));
+}
+
+bool URender2D::CheckContext()
+{
+	return Context != NULL;
 }

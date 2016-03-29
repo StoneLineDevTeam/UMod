@@ -39,7 +39,12 @@ AUModHUD::AUModHUD(const FObjectInitializer& ObjectInitializer) : Super(ObjectIn
 {
 	CrosshairTex = URender2D::LoadTexture("Internal/Textures/FirstPersonCrosshair");
 
-	HUDFont = URender2D::LoadFont("FederationRegular");
+	HUDFont = URender2D::LoadFont("FederationRegular", 32);
+}
+
+void AUModHUD::BeginPlay()
+{
+	Game = Cast<UUModGameInstance>(GetGameInstance());
 }
 
 FVector2D AUModHUD::ScreenSize()
@@ -72,9 +77,8 @@ void AUModHUD::OnButtonClick(uint8 id)
 		ctrl->SetIgnoreMoveInput(IngameMenu);
 		escapeDown = false;
 		break;
-	case 1:		
-		UUModGameInstance *game = Cast<UUModGameInstance>(GetGameInstance());
-		game->Disconnect(FString("You disconnected !"));
+	case 1:
+		Game->Disconnect(FString("You disconnected !"));
 	}
 }
 
@@ -90,7 +94,7 @@ void AUModHUD::DrawIngameMenu()
 	ctrl->GetMousePosition(msPosX, msPosY);
 	
 	URender2D::SetColor(DarkGrey);
-	URender2D::SetFontScale(4, 4);
+	URender2D::SetFontScale(1, 1);
 	URender2D::DrawText("UMod - IngameMenu", size.X / 2, 100, TEXT_ALIGN_CENTER);
 	for (int i = 0; i < 16; i++) {
 		const Button* but = Buttons[i];
@@ -127,7 +131,7 @@ void AUModHUD::DrawPlayerStats(AUModCharacter *localPlyCL)
 	URender2D::DrawRect(5, (size.Y / 7 * 6) - 5, size.X / 4.5, size.Y / 7);
 	float BoxSizeX = size.X / 4.5;
 	float BoxSizeY = size.Y / 7;
-	URender2D::SetFontScale(1.5, 1.5);
+	URender2D::SetFontScale(0.5, 0.5);
 	URender2D::SetColor(White);
 	URender2D::DrawText("Health : " + FString::FromInt(Health), 10, (size.Y / 7 * 6) + 5, TEXT_ALIGN_LEFT);
 	URender2D::SetColor(DarkGrey);
@@ -204,7 +208,7 @@ void AUModHUD::DrawWeaponSwitch(AUModCharacter *localPlyCL)
 			URender2D::SetColor(FColor(0, 0, 0, 200));
 			URender2D::DrawRect(size.X / 2 - (64 * 8) + i * 64, 10, 64, 64);
 			URender2D::SetColor(White);
-			URender2D::SetFontScale(1, 1);
+			URender2D::SetFontScale(0.2, 0.2);
 			URender2D::DrawText(b->GetNiceName(), size.X / 2 - (64 * 8) + i * 64, 10, TEXT_ALIGN_LEFT);
 		}
 	}
@@ -230,7 +234,7 @@ void AUModHUD::MainHUDRender()
 	APlayerController *ctrl = GetOwningPlayerController();
 
 	URender2D::SetColor(FColor::Red);
-	URender2D::SetFontScale(2, 2);
+	URender2D::SetFontScale(0.3, 0.3);
 	if (localPlyCL == NULL || localPlyCL->PlayerState == NULL || ctrl == NULL) {
 		URender2D::DrawText("THIS CLIENT IS ERRORED", 16, 16, TEXT_ALIGN_LEFT);
 	} else {
@@ -269,6 +273,19 @@ void AUModHUD::DrawHUD()
 {
 	Super::DrawHUD();
 	URender2D::SetContext(Canvas);
+	
+	//Call Lua
+	if (Game == NULL) { //Game is null !!!! What the fuck is that engine !?
+		UE_LOG(UMod_Lua, Error, TEXT("GameInstance is null ! This is a terrible engine issue !"));
+		Game = Cast<UUModGameInstance>(GetGameInstance());
+		return;
+	}
+	if (Game->Lua == NULL) {
+		UE_LOG(UMod_Lua, Error, TEXT("LuaEngine is null : GameInstance Init function not called ! This is a terrible engine issue !"));
+		return;
+	}
+	Game->Lua->RunScriptFunction(ETableType::GAMEMODE, 0, 0, "DrawHUD");
+
 	URender2D::SetFont(HUDFont);
 	MainHUDRender();
 	URender2D::ExitContext();

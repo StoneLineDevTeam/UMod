@@ -13,6 +13,20 @@
 
 #include "Player/UModCharacter.h"
 
+#include "UModGameEngine.h"
+
+//Custom control channel messages
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEnd);
+//The poll control channel message
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModPoll);
+
 const FString GVersion = FString("0.4 - Alpha");
 FString LuaVersion;
 const FString LuaEngineVersion = FString("NULL");
@@ -21,6 +35,9 @@ static bool DedicatedStatic;
 const uint32 MinResX = 1200;
 const uint32 MinResY = 650;
 
+//WARNING : Client side only bool
+bool IsPollingServer;
+
 UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	OnCreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &UUModGameInstance::OnCreateSessionComplete);
@@ -28,6 +45,90 @@ UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer
 
 	AssetsManager = NewObject<UUModAssetsManager>();
 }
+
+//FNetworkNotify interface
+void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch)
+{
+	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
+	//ServerSide
+	switch (MessageType) {
+	case NMT_Hello:
+	{
+		uint8 IsLittleEndian = 0;
+		uint32 RemoteNetworkVersion = 0;
+		uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
+
+		FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion);
+
+		if (!FNetworkVersion::IsNetworkCompatible(LocalNetworkVersion, RemoteNetworkVersion))
+		{
+			UE_LOG(UMod_Game, Error, TEXT("NMT_Hello : Client connecting with invalid version. LocalNetworkVersion: %i, RemoteNetworkVersion: %i"), LocalNetworkVersion, RemoteNetworkVersion);
+			FNetControlMessage<NMT_Upgrade>::Send(Connection, LocalNetworkVersion);
+			Connection->FlushNet(true);
+			Connection->Close();
+		}
+		else
+		{
+			Connection->SetExpectedClientLoginMsgType(NMT_UModStart);
+			uint8 Type = 2;
+			FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
+			/*Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+			Connection->SetExpectedClientLoginMsgType(NMT_Login);
+			FNetControlMessage<NMT_Challenge>::Send(Connection, Connection->Challenge);
+			Connection->FlushNet();*/
+		}
+		break;
+	}
+	case NMT_UModStart:
+		uint8 ConnectType;
+		FNetControlMessage<NMT_UModStart>::Receive(Bunch, ConnectType);
+		Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
+		if (ConnectType == 0) {
+			FNetControlMessage<NMT_UModStartVars>::Send(Connection);
+		} else if (ConnectType == 1) {
+			uint32 cur = 0;
+			uint32 max = 0;
+			FString str = GetHostName();
+			FNetControlMessage<NMT_UModPoll>::Send(Connection, str, cur, max);
+			Connection->Close();
+		} else if (ConnectType == 2) {
+			UE_LOG(UMod_Game, Error, TEXT("NMT_UModStart : Unable to continue, client is a server !"));
+			Connection->Close();
+		}
+		Connection->FlushNet();
+		break;
+	default:
+		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
+	}
+}
+void UUModGameInstance::NotifyAcceptedConnection(UNetConnection* Connection)
+{
+	//ServerSide
+	Notify->NotifyAcceptedConnection(Connection);
+}
+EAcceptConnection::Type UUModGameInstance::NotifyAcceptingConnection()
+{
+	return Notify->NotifyAcceptingConnection(); //ServerSide
+}
+bool UUModGameInstance::NotifyAcceptingChannel(UChannel* Channel)
+{
+	return Notify->NotifyAcceptingChannel(Channel); //ServerSide
+}
+//End
+
+//Network hack
+void UUModGameInstance::OnNetworkConnectionCreation(ULocalPlayer *Player)
+{
+	Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
+
+	/*AUModPlayerState *state = Cast<AUModPlayerState>(Player->PlayerController->PlayerState);
+	if (state == NULL) {
+		Disconnect(FString("An unexpected error has occured."));
+		return;
+	}
+	state->InitPlayerConnection(256);*/
+}
+//End
 
 void UUModGameInstance::LogMessage(FString msg, ELogLevel level, ELogCategory cat)
 {
@@ -107,12 +208,19 @@ FLuaEngineVersion UUModGameInstance::GetLuaEngineVersion()
 	return l;
 }
 
+UUModGameEngine *UUModGameInstance::GetGameEngine()
+{
+	return Cast<UUModGameEngine>(GEngine);
+}
+
 void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
-	UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
+	if (!IsPollingServer && !IsDedicated) {
+		UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
 
-	FString err = ErrorMessage;
-	Disconnect(err);
+		FString err = ErrorMessage;
+		Disconnect(err);
+	}
 }
 
 void UUModGameInstance::OnTravelFailure(UWorld *world, ETravelFailure::Type type, const FString &ErrorMessage)
@@ -354,6 +462,22 @@ FString ResolveIP(FString dns, FString &ResolvedIP)
 	return FString("");
 }
 
+bool UUModGameInstance::PollServer(FString ip, int32 port, FString &error)
+{
+	FString WorkedIP;
+	error = ResolveIP(ip, WorkedIP); //Resolve the IP address the user entered
+	if (!error.IsEmpty()) {
+		return false;
+	}
+	UE_LOG(UMod_Game, Warning, TEXT("IP Resolver result is : %s"), *WorkedIP);
+	ULocalPlayer* const Player = GetFirstGamePlayer();
+	FString str = WorkedIP + FString(":");
+	str.AppendInt(port);
+	Player->PlayerController->ClientTravel(str, ETravelType::TRAVEL_Absolute);
+	IsPollingServer = true;
+	return true;
+}
+
 bool UUModGameInstance::JoinGame(FString ip, int32 port)
 {
 	IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
@@ -457,7 +581,7 @@ void UUModGameInstance::ShowFatalMessage(FString content)
 	const FText* text = new FText(FText::FromString(title));
 	FMessageDialog::Open(EAppMsgType::Type::Ok, FText::FromString(content), text);
 	delete text;
-	FGenericPlatformMisc::RequestExit(false);
+	FGenericPlatformMisc::RequestExit(true);
 }
 
 FUModGameResolution UUModGameInstance::GetGameResolution()
@@ -543,37 +667,81 @@ void CreateNetworkHackerActor()
 
 }
 
+void UUModGameInstance::OnAsyncLevelLoadingDone()
+{
+	if (IsLAN) {
+		FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen?bIsLanMatch");
+		UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+	} else {
+		FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen");
+		UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+	}
+	IsLAN = false;
+	CurSessionMapName = NULL;
+	DelayedRunMap = false;
+
+	IsListen = true;
+	BrokeListenServer = false;
+}
+
 uint32 ticks = 0;
+bool BrokeDedicatedServer = false;
 void UUModGameInstance::Tick(float DeltaTime)
-{	
+{
+	//Redirect FNetworkNorify to this instance
+	if (IsListen && !BrokeListenServer) { //We are a listen server
+		UWorld *World = GetWorld();
+		if (World != NULL && World->GetNetDriver() != NULL) {
+			Notify = World->GetNetDriver()->Notify;
+			World->GetNetDriver()->Notify = this;
+			UE_LOG(UMod_Game, Error, TEXT("HAVE FUN UWORLD ! I DISCONNECTED YOU FROM THE NETWORK !"));
+			BrokeListenServer = true;
+		}
+	}
+	if (IsDedicated && !BrokeDedicatedServer) { //We are a dedicated server
+		UWorld *World = GetWorld();
+		if (World != NULL && World->GetNetDriver() != NULL) {
+			Notify = World->GetNetDriver()->Notify;
+			World->GetNetDriver()->Notify = this;
+			UE_LOG(UMod_Game, Error, TEXT("HAVE FUN UWORLD ! I DISCONNECTED YOU FROM THE NETWORK !"));
+			BrokeDedicatedServer = true;
+		}
+	}
+	//End
+
 	if (DelayedRunMap) {
 		ticks++;
 		if (ticks >= 5) {
 			if (IsLAN) {
-				FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen?bIsLanMatch");
-				UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+				//FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen?bIsLanMatch");
+				//UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+				FLatentActionInfo inf;
+				inf.CallbackTarget = this;
+				inf.ExecutionFunction = "OnAsyncLevelLoadingDone";
+				inf.UUID = 0;
+				inf.Linkage = 0;
+				UGameplayStatics::LoadStreamLevel(GetWorld(), FName(*CurSessionMapName), false, false, inf);
 			} else {
-				FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen");
-				UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+				//FString opt = FString("game=") + AUModGameMode::StaticClass()->GetPathName() + FString("?listen");
+				//UGameplayStatics::OpenLevel(GetWorld(), FName(*CurSessionMapName), true, opt);
+				FLatentActionInfo inf;
+				inf.CallbackTarget = this;
+				inf.ExecutionFunction = FName("OnAsyncLevelLoadingDone");
+				UGameplayStatics::LoadStreamLevel(GetWorld(), FName(*CurSessionMapName), false, false, inf);
 			}
 
-			IsLAN = false;
+			/*IsLAN = false;
 			CurSessionMapName = NULL;
-			DelayedRunMap = false;
+			DelayedRunMap = false;*/
 			ticks = 0;
 		}		
 	} else if (DelayedServerConnect) {
 		ticks++;
 		if (ticks >= 5) {
 			ULocalPlayer* const Player = GetFirstGamePlayer();
-						
-			Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
-			AUModPlayerState *state = Cast<AUModPlayerState>(Player->PlayerController->PlayerState);
-			if (state == NULL) {
-				Disconnect(FString("An unexpected error has occured."));
-				return;
-			}
-			state->InitPlayerConnection(256);
+			
+			//I would like to also add UGameplayStatics::LoadStreamLevel however I don't know the server map that will be used... To know that I need a preconnection system...
+			OnNetworkConnectionCreation(Player);
 			
 			ticks = 0;			
 			DelayedServerConnect = false;
@@ -622,7 +790,7 @@ FString netError;
 int32 cur;
 int32 total;
 int32 status;
-void UUModGameInstance::Disconnect(FString error)
+void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix the fucking dedicated server CRASHING OVER AND OVER by calling this function !
 {
 	if (!ConnectIP.IsEmpty()) {
 		ULocalPlayer * const ply = GetFirstGamePlayer();
@@ -637,17 +805,20 @@ void UUModGameInstance::Disconnect(FString error)
 		return;
 	}
 
-	IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
-	IOnlineSessionPtr Sessions = NULL;
-	if (OnlineSub == NULL) {
-		return;
-	}
-	Sessions = OnlineSub->GetSessionInterface();
-	if (!Sessions.IsValid()) {
-		return;
-	}
-	if (!CurSessionName.IsEmpty()) {
-		DestroyCurSession(Sessions);
+	if (IsListen) {
+		IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
+		IOnlineSessionPtr Sessions = NULL;
+		if (OnlineSub == NULL) {
+			return;
+		}
+		Sessions = OnlineSub->GetSessionInterface();
+		if (!Sessions.IsValid()) {
+			return;
+		}
+		if (!CurSessionName.IsEmpty()) {
+			DestroyCurSession(Sessions);
+		}
+		IsListen = false;
 	}
 
 	AssetsManager->HandleServerDisconnect();
@@ -719,4 +890,21 @@ FString UUModGameInstance::GetHostName()
 FString UUModGameInstance::GetGameMode()
 {
 	return GameMode;
+}
+
+bool UUModGameInstance::IsListenServer()
+{
+	return IsListen;
+}
+
+void UUModGameInstance::ExitGame()
+{
+#if WITH_EDITOR
+	if (GIsEditor) {
+		return;
+	}
+	FPlatformMisc::RequestExit(false);
+#else
+	FPlatformMisc::RequestExit(false);
+#endif
 }

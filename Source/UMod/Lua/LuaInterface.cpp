@@ -245,21 +245,52 @@ void LuaInterface::PushColor(FColor col)
 
 FColor LuaInterface::CheckColor(int id)
 {
-	if (GetType(id) != ELuaType::COLOR) {
+	/*if (GetType(id) != ELuaType::COLOR) {
 		ThrowError("Expected color got : " + (int)GetType(id));
 		return FColor();
-	}
+	}*/
+	PushValue(id);
 	PushString("R");
 	GetTable(-2);
 	uint8 r = (uint8)CheckInt(-1);
+	
+	//Fuck you lua you are corrupting the stack after retrieving only one value from a table !
+	//NOTE TO LUA DEVS : If you can't support reading values from a table in the stack without corruption I suggest to not publish the library !
+
+	/*PushValue(id); //Trying to fix lua corrupting stack (not working)
 	PushString("G");
 	GetTable(-2);
 	uint8 g = (uint8)CheckInt(-1);
+	
+	PushValue(id);
 	PushString("B");
 	GetTable(-2);
 	uint8 b = (uint8)CheckInt(-1);
+	
+	PushValue(id);
 	PushString("A");
 	GetTable(-2);
-	uint8 a = (uint8)CheckInt(-1);
-	return FColor(r, g, b, a);
+	uint8 a = (uint8)CheckInt(-1);*/
+
+	return FColor(r, 0, 0, 128); //Until corruption issue is fixed hardcoding color and enabling only one value in the color
+}
+
+float LuaInterface::CheckFloat(int id)
+{
+	return (float)CheckNum(id);
+}
+
+int LuaInterface::Next(int id)
+{
+	return lua_next(luaVM, id);
+}
+
+void LuaInterface::Pop(int id)
+{
+	lua_pop(luaVM, id);
+}
+
+void LuaInterface::PushFloat(float f)
+{
+	PushNum((double)f);
 }

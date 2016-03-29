@@ -5,7 +5,31 @@
 #include "Engine/GameInstance.h"
 #include "Lua/LuaEngine.h"
 #include "UModAssetsManager.h"
+#include "DataChannel.h"
 #include "UModGameInstance.generated.h"
+
+USTRUCT(BlueprintType)
+struct FServerPollResult {
+	GENERATED_USTRUCT_BODY()
+
+	FServerPollResult() {
+	}
+
+	FServerPollResult(FString s, int32 i, int32 j) {
+		Name = s;
+		MaxPlayers = j;
+		CurPlayers = i;
+	}
+
+	UPROPERTY(BlueprintReadOnly)
+	FString Name;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 MaxPlayers;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 CurPlayers;
+};
 
 USTRUCT(BlueprintType)
 struct FLuaEngineVersion {
@@ -66,11 +90,25 @@ enum ELogLevel {
 
 class AUModCharacter;
 
+//Custom control channel messages
+DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 20, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 21); //Start sending bools and different variables like warnings, etc
+DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVars, 22, FString, uint8); //Send a variable
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 23); //Done sending variables
+DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 24, FString); //Start sending a lua file
+DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModSendLua, 29, FString); //Send a line of the file
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 30); //Indicates client to close the file as the upload is done
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 31); //End UMod data
+//The poll control channel message
+DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 32, FString, uint32, uint32); //Server poll (server name, cur players, max players)
+
+class UUModGameEngine;
+
 /**
  * 
  */
 UCLASS()
-class UMOD_API UUModGameInstance : public UGameInstance, public FTickableGameObject
+class UMOD_API UUModGameInstance : public UGameInstance, public FTickableGameObject, public FNetworkNotify
 {
 	GENERATED_BODY()
 
@@ -81,22 +119,22 @@ public:
 	UUModGameInstance(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Log Message", Keywords = "ue_log log"), Category = UMod_Specific)
-		static void LogMessage(FString msg, ELogLevel level, ELogCategory cat);
+	static void LogMessage(FString msg, ELogLevel level, ELogCategory cat);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Start Game", Keywords = "game start"), Category = UMod_Specific)
-		bool StartNewGame(bool single, bool local, int32 max, FString map, FString hostName);
+	bool StartNewGame(bool single, bool local, int32 max, FString map, FString hostName);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Net Error Message", Keywords = "get net error"), Category = UMod_Specific)
-		FString GetNetErrorMessage();
+	FString GetNetErrorMessage();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Num Objects To Load", Keywords = "get num objects"), Category = UMod_Specific)
-		int32 GetNumObjectToLoad();
+	int32 GetNumObjectToLoad();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Current Objects Loaded Num", Keywords = "get cur num objects"), Category = UMod_Specific)
-		int32 GetCurLoadedObjectNum();
+	int32 GetCurLoadedObjectNum();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Net Load Status", Keywords = "get net load status"), Category = UMod_Specific)
-		int32 GetNetLoadStatus();
+	int32 GetNetLoadStatus();
 	
 	void SetLoadData(int32 total, int32 cur, int32 status);
 
@@ -104,37 +142,48 @@ public:
 	void OnDisplayCreated();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Disconnect Client", Keywords = "disconnect client"), Category = UMod_Specific)
-		void Disconnect(FString error);
+	void Disconnect(FString error);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Join Game", Keywords = "game join"), Category = UMod_Specific)
-		bool JoinGame(FString ip, int32 port);
+	bool JoinGame(FString ip, int32 port);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Return To MeniMenu", Keywords = "main menu return"), Category = UMod_Specific)
-		void ReturnToMainMenu();
+	void ReturnToMainMenu();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Version", Keywords = "game version get"), Category = UMod_Specific)
-		static FString GetGameVersion();
+	static FString GetGameVersion();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Engine Version", Keywords = "engine version get"), Category = UMod_Specific)
-		static FString GetEngineVersion();
+	static FString GetEngineVersion();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get LuaEngine Version", Keywords = "lua engine version get"), Category = UMod_Specific)
-		static FLuaEngineVersion GetLuaEngineVersion();
+	static FLuaEngineVersion GetLuaEngineVersion();
 
 	//Changes game's resolution returns true if success, false otherwise
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Change Game Resolution", Keywords = "game resolution set change"), Category = UMod_Specific)
-		bool ChangeGameResolution(FUModGameResolution res);
+	bool ChangeGameResolution(FUModGameResolution res);
 
 	//Get's the current game resolution
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Resolution", Keywords = "game resolution get"), Category = UMod_Specific)
-		FUModGameResolution GetGameResolution();
+	FUModGameResolution GetGameResolution();
 	
 	//Get's the current game resolution
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Available Game Resolutions", Keywords = "game available resolutions get"), Category = UMod_Specific)
-		TArray<FUModGameResolution> GetAvailableGameResolutions();
+	TArray<FUModGameResolution> GetAvailableGameResolutions();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is Dedicated", Keywords = "is dedicated"), Category = UMod_Specific)
-		bool IsDedicatedServer();
+	bool IsDedicatedServer();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Poll Server", Keywords = "server poll"), Category = UMod_Specific)
+	bool PollServer(FString ip, int32 port, FString &error);
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Engine", Keywords = "gengine game engine get"), Category = UMod_Specific)
+	UUModGameEngine *GetGameEngine();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Exit Game", Keywords = "quit exit"), Category = UMod_Specific)
+	static void ExitGame();
+
+	bool IsListenServer();
 
 	virtual void Init();
 	virtual void Shutdown();
@@ -156,8 +205,6 @@ public:
 	//Start to implement lua
 	LuaEngine *Lua;
 
-	UCanvas *Current2DDrawContext;
-
 	//Assets manager
 	UPROPERTY(BlueprintReadOnly)
 	UUModAssetsManager *AssetsManager;
@@ -168,6 +215,20 @@ public:
 	static void ShowFatalMessage(FString content);
 
 	AUModCharacter* GetLocalPlayer();
+
+	//Function called when UGameplayStatics::LoadStreamLevel has done
+	UFUNCTION()
+	void OnAsyncLevelLoadingDone();
+
+	//Network hack
+	void OnNetworkConnectionCreation(ULocalPlayer* Player);
+
+	//FNetworkNotify interface
+	virtual EAcceptConnection::Type NotifyAcceptingConnection() override;
+	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch) override;
+	virtual void NotifyAcceptedConnection(UNetConnection* Connection) override;
+	virtual bool NotifyAcceptingChannel(class UChannel* Channel) override;
+	//End
 private:
 	//Global connected host vars
 	FString CurConnectedIP;
@@ -181,7 +242,11 @@ private:
 	FString GameMode;
 	//End
 
+	//Network system handler variables
 	bool IsDedicated;
+	bool IsListen;
+	bool BrokeListenServer;
+	FNetworkNotify *Notify;
 
 	bool IsDisplayCreated;
 
