@@ -132,6 +132,10 @@ static int GameExit(lua_State *L) {
 
 LuaEngine::LuaEngine(UUModGameInstance *g)
 {
+	if (g->IsEditor()) {
+		UE_LOG(UMod_Lua, Error, TEXT("Lua did not initialize as running lua in editor is not allowed !"));
+		return;
+	}
 	Game = g;
 	Lua = LuaInterface::New();
 	if (Lua == NULL) {

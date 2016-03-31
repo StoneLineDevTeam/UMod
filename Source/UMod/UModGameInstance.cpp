@@ -46,59 +46,133 @@ UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer
 	AssetsManager = NewObject<UUModAssetsManager>();
 }
 
-//FNetworkNotify interface
+//FNetworkNotify interface (ServerSide)
 void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch)
 {
 	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
-	//ServerSide
 	switch (MessageType) {
 	case NMT_Hello:
 	{
-		uint8 IsLittleEndian = 0;
-		uint32 RemoteNetworkVersion = 0;
-		uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
+		uint8 LittleEndian = 0;
+		uint32 ClientVersion = 0;
+		uint32 ServerVersion = FNetworkVersion::GetLocalNetworkVersion();
 
-		FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion);
+		FNetControlMessage<NMT_Hello>::Receive(Bunch, LittleEndian, ClientVersion);
 
-		if (!FNetworkVersion::IsNetworkCompatible(LocalNetworkVersion, RemoteNetworkVersion))
-		{
-			UE_LOG(UMod_Game, Error, TEXT("NMT_Hello : Client connecting with invalid version. LocalNetworkVersion: %i, RemoteNetworkVersion: %i"), LocalNetworkVersion, RemoteNetworkVersion);
-			FNetControlMessage<NMT_Upgrade>::Send(Connection, LocalNetworkVersion);
+		if (!FNetworkVersion::IsNetworkCompatible(ClientVersion, ServerVersion)) {
+			UE_LOG(UMod_Game, Error, TEXT("NMT_Hello : Client connecting with invalid version."));
+			FNetControlMessage<NMT_Upgrade>::Send(Connection, ServerVersion);
 			Connection->FlushNet(true);
 			Connection->Close();
-		}
-		else
-		{
+		} else {
 			Connection->SetExpectedClientLoginMsgType(NMT_UModStart);
 			uint8 Type = 2;
 			FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
-			/*Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
-			Connection->SetExpectedClientLoginMsgType(NMT_Login);
-			FNetControlMessage<NMT_Challenge>::Send(Connection, Connection->Challenge);
-			Connection->FlushNet();*/
 		}
 		break;
 	}
 	case NMT_UModStart:
 		uint8 ConnectType;
 		FNetControlMessage<NMT_UModStart>::Receive(Bunch, ConnectType);
-		Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
 		if (ConnectType == 0) {
 			FNetControlMessage<NMT_UModStartVars>::Send(Connection);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
 		} else if (ConnectType == 1) {
 			uint32 cur = 0;
 			uint32 max = 0;
 			FString str = GetHostName();
 			FNetControlMessage<NMT_UModPoll>::Send(Connection, str, cur, max);
-			Connection->Close();
+			Connection->FlushNet(true);
 		} else if (ConnectType == 2) {
 			UE_LOG(UMod_Game, Error, TEXT("NMT_UModStart : Unable to continue, client is a server !"));
+			Connection->FlushNet(true);
 			Connection->Close();
+		}
+		break;
+	case NMT_UModStartVars:
+	{
+		//Send the first variable or NMT_UModEndVars
+		Connection->Challenge = "UModVars";
+		Connection->ResponseId = 0;
+		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+			//We have not currently reached integers limit
+			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
+			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
+			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
+		} else {
+			//We have no console vars to send
+			Connection->Challenge = "UModLua";
+			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
 		}
 		Connection->FlushNet();
 		break;
+	}
+	case NMT_UModEndVars:
+	{
+		Connection->ResponseId++;
+		//Send the next variable or NMT_UModEndVars in case nothing else
+		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+			//We have not currently reached integers limit
+			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
+			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
+			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
+		} else if (ConsoleManager->ConsoleBooleans.Num() + ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+			//We have reached integer limit but not bool limit
+			int t;
+			bool b = ConsoleManager->ConsoleBooleans[Connection->ResponseId].Value;
+			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
+			if (b) {
+				t = 1;
+			} else {
+				t = 0;
+			}
+			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
+		} else {
+			Connection->Challenge = "UModLua";
+			Connection->ResponseId = 0;
+			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
+		}
+		Connection->FlushNet();
+		break;
+	}
+	case NMT_UModEndLua:
+		//TODO : Send the next lua file or UModEndLua if no more files
+		Connection->ResponseId++;
+
+		break;
+	case NMT_UModEnd:
+		if (Connection->Challenge == "UModLua") {
+			//TODO : Start sending first lua file
+
+			//Test puposes
+			Connection->Challenge = "";
+			Connection->ResponseId = 0;
+			FNetControlMessage<NMT_UModEndLua>::Send(Connection);
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
+			//End
+		} else {
+			//We are ready to resume UE4 normal connection system
+			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+			Connection->SetExpectedClientLoginMsgType(NMT_Login);
+			FNetControlMessage<NMT_Challenge>::Send(Connection, Connection->Challenge);
+			Connection->FlushNet();
+		}
+		break;
 	default:
 		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
+	}
+
+	//This runs if we have a zero param message
+	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
+		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [Before] : %i"), Bunch.GetPosBits());
+		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
+		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
+		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [After] : %i"), Bunch.GetPosBits());
 	}
 }
 void UUModGameInstance::NotifyAcceptedConnection(UNetConnection* Connection)
@@ -119,14 +193,8 @@ bool UUModGameInstance::NotifyAcceptingChannel(UChannel* Channel)
 //Network hack
 void UUModGameInstance::OnNetworkConnectionCreation(ULocalPlayer *Player)
 {
+	//Yeah no longer need for hacky thing as now UUModGameEngine actualy does this stuff inside Browse
 	Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
-
-	/*AUModPlayerState *state = Cast<AUModPlayerState>(Player->PlayerController->PlayerState);
-	if (state == NULL) {
-		Disconnect(FString("An unexpected error has occured."));
-		return;
-	}
-	state->InitPlayerConnection(256);*/
 }
 //End
 
@@ -220,6 +288,9 @@ void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENet
 
 		FString err = ErrorMessage;
 		Disconnect(err);
+		if (IsPollingServer) {
+			IsPollingServer = false;
+		}
 	}
 }
 
@@ -473,7 +544,7 @@ bool UUModGameInstance::PollServer(FString ip, int32 port, FString &error)
 	ULocalPlayer* const Player = GetFirstGamePlayer();
 	FString str = WorkedIP + FString(":");
 	str.AppendInt(port);
-	Player->PlayerController->ClientTravel(str, ETravelType::TRAVEL_Absolute);
+	GetGameEngine()->RunPollServer(str, Player);
 	IsPollingServer = true;
 	return true;
 }
@@ -895,6 +966,15 @@ FString UUModGameInstance::GetGameMode()
 bool UUModGameInstance::IsListenServer()
 {
 	return IsListen;
+}
+
+bool UUModGameInstance::IsEditor()
+{
+#if WITH_EDITOR
+	return GIsEditor;
+#else
+	return false;
+#endif
 }
 
 void UUModGameInstance::ExitGame()

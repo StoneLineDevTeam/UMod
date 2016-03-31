@@ -21,6 +21,14 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 	return Super::Browse(WorldContext, URL, Error);
 }
 
+bool SendPollPacket;
+void UUModGameEngine::RunPollServer(FString ip, ULocalPlayer* const Player)
+{
+	Player->PlayerController->ClientTravel(ip, ETravelType::TRAVEL_Absolute);
+	SendPollPacket = true;
+}
+
+//FNetworkNotify interface (ClientSide)
 EAcceptConnection::Type UUModGameEngine::NotifyAcceptingConnection()
 {
 	return Notify->NotifyAcceptingConnection();
@@ -36,18 +44,22 @@ bool UUModGameEngine::NotifyAcceptingChannel(class UChannel* Channel)
 void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
 {
 	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
+	UE_LOG(UMod_Game, Log, TEXT("Received message with ID : %i"), (int)MessageType);
 	switch (MessageType)
 	{
 	case NMT_UModStart:
-		UE_LOG(UMod_Game, Warning, TEXT("Received message"));
 		uint8 Type;
 		FNetControlMessage<NMT_UModStart>::Receive(Bunch, Type);
 		if (Type != 2) {
 			UE_LOG(UMod_Game, Error, TEXT("NMT_UModStart : Unable to continue, server is a client !"));
 			Connection->Close();
-			return;
 		}
-		Type = 1; //Testing ServerPoll feature
+		if (SendPollPacket) {
+			Type = 1;
+			SendPollPacket = false;
+		} else {
+			Type = 0;
+		}
 		FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
 		Connection->FlushNet();
 		break;
@@ -58,11 +70,46 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 		uint32 Max;
 		FNetControlMessage<NMT_UModPoll>::Receive(Bunch, Name, Cur, Max);
 		FServerPollResult res = FServerPollResult(Name, Cur, Max);
-		PollEndDelegate.Broadcast(res);
 		Connection->Close();
+		PollEndDelegate.Broadcast(res);
 		break;
 	}
+	case NMT_UModStartVars:
+		FNetControlMessage<NMT_UModStartVars>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	case NMT_UModSendVars:
+		//We current do not support receiving vars as GameEngine class does not have access to GameInstance class
+		FNetControlMessage<NMT_UModSendVars>::Discard(Bunch);
+		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	case NMT_UModSendLua:
+		//We current do not support receiving lua as GameEngine class does not have access to GameInstance class
+		FNetControlMessage<NMT_UModSendLua>::Discard(Bunch);
+		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	case NMT_UModEndVars:
+		//Server is done uploading console vars
+		FNetControlMessage<NMT_UModEnd>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	case NMT_UModEndLua:
+		//Server is done uploading lua
+		//UMod network intializer has done all work, send a packet to confirm connection (otherwise we can just close connection)
+		FNetControlMessage<NMT_UModEnd>::Send(Connection);
+		Connection->FlushNet();
+		break;
 	default:
 		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
+	}
+
+	//This runs if we have a zero param message
+	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
+		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [Before] : %i"), Bunch.GetPosBits());
+		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
+		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
+		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [After] : %i"), Bunch.GetPosBits());
 	}
 }

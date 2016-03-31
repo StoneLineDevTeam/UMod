@@ -10,6 +10,8 @@ UCLASS()
 class UUModGameEngine : public UGameEngine, public FNetworkNotify {
 	GENERATED_BODY()
 public:
+	void RunPollServer(FString ip, ULocalPlayer* const Player);
+
 	UPROPERTY(BlueprintAssignable)
 	FServerPollEndDelegate PollEndDelegate;
 

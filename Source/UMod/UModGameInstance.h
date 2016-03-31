@@ -93,7 +93,7 @@ class AUModCharacter;
 //Custom control channel messages
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 20, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 21); //Start sending bools and different variables like warnings, etc
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVars, 22, FString, uint8); //Send a variable
+DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVars, 22, FString, int32); //Send a variable
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 23); //Done sending variables
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 24, FString); //Start sending a lua file
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModSendLua, 29, FString); //Send a line of the file
@@ -183,7 +183,11 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Exit Game", Keywords = "quit exit"), Category = UMod_Specific)
 	static void ExitGame();
 
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is Listen", Keywords = "is listen"), Category = UMod_Specific)
 	bool IsListenServer();
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is Editor", Keywords = "is editor"), Category = UMod_Specific)
+	bool IsEditor();
 
 	virtual void Init();
 	virtual void Shutdown();

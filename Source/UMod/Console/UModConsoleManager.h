@@ -29,7 +29,7 @@ struct FLogLine {
 template<typename T>
 struct FUModConsoleVar {
 	FUModConsoleVar(T val, FString name, FString desc, bool config) {
-		Content = val;
+		Value = val;
 		Default = val;
 		VarName = name;
 		VarDesc = desc;
@@ -37,7 +37,7 @@ struct FUModConsoleVar {
 	}
 
 	T Default;
-	T Content;
+	T Value;
 	FString VarName;
 	FString VarDesc;
 	bool ConfigSaved;
@@ -99,6 +99,7 @@ public:
 	RELOAD() #note : only reloads lua VM, destroy it and recreate it (may be CPU intensive)#
 	RECONNECT() #note : only reconnects the same server in case of sync bugs#
 	*/
+
 	template<typename T>
 	T GetConsoleVar(FString name);
 	template<typename T>
@@ -112,14 +113,19 @@ public:
 
 	void RunConsoleCommand(FString cmd, AUModCharacter* player = NULL);
 	//PUBLIC API END
+
+	//Those are public for replication using my own var sender/reader
+	TArray<FUModConsoleVar<int>> ConsoleIntegers;
+	TArray<FUModConsoleVar<bool>> ConsoleBooleans;
 private:
+	//If we are still allowing vars registration (this way we have a fix number of vars to upload)
+	bool RegisteringVars;
+
 	TArray<FLogLine> Logs;
 	
 	//Commands (Definatly I realy hate UE4 command system !)
 	TArray<FUModConsoleCommand> ConsoleCommands;
 
 	//Allowing only 3 different type of console variables
-	TArray<FUModConsoleVar<int>> ConsoleIntegers;
-	TArray<FUModConsoleVar<bool>> ConsoleBooleans;
 	TArray<FUModConsoleVar<FString>> ConsoleStrings;
 };
