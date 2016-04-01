@@ -1,6 +1,6 @@
 # UMod Alpha
 
-#GAME_CURRENT_STATE : WARNING Networked multiplayer (JoinGame) is unplayable as the UE4 networking protocol destroyer is in development and is currently only accepting NMT_Hello, NMT_UModStart and NMT_UModPoll messages
+#GAME_CURRENT_STATE : Playable (without AddCSLuaFile)
 #TODO LIST :
 	- Add runtime cached font support for URender2D::GetTextSize()
 	- Finish custom network preload system
