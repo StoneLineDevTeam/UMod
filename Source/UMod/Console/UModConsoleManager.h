@@ -28,12 +28,13 @@ struct FLogLine {
 
 template<typename T>
 struct FUModConsoleVar {
-	FUModConsoleVar(T val, FString name, FString desc, bool config) {
+	FUModConsoleVar(T val, FString name, FString desc, bool config, bool sync) {
 		Value = val;
 		Default = val;
 		VarName = name;
 		VarDesc = desc;
 		ConfigSaved = config;
+		Synced = sync;
 	}
 
 	T Default;
@@ -41,6 +42,7 @@ struct FUModConsoleVar {
 	FString VarName;
 	FString VarDesc;
 	bool ConfigSaved;
+	bool Synced;
 };
 
 struct FUModConsoleCommand {
@@ -102,8 +104,67 @@ public:
 
 	template<typename T>
 	T GetConsoleVar(FString name);
+	template<>
+	int GetConsoleVar<int>(FString name)
+	{
+		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
+			if (ConsoleIntegers[i].VarName == name) {
+				return ConsoleIntegers[i].Value;
+			}
+		}
+		return 0;
+	}
+	template<>
+	bool GetConsoleVar<bool>(FString name)
+	{
+		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
+			if (ConsoleBooleans[i].VarName == name) {
+				return ConsoleBooleans[i].Value;
+			}
+		}
+		return false;
+	}
+	template<>
+	FString GetConsoleVar<FString>(FString name)
+	{
+		for (int i = 0; i < ConsoleStrings.Num(); i++) {
+			if (ConsoleStrings[i].VarName == name) {
+				return ConsoleStrings[i].Value;
+			}
+		}
+		return "";
+	}
+
 	template<typename T>
 	void SetConsoleVar(FString name, T val);
+	template<>
+	void SetConsoleVar<int>(FString name, int val)
+	{
+		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
+			if (ConsoleIntegers[i].VarName == name) {
+				ConsoleIntegers[i].Value = val;
+			}
+		}
+	}
+	template<>
+	void SetConsoleVar<bool>(FString name, bool val)
+	{
+		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
+			if (ConsoleBooleans[i].VarName == name) {
+				ConsoleBooleans[i].Value = val;
+			}
+		}
+	}
+	template<>
+	void SetConsoleVar<FString>(FString name, FString val)
+	{
+		for (int i = 0; i < ConsoleStrings.Num(); i++) {
+			if (ConsoleStrings[i].VarName == name) {
+				ConsoleStrings[i].Value = val;
+			}
+		}
+	}
+
 	void DefineConsoleInt(FUModConsoleVar<int> var);
 	void DefineConsoleString(FUModConsoleVar<FString> var);
 	void DefineConsoleBool(FUModConsoleVar<bool> var);

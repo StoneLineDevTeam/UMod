@@ -48,3 +48,17 @@ void UUModConsoleManager::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosit
 	AddLogLine(str, col);
 }
 
+void UUModConsoleManager::DefineConsoleInt(FUModConsoleVar<int> var)
+{
+	ConsoleIntegers.Add(var);
+}
+
+void UUModConsoleManager::DefineConsoleString(FUModConsoleVar<FString> var)
+{
+	ConsoleStrings.Add(var);
+}
+
+void UUModConsoleManager::DefineConsoleBool(FUModConsoleVar<bool> var)
+{
+	ConsoleBooleans.Add(var);
+}

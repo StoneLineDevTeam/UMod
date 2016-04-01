@@ -18,7 +18,9 @@
 //Custom control channel messages
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsBool);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsInt);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsString);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
@@ -94,11 +96,11 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 		//Send the first variable or NMT_UModEndVars
 		Connection->Challenge = "UModVars";
 		Connection->ResponseId = 0;
-		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
 			//We have not currently reached integers limit
 			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
 			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
 			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
 		} else {
 			//We have no console vars to send
@@ -113,23 +115,17 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 	{
 		Connection->ResponseId++;
 		//Send the next variable or NMT_UModEndVars in case nothing else
-		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
 			//We have not currently reached integers limit
 			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
 			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
 			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else if (ConsoleManager->ConsoleBooleans.Num() + ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId) {
+		} else if (ConsoleManager->ConsoleBooleans.Num() + ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleBooleans[Connection->ResponseId].Synced) {
 			//We have reached integer limit but not bool limit
-			int t;
 			bool b = ConsoleManager->ConsoleBooleans[Connection->ResponseId].Value;
-			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			if (b) {
-				t = 1;
-			} else {
-				t = 0;
-			}
-			FNetControlMessage<NMT_UModSendVars>::Send(Connection, name, t);
+			FString name = ConsoleManager->ConsoleBooleans[Connection->ResponseId].VarName;
+			FNetControlMessage<NMT_UModSendVarsBool>::Send(Connection, name, b);
 			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
 		} else {
 			Connection->Challenge = "UModLua";
@@ -142,19 +138,52 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 	}
 	case NMT_UModEndLua:
 		//TODO : Send the next lua file or UModEndLua if no more files
-		Connection->ResponseId++;
-
+		if (Connection->Challenge == "UModLua_Start") {
+			Connection->Challenge = "UModLua_End";
+			FString str;
+			bool b = FFileHelper::LoadFileToString(str, *AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath, 0);
+			if (!b) {
+				FString fuck = "Error while loading lua file into string " + AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath;
+				FNetControlMessage<NMT_Failure>::Send(Connection, fuck);
+				Connection->FlushNet(true);
+			} else {
+				FNetControlMessage<NMT_UModSendLua>::Send(Connection, str);
+				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
+				Connection->FlushNet();
+			}
+		} else {
+			Connection->ResponseId++;
+			if (AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
+				Connection->Challenge = "UModLua_Start";
+				FString str = AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].VirtualPath;
+				FNetControlMessage<NMT_UModStartLua>::Send(Connection, str);
+				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
+				Connection->FlushNet();
+			} else {
+				Connection->Challenge = "";
+				Connection->ResponseId = 0;
+				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
+				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
+				Connection->FlushNet();
+			}
+		}
 		break;
 	case NMT_UModEnd:
 		if (Connection->Challenge == "UModLua") {
 			//TODO : Start sending first lua file
-
-			//Test puposes
-			Connection->Challenge = "";
-			Connection->ResponseId = 0;
-			FNetControlMessage<NMT_UModEndLua>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-			//End
+			if (AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
+				Connection->Challenge = "UModLua_Start";
+				FString str = AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].VirtualPath;
+				FNetControlMessage<NMT_UModStartLua>::Send(Connection, str);
+				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
+				Connection->FlushNet();
+			} else {
+				Connection->Challenge = "";
+				Connection->ResponseId = 0;
+				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
+				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
+				Connection->FlushNet();
+			}
 		} else {
 			//We are ready to resume UE4 normal connection system
 			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());

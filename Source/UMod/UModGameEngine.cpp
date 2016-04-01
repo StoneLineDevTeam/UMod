@@ -1,6 +1,7 @@
 #include "UMod.h"
 #include "UModGameEngine.h"
 #include "Engine/PendingNetGame.h"
+#include "Console/UModConsoleManager.h"
 
 EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL URL, FString& Error)
 {
@@ -19,6 +20,15 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 	}
 	//Ok relaying on the normal browse system as we don't want to change UE4's map loading system
 	return Super::Browse(WorldContext, URL, Error);
+}
+
+UUModGameInstance *UUModGameEngine::GetGame(UNetConnection *Connection)
+{
+	UWorld *World = Connection->GetWorld();
+	if (World != NULL) {
+		return Cast<UUModGameInstance>(World->GetGameInstance());
+	}
+	return NULL;
 }
 
 bool SendPollPacket;
@@ -41,6 +51,8 @@ bool UUModGameEngine::NotifyAcceptingChannel(class UChannel* Channel)
 {
 	return Notify->NotifyAcceptingChannel(Channel);
 }
+FString CurRegisteringLuaFile;
+uint32 CurRegisteringLuaFileID;
 void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
 {
 	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
@@ -78,18 +90,62 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 		FNetControlMessage<NMT_UModStartVars>::Send(Connection);
 		Connection->FlushNet();
 		break;
-	case NMT_UModSendVars:
-		//We current do not support receiving vars as GameEngine class does not have access to GameInstance class
-		FNetControlMessage<NMT_UModSendVars>::Discard(Bunch);
+	case NMT_UModSendVarsInt:
+	{
+		FString str;
+		int t;
+		FNetControlMessage<NMT_UModSendVarsInt>::Receive(Bunch, str, t);
+		GetGame(Connection)->ConsoleManager->SetConsoleVar<int>(str, t);
+
 		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
 		Connection->FlushNet();
 		break;
-	case NMT_UModSendLua:
-		//We current do not support receiving lua as GameEngine class does not have access to GameInstance class
-		FNetControlMessage<NMT_UModSendLua>::Discard(Bunch);
+	}
+	case NMT_UModSendVarsBool:
+	{
+		FString str;
+		bool b;
+		FNetControlMessage<NMT_UModSendVarsBool>::Receive(Bunch, str, b);
+		GetGame(Connection)->ConsoleManager->SetConsoleVar<bool>(str, b);
+
+		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	}
+	case NMT_UModSendVarsString:
+	{
+		FString str;
+		FString s;
+		FNetControlMessage<NMT_UModSendVarsString>::Receive(Bunch, str, s);
+		GetGame(Connection)->ConsoleManager->SetConsoleVar<FString>(str, s);
+
+		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	}
+	case NMT_UModStartLua:
+		FNetControlMessage<NMT_UModStartLua>::Receive(Bunch, CurRegisteringLuaFile);
+		
 		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
 		Connection->FlushNet();
 		break;
+	case NMT_UModSendLua:
+	{
+		FString Content;
+		FNetControlMessage<NMT_UModSendLua>::Receive(Bunch, Content);
+		FString path = FPaths::GameDir() + "/Saved/LuaCache/" + CurRegisteringLuaFileID + ".lac"; //.lac for lua cache file
+		bool b = FFileHelper::SaveStringToFile(Content, *path);
+		if (!b) {
+			GetGame(Connection)->Disconnect("Could not save downloaded lua file " + CurRegisteringLuaFile);
+		}
+		GetGame(Connection)->AssetsManager->AddCLLuaFile(path, CurRegisteringLuaFile);
+
+		CurRegisteringLuaFileID++;
+
+		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
+		Connection->FlushNet();
+		break;
+	}
 	case NMT_UModEndVars:
 		//Server is done uploading console vars
 		FNetControlMessage<NMT_UModEnd>::Send(Connection);
@@ -98,6 +154,9 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 	case NMT_UModEndLua:
 		//Server is done uploading lua
 		//UMod network intializer has done all work, send a packet to confirm connection (otherwise we can just close connection)
+		CurRegisteringLuaFile = "";
+		CurRegisteringLuaFileID = 0;
+
 		FNetControlMessage<NMT_UModEnd>::Send(Connection);
 		Connection->FlushNet();
 		break;

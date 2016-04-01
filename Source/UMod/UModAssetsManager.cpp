@@ -72,8 +72,9 @@ void UUModAssetsManager::UpdateTick()
 
 void UUModAssetsManager::LoadAddonsContent()
 {
-	//FFileManagerGeneric FileMgr;
-	
+	//Create the Lua Cache if it does not exist
+	FString path = FPaths::GameDir() + "/Saved/LuaCache/";
+	IFileManager::Get().MakeDirectory(*path, true);
 }
 
 bool UUModAssetsManager::DestroyContentPack(FUModContentPack &PackToDestroy)
@@ -105,6 +106,19 @@ void UUModAssetsManager::HandleServerDisconnect()
 				UE_LOG(UMod_Game, Error, TEXT("%s unmount failure !"), *pack.VirtualPath);
 				return;
 			}
+		}
+	}
+
+	//Clear lua cache
+	FString path = FPaths::GameDir() + "/Saved/LuaCache/";
+	IFileManager::Get().DeleteDirectory(*path, true, true);
+	//Recreate it !
+	IFileManager::Get().MakeDirectory(*path, true);
+
+	for (int j = 0; j < LuaAssetFiles.Num(); j++) {
+		FUModLuaAsset a = LuaAssetFiles[j];
+		if (!a.ForServer) {
+			LuaAssetFiles.RemoveAt(j);
 		}
 	}
 }
@@ -154,4 +168,23 @@ TArray<FUModAsset> UUModAssetsManager::GetAssetList(EUModAssetType type)
 		Assets.Add(uasset);
 	}
 	return Assets;
+}
+
+void UUModAssetsManager::AddCLLuaFile(FString Path, FString Virtual)
+{
+	LuaAssetFiles.Add(FUModLuaAsset(Path, Virtual, false));
+}
+void UUModAssetsManager::AddSVLuaFile(FString Path, FString Virtual)
+{
+	LuaAssetFiles.Add(FUModLuaAsset(Path, Virtual, true));
+}
+
+FString UUModAssetsManager::GetLuaFile(FString VirtualPath)
+{
+	for (int i = 0; i < LuaAssetFiles.Num(); i++) {
+		if (LuaAssetFiles[i].VirtualPath == VirtualPath) {
+			return LuaAssetFiles[i].RealPath;
+		}
+	}
+	return "";
 }

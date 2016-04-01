@@ -23,6 +23,8 @@ public:
 	virtual bool NotifyAcceptingChannel(class UChannel* Channel) override;
 	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch) override;
 	//END
+
+	UUModGameInstance *GetGame(UNetConnection *Connection);
 private:
 	FNetworkNotify *Notify;
 };

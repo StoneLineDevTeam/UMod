@@ -1,8 +1,6 @@
 --THE VERY VERY FIRST BEGINING OF LUA MESS !
 --This file is just here to mess a bit with debug LuaEngine
 
---AddCSLuaFile("UMod_CL.lua") Don't AddCSLuaFile or enjoy client crashes (I tried to files in one packet, that is obviously the best way to crash UE4... I'll come back with file send part by part.)
-
 print("this is a test !") --Print function is overwritten by C++ code as it needs to redirect to UE_LOG so we can display in "Game Console" window.
 log.Error("Log lib test !") --log.* library Working 100%
 

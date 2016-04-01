@@ -33,6 +33,23 @@ static int Color(lua_State *L) {
 	Lua.PushColor(FColor(r, g, b, a));
 	return 1;
 }
+static int Include(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	FString ToInclude = Lua.CheckString(-1);
+	if (Game->IsDedicatedServer() || Game->IsListenServer()) { //We are a server
+		Game->Lua->RunScript(ToInclude);
+	} else { //We are a client
+		FString real = Game->AssetsManager->GetLuaFile(ToInclude);
+		Game->Lua->RunScript(real);
+	}
+	return 0;
+}
+static int AddCSLuaFile(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	FString ToAdd = Lua.CheckString(-1);
+	Game->AssetsManager->AddSVLuaFile(FPaths::GameDir() + ToAdd, ToAdd);
+	return 0;
+}
 /*End*/
 
 /*Base log.* library*/
@@ -175,6 +192,11 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Add Color() function
 	Lua->PushCFunction(Color);
 	Lua->SetGlobal("Color");
+	//Add Include/AddCSLuaFile
+	Lua->PushCFunction(Include);
+	Lua->SetGlobal("Include");
+	Lua->PushCFunction(AddCSLuaFile);
+	Lua->SetGlobal("AddCSLuaFile");
 
 	//Custom UMod libs
 	BeginLibReg("log");
@@ -189,7 +211,9 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	AddLibFunction("Disconnect", GameDisconnect);
 	AddLibFunction("ShowFatalMessage", GameShowFatalMessage);
 	CreateLibrary();
-	LuaLibSurface::RegisterSurfaceLib(this);
+	if (!g->IsDedicatedServer()) {
+		LuaLibSurface::RegisterSurfaceLib(this);
+	}
 
 	//Enums
 	BeginLibReg("AssetType");

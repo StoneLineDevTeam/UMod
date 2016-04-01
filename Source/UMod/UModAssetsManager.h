@@ -84,16 +84,13 @@ struct FUModContentPack {
 struct FUModLuaAsset {
 	FString RealPath;
 	FString VirtualPath;
+	bool ForServer;
 
-	FUModLuaAsset(FString real, FString virt)
+	FUModLuaAsset(FString real, FString virt, bool server)
 	{
 		RealPath = real;
 		VirtualPath = virt;
-	}
-
-	bool operator==(FString virt)
-	{
-		return VirtualPath.Equals(virt);
+		ForServer = server;
 	}
 };
 
@@ -133,8 +130,13 @@ class UMOD_API UUModAssetsManager : public UObject
 	*/
 	FString GetLuaFile(FString VirtualPath);
 
-	//NOTE : Path always relative to "GameDir/Addons"
-	void AddLuaFile(FString Path, EUModContentChannel InjectorChannel);
+	void AddCLLuaFile(FString Path, FString Virtual);
+	void AddSVLuaFile(FString Path, FString Virtual);
+
+	TArray<FUModLuaAsset>& GetAllRegisteredFiles()
+	{
+		return LuaAssetFiles;
+	}
 
 	//The current gamemode name, usualy set by the GameInstance
 	FString CurrentGameModeName;
