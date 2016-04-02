@@ -7,6 +7,7 @@ print("this is a test !") --Print function is overwritten by C++ code as it need
 log.Error("Log lib test !") --log.* library Working 100%
 
 function GM:Initialize(str) --"str" is always a nil value and I don't know why @see UUModGameInstance.cpp in function Init @see LuaEngine::RunScriptFunction
+	print(str) --This time it should finaly work, well maybe not...
 	local tbl = game.GetMapList() --Working
 	print(#tbl) --UE_LOG 3 (Normal)
 	print(type(tbl))

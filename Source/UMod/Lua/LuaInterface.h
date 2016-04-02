@@ -74,6 +74,8 @@ public:
 	void Pop(int id);
 	//End
 
+	void TraceBack(int Level);
+
 	void ThrowError(FString msg);
 	ELuaErrorType PCall(int argNum, int resultNum, int handler);
 

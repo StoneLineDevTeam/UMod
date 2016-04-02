@@ -400,7 +400,7 @@ void UUModGameInstance::Init()
 	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
 
 	Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
-	Lua->RunScriptFunction(ETableType::GAMEMODE, 0, 1, "Initialize", 's', lua);
+	Lua->RunScriptFunctionOneParam<int>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25));
 
 	FString str = FCommandLine::Get();
 	TArray<FString> cmds;

@@ -284,7 +284,7 @@ void AUModHUD::DrawHUD()
 		UE_LOG(UMod_Lua, Error, TEXT("LuaEngine is null : GameInstance Init function not called ! This is a terrible engine issue !"));
 		return;
 	}
-	Game->Lua->RunScriptFunction(ETableType::GAMEMODE, 0, 0, "DrawHUD");
+	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "DrawHUD");
 
 	URender2D::SetFont(HUDFont);
 	MainHUDRender();

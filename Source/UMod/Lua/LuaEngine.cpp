@@ -298,10 +298,9 @@ void LuaEngine::RunScript(FString path)
 	}
 }
 
-void LuaEngine::RunScriptFunction(ETableType Tbl, uint8 resultNumber, uint8 ArgNum, FString FuncName, ...)
+void LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName)
 {
-	va_list vl;
-	va_start(vl, FuncName);
+	Lua->TraceBack(-1);
 
 	switch (Tbl) {
 	case GLOBAL:
@@ -314,30 +313,7 @@ void LuaEngine::RunScriptFunction(ETableType Tbl, uint8 resultNumber, uint8 ArgN
 	Lua->PushString(FuncName);
 	Lua->GetTable(-2);
 
-	for (int i = 0; i < ArgNum; i++) {
-		const char c = va_arg(vl, const char);
-		UE_LOG(UMod_Lua, Warning, TEXT("RunScriptFunction.c=%i"), (int)c);
-		switch (c) {
-		case 'd'://double
-			Lua->PushNum(va_arg(vl, double));
-			break;
-		case 'i'://integer
-			Lua->PushInt(va_arg(vl, int));
-			break;
-		case 's'://string
-			Lua->PushString(va_arg(vl, FString));
-			break;
-		case 'b'://boolean
-			Lua->PushBool(va_arg(vl, bool));
-			break;
-		case 'f'://float
-			float f = va_arg(vl, float);
-			Lua->PushNum((double)f);
-			break;
-		}
-	}
-
-	ELuaErrorType t = Lua->PCall(ArgNum, resultNumber, 0);
+	ELuaErrorType t = Lua->PCall(0, resultNumber, 1);
 	if (t != ELuaErrorType::NONE) {
 		FString msg = Lua->ToString(-1);
 		HandleLuaError(t, msg);
