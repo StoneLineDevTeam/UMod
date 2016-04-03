@@ -32,7 +32,6 @@ void AUModGameMode::BeginPlay()
 	//Lua change : start implementing call to GM functions
 
 	//Init Lua GameMode (only loads init.lua gamemode file currently)
-	//Run test V2.0 using BeginPlay instead of constructor
 	Game = Cast<UUModGameInstance>(GetGameInstance());
 	FString LuaGameMode = Game->GetGameMode();
 	if (Game == NULL) {
@@ -52,6 +51,7 @@ void AUModGameMode::BeginPlay()
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/cl_init.lua"));
 		}*/
 	}
+	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "Initialize");
 }
 
 void AUModGameMode::OnPlayerDeath(AUModCharacter* player)

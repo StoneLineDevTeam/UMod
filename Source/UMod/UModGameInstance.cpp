@@ -138,20 +138,7 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 	}
 	case NMT_UModEndLua:
 		//TODO : Send the next lua file or UModEndLua if no more files
-		if (Connection->Challenge == "UModLua_Start") {
-			Connection->Challenge = "UModLua_End";
-			FString str;
-			bool b = FFileHelper::LoadFileToString(str, *AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath, 0);
-			if (!b) {
-				FString fuck = "Error while loading lua file into string " + AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath;
-				FNetControlMessage<NMT_Failure>::Send(Connection, fuck);
-				Connection->FlushNet(true);
-			} else {
-				FNetControlMessage<NMT_UModSendLua>::Send(Connection, str);
-				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
-				Connection->FlushNet();
-			}
-		} else {
+		if (Connection->Challenge == "UModLua_End") {
 			Connection->ResponseId++;
 			if (AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
 				Connection->Challenge = "UModLua_Start";
@@ -165,6 +152,34 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
 				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
 				Connection->FlushNet();
+			}
+		} else {
+			FString str;
+			uint8 Mode;
+			bool b = true;
+			if (Connection->Challenge == "UModLua_Start") {
+				b = FFileHelper::LoadFileToString(str, *AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath, 0);
+				Connection->Challenge = str;
+			}
+			if (!b) {
+				FString fuck = "Error while loading lua file into string " + AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath;
+				FNetControlMessage<NMT_Failure>::Send(Connection, fuck);
+				Connection->FlushNet(true);
+			} else {
+				if (Connection->Challenge.Len() > NAME_SIZE - 1) {
+					FString Content = Connection->Challenge.Mid(0, NAME_SIZE - 1);
+					Connection->Challenge = Connection->Challenge.Mid(Content.Len(), Connection->Challenge.Len() - Content.Len());
+					Mode = 1; //Send middle part
+					FNetControlMessage<NMT_UModSendLua>::Send(Connection, Content, Mode);
+					Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
+					Connection->FlushNet();
+				} else {
+					Mode = 2; //Send the last part of the file
+					FNetControlMessage<NMT_UModSendLua>::Send(Connection, Connection->Challenge, Mode);
+					Connection->Challenge = "UModLua_End";
+					Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
+					Connection->FlushNet();
+				}
 			}
 		}
 		break;
@@ -198,10 +213,8 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 
 	//This runs if we have a zero param message
 	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
-		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [Before] : %i"), Bunch.GetPosBits());
 		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
-		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [After] : %i"), Bunch.GetPosBits());
 	}
 }
 void UUModGameInstance::NotifyAcceptedConnection(UNetConnection* Connection)
@@ -392,16 +405,6 @@ void UUModGameInstance::Init()
 	}
 	/*End*/
 
-	UE_LOG(UMod_Game, Log, TEXT("UMod - Starting Lua Engine..."));
-	//Lua = new LuaInterface(this);
-	Lua = new LuaEngine(this);
-	LuaVersion = Lua->GetLuaVersion();
-	FString lua = FString("LuaEngine V.") + LuaEngineVersion + FString(" | Lua V.") + LuaVersion;
-	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
-
-	Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
-	Lua->RunScriptFunctionOneParam<int>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25));
-
 	FString str = FCommandLine::Get();
 	TArray<FString> cmds;
 	str.ParseIntoArray(cmds, TEXT(" "));	
@@ -432,6 +435,15 @@ void UUModGameInstance::Init()
 
 		IsDedicated = false;
 	}
+
+	UE_LOG(UMod_Game, Log, TEXT("UMod - Starting Lua Engine..."));
+	Lua = new LuaEngine(this);
+	LuaVersion = Lua->GetLuaVersion();
+	FString lua = FString("LuaEngine V.") + LuaEngineVersion + FString(" | Lua V.") + LuaVersion;
+	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
+
+	Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
+	Lua->RunScriptFunctionOneParam<int>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25));
 }
 
 void UUModGameInstance::OnDisplayCreated()
@@ -995,6 +1007,12 @@ FString UUModGameInstance::GetGameMode()
 bool UUModGameInstance::IsListenServer()
 {
 	return IsListen;
+}
+
+void UUModGameInstance::ReloadLua()
+{
+	delete Lua;
+	Lua = new LuaEngine(this);
 }
 
 bool UUModGameInstance::IsEditor()

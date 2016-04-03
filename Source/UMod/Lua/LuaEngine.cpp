@@ -5,6 +5,8 @@
 #include "UModGameInstance.h"
 #include "Renderer/Render2D.h"
 #include "LuaLibSurface.h"
+#include "LuaLibLog.h"
+#include "LuaLibGame.h"
 
 static UUModGameInstance *Game;
 
@@ -48,102 +50,14 @@ static int AddCSLuaFile(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	FString ToAdd = Lua.CheckString(-1);
 	Game->AssetsManager->AddSVLuaFile(FPaths::GameDir() + ToAdd, ToAdd);
+	UE_LOG(UMod_Lua, Log, TEXT("Added lua file for upload : '%s'."), *ToAdd);
 	return 0;
 }
-/*End*/
-
-/*Base log.* library*/
-static int LogInfo(lua_State *L) {
+static int HasAuthority(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
-	UE_LOG(UMod_Lua, Log, TEXT("%s"), *msg);
-	return 0;
-}
-static int LogWarn(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
-	UE_LOG(UMod_Lua, Warning, TEXT("%s"), *msg);
-	return 0;
-}
-static int LogErr(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
-	UE_LOG(UMod_Lua, Error, TEXT("%s"), *msg);
-	return 0;
-}
-/*End*/
-
-/*Base game.* library*/
-static int GameGetMaps(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.NewTable();
-	TArray<FUModMap> Maps = Game->AssetsManager->GetMapList();
-	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Available maps : %i"), Maps.Num());
-	for (int i = 0; i < Maps.Num(); i++) {
-		FUModMap Map = Maps[i];
-		//Reverse the index so now lua can easely do #tbl or for k, v in pairs(tbl)
-		Lua.PushInt(i + 1);
-		//Create a sub table that contains all data
-		Lua.NewTable();
-		Lua.PushString("NiceName");
-		Lua.PushString(Map.NiceName);
-		Lua.SetTable(-3);
-		Lua.PushString("Path");
-		Lua.PushString(Map.Path);
-		Lua.SetTable(-3);
-		Lua.PushString("Category");
-		Lua.PushString(Map.Category);
-		Lua.SetTable(-3);
-		//Add the new sub table to the large one
-		Lua.SetTable(-3);
-	}
+	bool b = Game->IsDedicatedServer() || Game->IsListenServer();
+	Lua.PushBool(b);
 	return 1;
-}
-static int GameGetAssets(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	int i = Lua.CheckInt(-1);
-	Lua.NewTable();
-	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
-	EUModAssetType t = EUModAssetType(i);
-	TArray<FUModAsset> Assets = Game->AssetsManager->GetAssetList(t);
-	for (int i = 0; i < Assets.Num(); i++) {
-		FUModAsset Asset = Assets[i];
-		//Reverse the index so now lua can easely do #tbl or for k, v in pairs(tbl)
-		Lua.PushInt(i + 1);
-		//Create a sub table that contains all data
-		Lua.NewTable();
-		Lua.PushString("NiceName");
-		Lua.PushString(Asset.NiceName);
-		Lua.SetTable(-3);
-		Lua.PushString("Path");
-		Lua.PushString(Asset.Path);
-		Lua.SetTable(-3);
-		//Add the new sub table to the large one
-		Lua.SetTable(-3);
-	}
-	return 1;
-}
-static int GameIsDedicated(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.PushBool(Game->IsDedicatedServer());
-	return 1;
-}
-static int GameDisconnect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
-	Game->Disconnect(msg);
-	return 0;
-}
-static int GameShowFatalMessage(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
-	UUModGameInstance::ShowFatalMessage(msg);
-	return 0;
-}
-static int GameExit(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	UUModGameInstance::ExitGame();
-	return 0;
 }
 /*End*/
 
@@ -192,40 +106,23 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Add Color() function
 	Lua->PushCFunction(Color);
 	Lua->SetGlobal("Color");
-	//Add Include/AddCSLuaFile
+	//Add Include/AddCSLuaFile functions
 	Lua->PushCFunction(Include);
 	Lua->SetGlobal("Include");
 	Lua->PushCFunction(AddCSLuaFile);
 	Lua->SetGlobal("AddCSLuaFile");
+	//Add HasAuthority function
+	Lua->PushCFunction(HasAuthority);
+	Lua->SetGlobal("HasAuthority");
 
 	//Custom UMod libs
-	BeginLibReg("log");
-	AddLibFunction("Info", LogInfo);
-	AddLibFunction("Warning", LogWarn);
-	AddLibFunction("Error", LogErr);
-	CreateLibrary();
-	BeginLibReg("game");
-	AddLibFunction("GetMapList", GameGetMaps);
-	AddLibFunction("GetAssetList", GameGetAssets);
-	AddLibFunction("IsDedicated", GameIsDedicated);
-	AddLibFunction("Disconnect", GameDisconnect);
-	AddLibFunction("ShowFatalMessage", GameShowFatalMessage);
-	CreateLibrary();
+	LuaLibGame::RegisterGameLib(this, Game);
+	LuaLibLog::RegisterLogLib(this);
 	if (!g->IsDedicatedServer()) {
 		LuaLibSurface::RegisterSurfaceLib(this);
 	}
 
 	//Enums
-	BeginLibReg("AssetType");
-	AddLibConstant("MATERIAL", 0);
-	AddLibConstant("TEXTURE", 1);
-	AddLibConstant("MODEL", 2);
-	CreateLibrary();
-	BeginLibReg("DrawEnums");
-	AddLibConstant("TEXT_ALIGN_CENTER", 1);
-	AddLibConstant("TEXT_ALIGN_LEFT", 0);
-	AddLibConstant("TEXT_ALIGN_RIGHT", 2);
-	CreateLibrary();
 	BeginLibReg("Type");
 	AddLibConstant("TABLE", 0);
 	AddLibConstant("STRING", 1);

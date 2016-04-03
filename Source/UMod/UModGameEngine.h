@@ -24,7 +24,7 @@ public:
 	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch) override;
 	//END
 
-	UUModGameInstance *GetGame(UNetConnection *Connection);
+	UUModGameInstance *GetGame();
 private:
 	FNetworkNotify *Notify;
 };

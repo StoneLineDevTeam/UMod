@@ -58,6 +58,7 @@ public:
 
 	void SetGlobal(FString str);
 	void NewTable();
+	void NewMetaTable(FString str);
 	//Takes table index and reads key at slot id - 1
 	void GetTable(int id);
 	//Takes table index and reads key at slot id - 1 sets value at slot id - 2
@@ -72,6 +73,12 @@ public:
 	//Used to iterate lua tables
 	int Next(int id);
 	void Pop(int id);
+	//End
+
+	//UserData
+	void Register(FString* str, const luaL_Reg *l);
+	void* CheckUserData(int id, FString str);
+	void* NewUserData(int size);
 	//End
 
 	void TraceBack(int Level);

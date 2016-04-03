@@ -1,6 +1,6 @@
 # UMod Alpha
 
-#GAME_CURRENT_STATE : Playable (without AddCSLuaFile)
+#GAME_CURRENT_STATE : NOT BUILDING (Adding EntityBase to lua)
 #TODO LIST :
 	- Add runtime cached font support for URender2D::GetTextSize()
 	- Finish custom network preload system

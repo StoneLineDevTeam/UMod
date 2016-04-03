@@ -72,8 +72,10 @@ void UUModAssetsManager::UpdateTick()
 
 void UUModAssetsManager::LoadAddonsContent()
 {
-	//Create the Lua Cache if it does not exist
+	//Clear lua cache
 	FString path = FPaths::GameDir() + "/Saved/LuaCache/";
+	IFileManager::Get().DeleteDirectory(*path, true, true);
+	//Recreate it !
 	IFileManager::Get().MakeDirectory(*path, true);
 }
 

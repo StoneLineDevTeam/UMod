@@ -98,7 +98,7 @@ DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsBool, 33, FString, bool); //
 DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsString, 34, FString, FString); //Send a variable
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 23); //Done sending variables
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 24, FString); //Start sending a lua file
-DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModSendLua, 29, FString); //Send a line of the file
+DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendLua, 29, FString, uint8); //Send a line of the file (content, mode)
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 30); //Indicates client to close the file as the upload is done
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 31); //End UMod data
 //The poll control channel message
@@ -190,6 +190,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is Editor", Keywords = "is editor"), Category = UMod_Specific)
 	bool IsEditor();
+
+	//Reloads lua (WARNING : will erase EVERY loaded files in the RAM, as it basicaly close then open the lua VM)
+	void ReloadLua();
 
 	virtual void Init();
 	virtual void Shutdown();

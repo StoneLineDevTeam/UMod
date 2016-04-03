@@ -164,4 +164,10 @@ void LuaLibSurface::RegisterSurfaceLib(LuaEngine *Lua)
 	Lua->AddLibFunction("DrawRoundedRect", DrawRoundedRect);
 	Lua->AddLibFunction("DrawPoly", DrawPoly);
 	Lua->CreateLibrary();
+
+	Lua->BeginLibReg("DrawEnums");
+	Lua->AddLibConstant("TEXT_ALIGN_CENTER", 1);
+	Lua->AddLibConstant("TEXT_ALIGN_LEFT", 0);
+	Lua->AddLibConstant("TEXT_ALIGN_RIGHT", 2);
+	Lua->CreateLibrary();
 }

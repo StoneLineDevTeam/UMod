@@ -240,7 +240,8 @@ public:
 		var1.Check(Lua, -1);
 		//TODO : Pop values
 	}
-private:
+public:
 	LuaInterface *Lua;
+private:
 	FString CurLibName;
 };

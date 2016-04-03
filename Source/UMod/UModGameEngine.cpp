@@ -22,13 +22,9 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 	return Super::Browse(WorldContext, URL, Error);
 }
 
-UUModGameInstance *UUModGameEngine::GetGame(UNetConnection *Connection)
+UUModGameInstance *UUModGameEngine::GetGame()
 {
-	UWorld *World = Connection->GetWorld();
-	if (World != NULL) {
-		return Cast<UUModGameInstance>(World->GetGameInstance());
-	}
-	return NULL;
+	return Cast<UUModGameInstance>(GameInstance);
 }
 
 bool SendPollPacket;
@@ -52,6 +48,7 @@ bool UUModGameEngine::NotifyAcceptingChannel(class UChannel* Channel)
 	return Notify->NotifyAcceptingChannel(Channel);
 }
 FString CurRegisteringLuaFile;
+FString CurLuaFileContent;
 uint32 CurRegisteringLuaFileID;
 void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
 {
@@ -95,7 +92,7 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 		FString str;
 		int t;
 		FNetControlMessage<NMT_UModSendVarsInt>::Receive(Bunch, str, t);
-		GetGame(Connection)->ConsoleManager->SetConsoleVar<int>(str, t);
+		GetGame()->ConsoleManager->SetConsoleVar<int>(str, t);
 
 		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
 		Connection->FlushNet();
@@ -106,7 +103,7 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 		FString str;
 		bool b;
 		FNetControlMessage<NMT_UModSendVarsBool>::Receive(Bunch, str, b);
-		GetGame(Connection)->ConsoleManager->SetConsoleVar<bool>(str, b);
+		GetGame()->ConsoleManager->SetConsoleVar<bool>(str, b);
 
 		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
 		Connection->FlushNet();
@@ -117,7 +114,7 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 		FString str;
 		FString s;
 		FNetControlMessage<NMT_UModSendVarsString>::Receive(Bunch, str, s);
-		GetGame(Connection)->ConsoleManager->SetConsoleVar<FString>(str, s);
+		GetGame()->ConsoleManager->SetConsoleVar<FString>(str, s);
 
 		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
 		Connection->FlushNet();
@@ -132,15 +129,25 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 	case NMT_UModSendLua:
 	{
 		FString Content;
-		FNetControlMessage<NMT_UModSendLua>::Receive(Bunch, Content);
-		FString path = FPaths::GameDir() + "/Saved/LuaCache/" + CurRegisteringLuaFileID + ".lac"; //.lac for lua cache file
-		bool b = FFileHelper::SaveStringToFile(Content, *path);
-		if (!b) {
-			GetGame(Connection)->Disconnect("Could not save downloaded lua file " + CurRegisteringLuaFile);
-		}
-		GetGame(Connection)->AssetsManager->AddCLLuaFile(path, CurRegisteringLuaFile);
+		uint8 Mode;
+		FNetControlMessage<NMT_UModSendLua>::Receive(Bunch, Content, Mode);
+		if (Mode == 1) {
+			CurLuaFileContent += Content;
+		} else if (Mode == 2) {
+			CurLuaFileContent += Content;
 
-		CurRegisteringLuaFileID++;
+			FString path = FPaths::GameDir() + "/Saved/LuaCache/" + FString::FromInt(CurRegisteringLuaFileID) + ".lac"; //.lac for lua asset cache
+			bool b = FFileHelper::SaveStringToFile(CurLuaFileContent, *path);
+			if (!b) {
+				GetGame()->Disconnect("Could not save downloaded lua file " + CurRegisteringLuaFile);
+			}
+
+			GetGame()->AssetsManager->AddCLLuaFile(path, CurRegisteringLuaFile);
+
+			CurLuaFileContent = "";
+
+			CurRegisteringLuaFileID++;
+		}		
 
 		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
 		Connection->FlushNet();
@@ -166,9 +173,7 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 
 	//This runs if we have a zero param message
 	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
-		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [Before] : %i"), Bunch.GetPosBits());
 		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
-		UE_LOG(UMod_Game, Log, TEXT("ZeroParam Message Pos [After] : %i"), Bunch.GetPosBits());
 	}
 }
