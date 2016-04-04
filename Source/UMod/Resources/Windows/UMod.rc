@@ -8,6 +8,9 @@
 #include <windows.h>
 #include "Runtime/Launch/Resources/Version.h"
 
+//Trying to fix Icon Bug/Crash
+#include "Runtime/Launch/Resources/Windows/resource.h"
+
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -65,7 +68,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDICON_UE4Game          ICON                    "../../../../Build/Windows/Application.ico"
+IDICON_UE4Game          ICON                    "..\..\..\UMod.ico"
 
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////

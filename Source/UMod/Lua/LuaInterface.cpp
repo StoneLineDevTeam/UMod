@@ -312,15 +312,6 @@ void* LuaInterface::CheckUserData(int id, FString str)
 	return luaL_checkudata(luaVM, id, TCHAR_TO_ANSI(*str));
 }
 
-void LuaInterface::Register(FString* str, const luaL_Reg *l)
-{
-	if (str != NULL) {
-		luaL_register(luaVM, TCHAR_TO_ANSI(**str), l);
-	} else {
-		luaL_register(luaVM, NULL, l);
-	}
-}
-
 void LuaInterface::NewMetaTable(FString str)
 {
 	luaL_newmetatable(luaVM, TCHAR_TO_ANSI(*str));

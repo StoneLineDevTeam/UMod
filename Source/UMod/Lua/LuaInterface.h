@@ -76,7 +76,6 @@ public:
 	//End
 
 	//UserData
-	void Register(FString* str, const luaL_Reg *l);
 	void* CheckUserData(int id, FString str);
 	void* NewUserData(int size);
 	//End

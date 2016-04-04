@@ -11,18 +11,14 @@ static int GetPos(lua_State *L) {
 	return 0;
 }
 
-static const luaL_Reg EntityBaseFuncs[] = {
-	{"SetPos", SetPos},
-	{"GetPos", GetPos}
-};
-
-void LuaEntityBase::RegisterEntityBase(LuaEngine* Lua)
+void LuaEntityBase::RegisterEntityMetaTable(LuaEngine* Lua)
 {
-	Lua->Lua->NewMetaTable("UEntity");
-	Lua->Lua->Register(NULL, EntityBaseFuncs);
-	Lua->Lua->PushValue(-1);
-	Lua->Lua->PushString("__index");
+	Lua->Lua->NewMetaTable("Entity");
+	Lua->Lua->PushString("SetPos");
+	Lua->Lua->PushCFunction(SetPos);
 	Lua->Lua->SetTable(-2);
-
-	Lua->Lua->Register("Entity", EntityBaseFuncs);
+	Lua->Lua->PushString("GetPos");
+	Lua->Lua->PushCFunction(GetPos);
+	
+	Lua->Lua->SetTable(LUA_REGISTRYINDEX); //Add Entity metatable to the registry
 }
