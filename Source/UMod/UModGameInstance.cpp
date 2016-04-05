@@ -438,12 +438,14 @@ void UUModGameInstance::Init()
 
 	UE_LOG(UMod_Game, Log, TEXT("UMod - Starting Lua Engine..."));
 	Lua = new LuaEngine(this);
-	LuaVersion = Lua->GetLuaVersion();
-	FString lua = FString("LuaEngine V.") + LuaEngineVersion + FString(" | Lua V.") + LuaVersion;
-	UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
+	if (!IsEditor()) {
+		LuaVersion = Lua->GetLuaVersion();
+		FString lua = FString("LuaEngine V.") + LuaEngineVersion + FString(" | Lua V.") + LuaVersion;
+		UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
 
-	Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
-	Lua->RunScriptFunctionOneParam<int>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25));
+		Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
+		Lua->RunScriptFunctionOneParam<int>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25));
+	}
 }
 
 void UUModGameInstance::OnDisplayCreated()

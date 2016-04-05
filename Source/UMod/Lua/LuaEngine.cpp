@@ -63,16 +63,19 @@ static int HasAuthority(lua_State *L) {
 
 LuaEngine::LuaEngine(UUModGameInstance *g)
 {
-	if (g->IsEditor()) {
-		UE_LOG(UMod_Lua, Error, TEXT("Lua did not initialize as running lua in editor is not allowed !"));
-		return;
-	}
 	Game = g;
 	Lua = LuaInterface::New();
 	if (Lua == NULL) {
 		UE_LOG(UMod_Lua, Error, TEXT("Lua failed to initialize !"));
 		return;
 	}
+
+	//Leave this block here so we have a LuaInterface and LuaEngine running but empty in editor
+	if (g->IsEditor()) {
+		UE_LOG(UMod_Lua, Error, TEXT("Lua did not initialize as running lua in editor is not allowed !"));
+		return;
+	}
+
 	Lua->OpenLibs();
 
 	//Overwrite print function
