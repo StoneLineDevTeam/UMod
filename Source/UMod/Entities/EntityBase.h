@@ -52,8 +52,11 @@ private:
 	FVector DesiredPos;
 	UPROPERTY(Replicated)
 	FRotator DesiredRot;
+<<<<<<< HEAD
+=======
 	UPROPERTY(ReplicatedUsing = TestUpd)
 	int32 SomeIntTest;
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
 	uint8 CurCollisionProfile;
 	UPROPERTY(ReplicatedUsing = UpdateClientMDL)
@@ -62,6 +65,11 @@ private:
 	FString* ServerMATSync;
 
 	UFUNCTION()
+<<<<<<< HEAD
+	void UpdateClientMDL();
+	UFUNCTION()
+	void UpdateCollisionStatus();
+=======
 	void TestUpd();
 
 	//Those RPCs are never received by clients, something realy weird happens...
@@ -74,6 +82,7 @@ private:
 	void UpdateCollisionStatus(/*uint8 newColProfile*/);
 	//void UpdateCollisionStatus_Implementation(uint8 newColProfile);
 	//End
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	UFUNCTION()
 	void UpdateClientMAT();
 	//End

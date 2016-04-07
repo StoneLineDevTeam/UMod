@@ -1,3 +1,5 @@
+This is a syntax error !
+
 --THE VERY VERY FIRST BEGINING OF LUA MESS !
 --This file is just here to mess a bit with debug LuaEngine
 
@@ -54,5 +56,9 @@ function GM:DrawHUD()
 	local col = Color(255, 255, 255, 128)
 	print(col.R .. "," .. col.G .. "," .. col.B .. "," .. col.A)
 	surface.SetColor(col)
+<<<<<<< HEAD
+	surface.DrawRect(0, 0, 1300, 720)]]--
+=======
 	surface.DrawRect(0, 0, 1300, 720)]]-
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 end

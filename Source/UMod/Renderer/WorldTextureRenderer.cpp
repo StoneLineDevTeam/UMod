@@ -1,6 +1,8 @@
 #include "UMod.h"
 #include "WorldTextureRenderer.h"
 #include "DynamicMeshBuilder.h"
+#include "Render2D.h"
+#include "UModGameInstance.h"
 
 
 class FWorldTextureRenderer : public FPrimitiveSceneProxy {
@@ -77,4 +79,21 @@ UMaterialInstanceDynamic *UWorldTextureRenderer::Get3DSpaceMaterial()
 bool UWorldTextureRenderer::HasTransparency()
 {
 	return EnabledTransparency;
+}
+
+
+//UCanvasRenderTarget2D implementation
+void UScreenRenderTarget::FireRender(UCanvas *Canvas, int32 W, int32 H)
+{
+	URender2D::SetContext(Canvas);
+	UUModGameInstance *UMod = Cast<UUModGameInstance>(GetWorld()->GetGameInstance());
+	//Call Lua function RenderScreen with 3 params ScreenID, Width, Height
+	UMod->Lua->RunScriptFunctionThreeParam<int, int, int>(ETableType::GAMEMODE, 0, "RenderScreen", FLuaParam<int>((int)GivenID), FLuaParam<int>(W), FLuaParam<int>(H));
+	URender2D::ExitContext();
+}
+
+void UScreenRenderTarget::Init(uint8 ID)
+{
+	OnCanvasRenderTargetUpdate.AddDynamic(this, &UScreenRenderTarget::FireRender);
+	GivenID = ID;
 }

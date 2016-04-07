@@ -18,3 +18,14 @@ private:
 	bool EnabledTransparency;
 	UMaterialInstanceDynamic *Material;
 };
+
+UCLASS()
+class UScreenRenderTarget : public UCanvasRenderTarget2D {
+	GENERATED_BODY()
+
+public:
+	void FireRender(UCanvas *Canvas, int32 W, int32 H);
+	void Init(uint8 ID);
+private:
+	uint8 GivenID;
+};

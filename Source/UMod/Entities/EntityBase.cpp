@@ -72,6 +72,11 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 
 	DOREPLIFETIME(AEntityBase, DesiredPos);
 	DOREPLIFETIME(AEntityBase, DesiredRot);
+<<<<<<< HEAD
+	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
+	DOREPLIFETIME(AEntityBase, ServerMDLSync);
+	//DOREPLIFETIME(AEntityBase, ServerMATSync);
+=======
 	DOREPLIFETIME(AEntityBase, SomeIntTest);
 	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
 	//DOREPLIFETIME(AEntityBase, ServerMDLSync);
@@ -80,6 +85,7 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 void AEntityBase::TestUpd()
 {
 	UE_LOG(UMod_Game, Warning, TEXT("This should be called client side whenever entity pos changes %i!"), SomeIntTest);
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 }
 void AEntityBase::UpdateClientMDL()/*_Implementation(const FString &newMdl)*/
 {
@@ -99,11 +105,17 @@ void AEntityBase::UpdateClientMAT()
 }
 void AEntityBase::UpdateCollisionStatus()/*_Implementation(uint8 col)*/
 {
+<<<<<<< HEAD
+	UE_LOG(UMod_Game, Warning, TEXT("Update Collision Status [Client]"));
+	EntityModel->bGenerateOverlapEvents = false;
+	ECollisionType t = (ECollisionType)(CurCollisionProfile - 1);
+=======
 	if (Role == ROLE_Authority) { return; }
 	//CurCollisionProfile = col;
 	UE_LOG(UMod_Game, Warning, TEXT("Update Collision Status [Client]"));
 	EntityModel->bGenerateOverlapEvents = false;
 	ECollisionType t = (ECollisionType)CurCollisionProfile;
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	if (t != ECollisionType::COLLISION_NONE) {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		switch (t) {
@@ -250,14 +262,18 @@ void AEntityBase::SetCollisions(ECollisionType collision)
 		EntityModel->bGenerateOverlapEvents = true;
 		EntityModel->SetNotifyRigidBodyCollision(false);
 	}
+<<<<<<< HEAD
+	CurCollisionProfile = (uint8)collision + 1;
+=======
 	CurCollisionProfile = (uint8)collision;
 	SomeIntTest++;
 	//UpdateCollisionStatus(/*CurCollisionProfile*/);
+>>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 }
 
 ECollisionType AEntityBase::GetCollisions()
 {
-	return (ECollisionType)CurCollisionProfile;
+	return (ECollisionType)(CurCollisionProfile - 1);
 }
 
 void AEntityBase::SetMaterial(FString path)
