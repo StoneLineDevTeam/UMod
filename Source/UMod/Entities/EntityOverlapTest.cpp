@@ -9,7 +9,8 @@ AEntityOverlapTest::AEntityOverlapTest()
 void AEntityOverlapTest::OnInit()
 {
 	SetPhysicsEnabled(false);
-	SetCollisions(ECollisionType::COLLISION_NONE);
+	SetCollisionModel(ECollisionType::COLLISION_NONE);
+	Construct();
 }
 
 void AEntityOverlapTest::OnBeginOverlap(AEntityBase *other)

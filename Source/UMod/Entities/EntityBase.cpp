@@ -31,8 +31,6 @@ void AEntityBase::BeginPlay()
 			EntityModel->SetSimulatePhysics(false);
 		}
 	}
-
-	//UpdateCollisionStatus(CurCollisionProfile);
 }
 void AEntityBase::Tick(float DeltaTime)
 {
@@ -72,22 +70,11 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 
 	DOREPLIFETIME(AEntityBase, DesiredPos);
 	DOREPLIFETIME(AEntityBase, DesiredRot);
-<<<<<<< HEAD
 	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
 	DOREPLIFETIME(AEntityBase, ServerMDLSync);
 	//DOREPLIFETIME(AEntityBase, ServerMATSync);
-=======
-	DOREPLIFETIME(AEntityBase, SomeIntTest);
-	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
-	//DOREPLIFETIME(AEntityBase, ServerMDLSync);
-	//DOREPLIFETIME(AEntityBase, ServerMATSync);
 }
-void AEntityBase::TestUpd()
-{
-	UE_LOG(UMod_Game, Warning, TEXT("This should be called client side whenever entity pos changes %i!"), SomeIntTest);
->>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
-}
-void AEntityBase::UpdateClientMDL()/*_Implementation(const FString &newMdl)*/
+void AEntityBase::UpdateClientMDL()
 {
 	if (Role == ROLE_Authority) { return; }
 	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/Models/" + ServerMDLSync));
@@ -103,19 +90,11 @@ void AEntityBase::UpdateClientMAT()
 		EntityModel->SetMaterial(i, mat);
 	}
 }
-void AEntityBase::UpdateCollisionStatus()/*_Implementation(uint8 col)*/
+void AEntityBase::UpdateCollisionStatus()
 {
-<<<<<<< HEAD
 	UE_LOG(UMod_Game, Warning, TEXT("Update Collision Status [Client]"));
 	EntityModel->bGenerateOverlapEvents = false;
 	ECollisionType t = (ECollisionType)(CurCollisionProfile - 1);
-=======
-	if (Role == ROLE_Authority) { return; }
-	//CurCollisionProfile = col;
-	UE_LOG(UMod_Game, Warning, TEXT("Update Collision Status [Client]"));
-	EntityModel->bGenerateOverlapEvents = false;
-	ECollisionType t = (ECollisionType)CurCollisionProfile;
->>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	if (t != ECollisionType::COLLISION_NONE) {
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		switch (t) {
@@ -144,9 +123,6 @@ void AEntityBase::Construct()
 			EntityModel->SetSimulatePhysics(false);
 			EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
-	} else {
-		EntityModel->bGenerateOverlapEvents = false;
-		EntityModel->SetNotifyRigidBodyCollision(false);
 	}
 	Initializing = false;
 }
@@ -225,7 +201,6 @@ void AEntityBase::SetModel(FString path)
 {
 	if (Role == ROLE_Authority && !Initializing) {
 		ServerMDLSync = path;
-		//UpdateClientMDL(path);
 	}
 	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/Models/" + path));
 	EntityModel->SetStaticMesh(model);
@@ -239,7 +214,7 @@ FString AEntityBase::GetModel()
 	return "Models/" + CurMdl;
 }
 
-void AEntityBase::SetCollisions(ECollisionType collision)
+void AEntityBase::SetCollisionModel(ECollisionType collision)
 {
 	if (Role != ROLE_Authority) { return; }
 	if (collision != ECollisionType::COLLISION_NONE) {
@@ -262,16 +237,10 @@ void AEntityBase::SetCollisions(ECollisionType collision)
 		EntityModel->bGenerateOverlapEvents = true;
 		EntityModel->SetNotifyRigidBodyCollision(false);
 	}
-<<<<<<< HEAD
 	CurCollisionProfile = (uint8)collision + 1;
-=======
-	CurCollisionProfile = (uint8)collision;
-	SomeIntTest++;
-	//UpdateCollisionStatus(/*CurCollisionProfile*/);
->>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 }
 
-ECollisionType AEntityBase::GetCollisions()
+ECollisionType AEntityBase::GetCollisionModel()
 {
 	return (ECollisionType)(CurCollisionProfile - 1);
 }

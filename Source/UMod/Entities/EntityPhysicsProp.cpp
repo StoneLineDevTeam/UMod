@@ -10,7 +10,7 @@ AEntityPhysicsProp::AEntityPhysicsProp()
 	SetModel(InModel);
 
 	SetPhysicsEnabled(true);
-	SetCollisions(ECollisionType::COLLISION_PHYSICS);
+	SetCollisionModel(ECollisionType::COLLISION_PHYSICS);
 }
 
 FString AEntityPhysicsProp::GetClass()

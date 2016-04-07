@@ -52,11 +52,6 @@ private:
 	FVector DesiredPos;
 	UPROPERTY(Replicated)
 	FRotator DesiredRot;
-<<<<<<< HEAD
-=======
-	UPROPERTY(ReplicatedUsing = TestUpd)
-	int32 SomeIntTest;
->>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
 	uint8 CurCollisionProfile;
 	UPROPERTY(ReplicatedUsing = UpdateClientMDL)
@@ -65,24 +60,9 @@ private:
 	FString* ServerMATSync;
 
 	UFUNCTION()
-<<<<<<< HEAD
 	void UpdateClientMDL();
 	UFUNCTION()
 	void UpdateCollisionStatus();
-=======
-	void TestUpd();
-
-	//Those RPCs are never received by clients, something realy weird happens...
-	//UFUNCTION(NetMulticast, Reliable)
-	UFUNCTION()
-	void UpdateClientMDL(/*const FString &newMdl*/);
-	//void UpdateClientMDL_Implementation(const FString &newMdl);
-	//UFUNCTION(NetMulticast, Reliable)
-	UFUNCTION()
-	void UpdateCollisionStatus(/*uint8 newColProfile*/);
-	//void UpdateCollisionStatus_Implementation(uint8 newColProfile);
-	//End
->>>>>>> b3a6bdd3dbb808faf4a78aab6577a265216b607a
 	UFUNCTION()
 	void UpdateClientMAT();
 	//End
@@ -121,8 +101,8 @@ public:
 
 	/* Begin entity base lib */
 	void SetPhysicsEnabled(bool b); //Works only in OnInit(), used to remove the synced physics system, ServerSide
-	void SetCollisions(ECollisionType collision); //ServerSide
-	ECollisionType GetCollisions();
+	void SetCollisionModel(ECollisionType collision); //ServerSide
+	ECollisionType GetCollisionModel();
 	void SetModel(FString path);
 	void SetGravityScale(float f); //ServerSide
 	float GetGravityScale(); //ServerSide

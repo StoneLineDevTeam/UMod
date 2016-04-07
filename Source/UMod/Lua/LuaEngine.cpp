@@ -4,6 +4,7 @@
 #include "LuaEngine.h"
 #include "UModGameInstance.h"
 #include "Renderer/Render2D.h"
+#include "Renderer/Render3D.h"
 #include "LuaLibSurface.h"
 #include "LuaLibLog.h"
 #include "LuaLibGame.h"
@@ -59,6 +60,25 @@ static int HasAuthority(lua_State *L) {
 	Lua.PushBool(b);
 	return 1;
 }
+/*End*/
+
+/*Add render lib*/
+//FUCK YOU MOTHER FUCKING GITHUB
+static int RenderCreate3D2DTarget(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	uint32 W = (uint32)Lua.CheckInt(-2);
+	uint32 H = (uint32)Lua.CheckInt(-1);
+	uint8 id = URender3D::Create3D2DTarget(W, H);
+	Lua.PushInt((int)id);
+	return 1;
+}
+static int RenderRender3D2DTarget(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	uint8 id = (uint8)Lua.CheckInt(-1);
+	URender3D::Render3D2DTarget(id);
+	return 0;
+}
+
 /*End*/
 
 LuaEngine::LuaEngine(UUModGameInstance *g)
@@ -123,6 +143,10 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	LuaLibLog::RegisterLogLib(this);
 	if (!g->IsDedicatedServer()) {
 		LuaLibSurface::RegisterSurfaceLib(this);
+		BeginLibReg("render");
+		AddLibFunction("Create3D2DTarget", RenderCreate3D2DTarget);
+		AddLibFunction("Render3D2DTarget", RenderRender3D2DTarget);
+		CreateLibrary();
 	}
 
 	//Enums

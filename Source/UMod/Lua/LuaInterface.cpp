@@ -201,8 +201,8 @@ void LuaInterface::OpenLibs()
 ELuaErrorType LuaInterface::LoadFile(FString file)
 {
 	int status = luaL_loadfile(luaVM, TCHAR_TO_ANSI(*file));
-	if (status == 1) {
-		ELuaErrorType::PARSER;
+	if (status != LUA_OK) {
+		return ELuaErrorType::PARSER;
 	}
 	return ELuaErrorType::NONE;
 }

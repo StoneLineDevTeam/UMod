@@ -3,10 +3,16 @@
 #include "UMod.h"
 #include "UModGameState.h"
 #include "UModGameInstance.h"
+#include "Renderer/Render3D.h"
 
 void AUModGameState::HandleMatchIsWaitingToStart()
 {
 	UUModGameInstance* umod = Cast<UUModGameInstance>(GetGameInstance());
+
+	if (!umod->IsDedicatedServer()) {
+		URender3D::SetWorld(GetWorld());
+	}
+
 	FString MapPackageLongName = GetWorld()->GetCurrentLevel()->GetOutermost()->GetName();
 	if (MapPackageLongName.Contains("/Game/Internal/")) {
 		if (!umod->IsDedicatedServer()) {
