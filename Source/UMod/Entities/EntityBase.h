@@ -47,10 +47,36 @@ class UMOD_API AEntityBase : public AActor
 	class UStaticMeshComponent *EntityModel;
 
 private:
+	//Network stuff
 	UPROPERTY(Replicated)
 	FVector DesiredPos;
 	UPROPERTY(Replicated)
 	FRotator DesiredRot;
+	UPROPERTY(ReplicatedUsing = TestUpd)
+	int32 SomeIntTest;
+	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
+	uint8 CurCollisionProfile;
+	UPROPERTY(ReplicatedUsing = UpdateClientMDL)
+	FString ServerMDLSync;
+	//UPROPERTY(ReplicatedUsing = UpdateClientMAT)
+	FString* ServerMATSync;
+
+	UFUNCTION()
+	void TestUpd();
+
+	//Those RPCs are never received by clients, something realy weird happens...
+	//UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION()
+	void UpdateClientMDL(/*const FString &newMdl*/);
+	//void UpdateClientMDL_Implementation(const FString &newMdl);
+	//UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION()
+	void UpdateCollisionStatus(/*uint8 newColProfile*/);
+	//void UpdateCollisionStatus_Implementation(uint8 newColProfile);
+	//End
+	UFUNCTION()
+	void UpdateClientMAT();
+	//End
 
 	//Does this entity manages physics
 	bool PhysEnabled = false;
@@ -62,26 +88,11 @@ private:
 	//FIX : Editor not updating model
 	FString EditorCurMdl;
 #endif
-
-	UPROPERTY(ReplicatedUsing = UpdateClientMDL)
-	FString ServerMDLSync;
-	//UPROPERTY(ReplicatedUsing = UpdateClientMAT)
-	FString* ServerMATSync;
-
+	
 	UPROPERTY(EditAnywhere)
 	TArray<FInitProperty> InitProperties;
 
-	UFUNCTION()
-	void UpdateClientMDL();
-	UFUNCTION()
-	void UpdateCollisionStatus();
-	UFUNCTION()
-	void UpdateClientMAT();
-
 	float GravityScale = 1;
-
-	UPROPERTY(ReplicatedUsing = UpdateCollisionStatus)
-	uint8 CurCollisionProfile;
 public:	
 	AEntityBase();
 
@@ -89,8 +100,10 @@ public:
 	virtual void BeginPlay() override;	
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
-	virtual void NotifyActorBeginOverlap(AActor* OtherActor);
-	virtual void NotifyActorEndOverlap(AActor* OtherActor);
+	UFUNCTION()
+	void ActorBeginOverlap(AActor* OtherActor, class UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result);
+	UFUNCTION()
+	void ActorEndOverlap(AActor* OtherActor, class UPrimitiveComponent *C, int32 i);
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e);

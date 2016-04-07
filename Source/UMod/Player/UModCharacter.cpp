@@ -350,7 +350,7 @@ void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefau
 	DOREPLIFETIME(AUModCharacter, weapons);
 	DOREPLIFETIME(AUModCharacter, curWeapon);
 	DOREPLIFETIME(AUModCharacter, playerHealth);
-	DOREPLIFETIME(AUModCharacter, PlayerAmmo);
+	//DOREPLIFETIME(AUModCharacter, PlayerAmmo);
 }
 
 void AUModCharacter::UpdateClientSideData()

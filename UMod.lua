@@ -50,9 +50,9 @@ end
 --First real scrip part : render some squares on the HUD !
 local id = surface.LoadTexture("Internal/Textures/FirstPersonCrosshair")
 function GM:DrawHUD()
-	surface.ResetTexture()
+	--[[surface.ResetTexture()
 	local col = Color(255, 255, 255, 128)
 	print(col.R .. "," .. col.G .. "," .. col.B .. "," .. col.A)
 	surface.SetColor(col)
-	surface.DrawRect(0, 0, 1300, 720)
+	surface.DrawRect(0, 0, 1300, 720)]]-
 end
