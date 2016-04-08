@@ -3,13 +3,13 @@
 #include "LuaEngine.h"
 #include "UModGameInstance.h"
 
-static UUModGameInstance *Game;
+static UUModGameInstance *Game1;
 
 /*Base game.* library*/
 static int GameGetMaps(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	Lua.NewTable();
-	TArray<FUModMap> Maps = Game->AssetsManager->GetMapList();
+	TArray<FUModMap> Maps = Game1->AssetsManager->GetMapList();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Available maps : %i"), Maps.Num());
 	for (int i = 0; i < Maps.Num(); i++) {
 		FUModMap Map = Maps[i];
@@ -37,7 +37,7 @@ static int GameGetAssets(lua_State *L) {
 	Lua.NewTable();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
 	EUModAssetType t = EUModAssetType(i);
-	TArray<FUModAsset> Assets = Game->AssetsManager->GetAssetList(t);
+	TArray<FUModAsset> Assets = Game1->AssetsManager->GetAssetList(t);
 	for (int i = 0; i < Assets.Num(); i++) {
 		FUModAsset Asset = Assets[i];
 		//Reverse the index so now lua can easely do #tbl or for k, v in pairs(tbl)
@@ -57,13 +57,13 @@ static int GameGetAssets(lua_State *L) {
 }
 static int GameIsDedicated(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.PushBool(Game->IsDedicatedServer());
+	Lua.PushBool(Game1->IsDedicatedServer());
 	return 1;
 }
 static int GameDisconnect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	FString msg = Lua.CheckString(-1);
-	Game->Disconnect(msg);
+	Game1->Disconnect(msg);
 	return 0;
 }
 static int GameShowFatalMessage(lua_State *L) {
@@ -81,7 +81,7 @@ static int GameExit(lua_State *L) {
 
 void LuaLibGame::RegisterGameLib(LuaEngine *Lua, UUModGameInstance *Inst)
 {
-	Game = Inst;
+	Game1 = Inst;
 
 	Lua->BeginLibReg("game");
 	Lua->AddLibFunction("GetMapList", GameGetMaps);

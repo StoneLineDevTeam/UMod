@@ -26,6 +26,8 @@ DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Input, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Lua, Log, All);
 
+#define CHANNEL_VOICE static_cast<EChannelType>(5) //UMod voice channel (I know it's a bit hacky, but UE4 does not provide an easier way to create a new channel)
+
 template <typename ObjClass>
 static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
 {

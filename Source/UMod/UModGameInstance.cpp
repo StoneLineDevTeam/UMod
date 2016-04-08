@@ -79,6 +79,9 @@ void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 M
 		if (ConnectType == 0) {
 			FNetControlMessage<NMT_UModStartVars>::Send(Connection);
 			Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
+			
+			//Create the voice channel (test purposes)
+			Connection->CreateChannel(CHANNEL_VOICE, true, 5);
 		} else if (ConnectType == 1) {
 			uint32 cur = 0;
 			uint32 max = 0;

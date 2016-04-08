@@ -68,6 +68,9 @@ void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 Mes
 			SendPollPacket = false;
 		} else {
 			Type = 0;
+
+			//Create the voice channel (test purposes)
+			Connection->CreateChannel(CHANNEL_VOICE, true, 5);
 		}
 		FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
 		Connection->FlushNet();
