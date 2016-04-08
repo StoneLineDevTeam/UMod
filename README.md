@@ -1,9 +1,11 @@
 # UMod Alpha
 
-#GAME_CURRENT_STATE : NOT BUILDING (Adding EntityBase to lua)
+#WARNING !! Use this command on your git otherwise you may run into large issues :
+#"git config --global core.autocrlf input" !
+
+#GAME_CURRENT_STATE : PLAYABLE (but no Lua)
 #TODO LIST :
 	- Add runtime cached font support for URender2D::GetTextSize()
-	- Finish custom network preload system
 	- Add command system
 	- Fix lua always bugging with tables in C API
 
