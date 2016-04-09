@@ -7,8 +7,14 @@ AddCSLuaFile("UMod_TestSendFile.txt")
 print("this is a test !") --Print function is overwritten by C++ code as it needs to redirect to UE_LOG so we can display in "Game Console" window.
 log.Error("Log lib test !") --log.* library Working 100%
 
+--Let's make some lua tests with Vector()
+local vec = Vector(0, 0, 0) --UE4 origin vector (normaly, maybe access violation instead)
+--Now let's hope we can use it (that's not sure) !
+vec:Add(0, 0, 999)
+print(vec.Z)
+
 function GM:Initialize(str) --"str" is always a nil value and I don't know why @see UUModGameInstance.cpp in function Init @see LuaEngine::RunScriptFunction
-	print(str) --This time it should finaly work, well maybe not...
+	--[[print(str) --This time it should finaly work, well maybe not...
 	local tbl = game.GetMapList() --Working
 	print(#tbl) --UE_LOG 3 (Normal)
 	print(type(tbl))
@@ -42,7 +48,7 @@ function GM:Initialize(str) --"str" is always a nil value and I don't know why @
 	print(nil)
 	
 	local t = 52
-	print(type(t))
+	print(type(t))]]--
 end
 
 

@@ -27,6 +27,7 @@ enum ELuaType {
 	ENTITY,
 	COLOR,
 	VECTOR,
+	ANGLE,
 	UNKNOWN,
 	NIL
 };
@@ -55,6 +56,7 @@ public:
 	//Future methods that requires further understanding of lua tables
 	void PushColor(FColor col);
 	void PushVector(FVector vec);
+	void PushAngle(FRotator rot);
 
 	void SetGlobal(FString str);
 	void NewTable();
@@ -74,6 +76,8 @@ public:
 	int Next(int id);
 	void Pop(int id);
 	//End
+
+	void ArgumentCheck(bool b, int id, FString msg); //Something I wanted to do before
 
 	//UserData
 	void* CheckUserData(int id, FString str);
@@ -95,6 +99,7 @@ public:
 	//Future methods that requires further understanding of lua tables
 	FColor CheckColor(int id);
 	FVector CheckVector(int id);
+	FRotator CheckAngle(int id);
 
 	FString GetVersion();
 

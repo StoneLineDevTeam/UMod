@@ -29,16 +29,24 @@ static int Type(lua_State *L) {
 /*Global methods*/
 static int Color(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	int r = Lua.CheckInt(-4);
-	int g = Lua.CheckInt(-3);
-	int b = Lua.CheckInt(-2);
-	int a = Lua.CheckInt(-1);
+	int r = Lua.CheckInt(1);
+	int g = Lua.CheckInt(2);
+	int b = Lua.CheckInt(3);
+	int a = Lua.CheckInt(4);
 	Lua.PushColor(FColor(r, g, b, a));
+	return 1;
+}
+static int Vector(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	float x = Lua.CheckInt(1);
+	float y = Lua.CheckInt(2);
+	float z = Lua.CheckInt(3);	
+	Lua.PushVector(FVector(x, y, z));
 	return 1;
 }
 static int Include(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString ToInclude = Lua.CheckString(-1);
+	FString ToInclude = Lua.CheckString(1);
 	if (Game->IsDedicatedServer() || Game->IsListenServer()) { //We are a server
 		Game->Lua->RunScript(ToInclude);
 	} else { //We are a client
@@ -49,7 +57,7 @@ static int Include(lua_State *L) {
 }
 static int AddCSLuaFile(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString ToAdd = Lua.CheckString(-1);
+	FString ToAdd = Lua.CheckString(1);
 	Game->AssetsManager->AddSVLuaFile(FPaths::GameDir() + ToAdd, ToAdd);
 	UE_LOG(UMod_Lua, Log, TEXT("Added lua file for upload : '%s'."), *ToAdd);
 	return 0;
@@ -66,15 +74,15 @@ static int HasAuthority(lua_State *L) {
 //FUCK YOU MOTHER FUCKING GITHUB
 static int RenderCreate3D2DTarget(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	uint32 W = (uint32)Lua.CheckInt(-2);
-	uint32 H = (uint32)Lua.CheckInt(-1);
+	uint32 W = (uint32)Lua.CheckInt(1);
+	uint32 H = (uint32)Lua.CheckInt(2);
 	uint8 id = URender3D::Create3D2DTarget(W, H);
 	Lua.PushInt((int)id);
 	return 1;
 }
 static int RenderRender3D2DTarget(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	uint8 id = (uint8)Lua.CheckInt(-1);
+	uint8 id = (uint8)Lua.CheckInt(1);
 	URender3D::Render3D2DTarget(id);
 	return 0;
 }
@@ -126,9 +134,11 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Remove os lib (will replace by a system lib which will bridge with UE4)
 	Lua->PushNil();
 	Lua->SetGlobal("os");
-	//Add Color() function
+	//Add Color()/Vector() functions
 	Lua->PushCFunction(Color);
 	Lua->SetGlobal("Color");
+	Lua->PushCFunction(Vector);
+	Lua->SetGlobal("Vector");
 	//Add Include/AddCSLuaFile functions
 	Lua->PushCFunction(Include);
 	Lua->SetGlobal("Include");

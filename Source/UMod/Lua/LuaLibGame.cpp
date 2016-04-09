@@ -33,7 +33,7 @@ static int GameGetMaps(lua_State *L) {
 }
 static int GameGetAssets(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	int i = Lua.CheckInt(-1);
+	int i = Lua.CheckInt(1);
 	Lua.NewTable();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
 	EUModAssetType t = EUModAssetType(i);
@@ -60,15 +60,20 @@ static int GameIsDedicated(lua_State *L) {
 	Lua.PushBool(Game1->IsDedicatedServer());
 	return 1;
 }
+static int GameIsListen(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	Lua.PushBool(Game1->IsDedicatedServer());
+	return 1;
+}
 static int GameDisconnect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
+	FString msg = Lua.CheckString(1);
 	Game1->Disconnect(msg);
 	return 0;
 }
 static int GameShowFatalMessage(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
+	FString msg = Lua.CheckString(1);
 	UUModGameInstance::ShowFatalMessage(msg);
 	return 0;
 }
