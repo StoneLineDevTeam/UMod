@@ -118,6 +118,7 @@ FString LuaInterface::ToString(int id)
 		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
 		break;
 	case BOOLS:
+	{
 		bool b = CheckBool(id);
 		if (b) {
 			return "TRUE";
@@ -125,21 +126,28 @@ FString LuaInterface::ToString(int id)
 			return "FALSE";
 		}
 		break;
+	}
 	case ENTITY:
 		s = "ENTITY";
 		break;
 	case COLOR:
+	{
 		FColor col = CheckColor(id);
 		s = "Color[" + FString::FromInt(col.R) + ";" + FString::FromInt(col.G) + ";" + FString::FromInt(col.B) + ";" + FString::FromInt(col.A) + "]";
 		break;
+	}
 	case VECTOR:		
+	{
 		FVector vec = CheckVector(id);
 		s = "Vector[" + FString::SanitizeFloat(vec.X) + ";" + FString::SanitizeFloat(vec.Y) + ";" + FString::SanitizeFloat(vec.Z) + "]";
 		break;
+	}
 	case ANGLE:
+	{
 		FRotator rot = CheckAngle(id);
 		s = "Angle[" + FString::SanitizeFloat(rot.Pitch) + ";" + FString::SanitizeFloat(rot.Yaw) + ";" + FString::SanitizeFloat(rot.Roll) + "]";
 		break;
+	}
 	case UNKNOWN:
 		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
 		break;
@@ -440,4 +448,26 @@ void LuaInterface::ArgumentCheck(bool b, int id, FString msg)
 		i = 1;
 	}	
 	luaL_argcheck(luaVM, i, id, TCHAR_TO_ANSI(*msg));
+}
+
+bool LuaInterface::IsNil(int id)
+{
+	ELuaType t = GetType(id);
+	if (t == NIL) {
+		return true;
+	}
+	return false;
+}
+
+int LuaInterface::Ref()
+{
+	return luaL_ref(luaVM, LUA_REGISTRYINDEX);
+}
+void LuaInterface::PushRef(int ref)
+{
+	lua_rawgeti(luaVM, LUA_REGISTRYINDEX, ref);
+}
+void LuaInterface::UnRef(int ref)
+{
+	luaL_unref(luaVM, LUA_REGISTRYINDEX, ref);
 }

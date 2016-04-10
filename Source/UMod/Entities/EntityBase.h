@@ -39,6 +39,8 @@ struct FInitProperty {
 	}
 };
 
+class UUModGameInstance;
+
 UCLASS()
 class UMOD_API AEntityBase : public AActor
 {
@@ -82,11 +84,18 @@ private:
 	TArray<FInitProperty> InitProperties;
 
 	float GravityScale = 1;
+
+	int LuaReference; //Yes starting LuaEntityBase !
+	FString LuaClassName; //The lua class name
+protected:
+	UUModGameInstance *Game;
+
 public:	
 	AEntityBase();
 
 	/*Begin AActor interface*/
 	virtual void BeginPlay() override;	
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	UFUNCTION()
@@ -97,6 +106,13 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e);
 #endif
+	/*End*/
+
+	/*Lua integration*/
+	int GetLuaRef();
+	void SetLuaRef(int r);
+	void LuaUnRef();
+	void SetLuaClass(FString s);
 	/*End*/
 
 	/* Begin entity base lib */

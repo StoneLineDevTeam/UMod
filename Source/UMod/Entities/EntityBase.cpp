@@ -2,6 +2,7 @@
 
 #include "UMod.h"
 #include "EntityBase.h"
+#include "UModGameInstance.h"
 
 /*AActor base integration*/
 AEntityBase::AEntityBase()
@@ -31,6 +32,8 @@ void AEntityBase::BeginPlay()
 			EntityModel->SetSimulatePhysics(false);
 		}
 	}
+
+	Game = Cast<UUModGameInstance>(GetGameInstance());
 }
 void AEntityBase::Tick(float DeltaTime)
 {
@@ -145,6 +148,10 @@ void AEntityBase::ActorEndOverlap(AActor* OtherActor, UPrimitiveComponent *C, in
 void AEntityBase::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
 {
 
+}
+void AEntityBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	LuaUnRef();
 }
 #if WITH_EDITOR
 //FIX : Editor not updating model
@@ -295,9 +302,32 @@ void AEntityBase::Unfreeze()
 	PhysEnabled = true;
 }
 
+int AEntityBase::GetLuaRef()
+{
+	return LuaReference;
+}
+
+void AEntityBase::SetLuaRef(int r)
+{
+	LuaReference = r;
+}
+
+void AEntityBase::SetLuaClass(FString s)
+{
+	LuaClassName = s;
+}
+
+void AEntityBase::LuaUnRef()
+{
+	Game->Lua->Lua->UnRef(LuaReference);
+	LuaReference = LUA_NOREF;
+}
 
 FString AEntityBase::GetClass()
 {
+	if (!LuaClassName.IsEmpty()) {
+		return LuaClassName;
+	}
 	return "NULL";
 }
 void AEntityBase::OnTick()

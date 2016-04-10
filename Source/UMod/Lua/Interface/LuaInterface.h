@@ -101,6 +101,14 @@ public:
 	FVector CheckVector(int id);
 	FRotator CheckAngle(int id);
 
+	bool IsNil(int id);
+
+	/*Refs*/
+	int Ref(); //Stores a reference for the value at level -1
+	void PushRef(int ref); //Pushes the given reference onto the stack
+	void UnRef(int ref);
+	/*End*/
+
 	FString GetVersion();
 
 	void Close();
