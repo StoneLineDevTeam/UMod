@@ -238,7 +238,7 @@ void LuaEngine::RunScript(FString path)
 
 void LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName)
 {
-	Lua->TraceBack(-1);
+	//Lua->TraceBack(-1);
 
 	switch (Tbl) {
 	case GLOBAL:
@@ -251,7 +251,7 @@ void LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, F
 	Lua->PushString(FuncName);
 	Lua->GetTable(-2);
 
-	ELuaErrorType t = Lua->PCall(0, resultNumber, 1);
+	ELuaErrorType t = Lua->PCall(0, resultNumber, 0);
 	if (t != ELuaErrorType::NONE) {
 		FString msg = Lua->ToString(-1);
 		HandleLuaError(t, msg);

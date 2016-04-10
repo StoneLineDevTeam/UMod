@@ -15,19 +15,21 @@ static int GetPos(lua_State *L) {
 
 void LuaEntity::RegisterEntityMetaTable(LuaInterface* Lua)
 {
+	Lua->PushString("Entity");
 	Lua->NewMetaTable("Entity");
 	Lua->PushString("SetPos");
 	Lua->PushCFunction(SetPos);
-	Lua->SetTable(-2);
+	Lua->SetTable(-3);
 	Lua->PushString("GetPos");
 	Lua->PushCFunction(GetPos);
-	Lua->SetTable(-2);
+	Lua->SetTable(-3);
 
 	Lua->SetTable(LUA_REGISTRYINDEX); //Add Entity metatable to the registry
 }
 
 void LuaEntity::RegisterPlayerMetaTable(LuaInterface* Lua)
 {
+	Lua->PushString("Player");
 	Lua->NewMetaTable("Player");
 
 	Lua->SetTable(LUA_REGISTRYINDEX); //Add Player metatable to the registry
