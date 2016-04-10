@@ -159,6 +159,10 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 		CreateLibrary();
 	}
 
+	//Global MetaTables
+	LuaEntity::RegisterEntityMetaTable(Lua);
+	LuaEntity::RegisterPlayerMetaTable(Lua);
+
 	//Enums
 	BeginLibReg("Type");
 	AddLibConstant("TABLE", 0);
