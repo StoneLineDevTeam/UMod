@@ -29,6 +29,7 @@ enum ELuaType {
 	VECTOR,
 	ANGLE,
 	UNKNOWN,
+	FUNCTION,
 	NIL
 };
 
@@ -108,6 +109,8 @@ public:
 	void PushRef(int ref); //Pushes the given reference onto the stack
 	void UnRef(int ref);
 	/*End*/
+
+	void StackDump(int start, int end); //Warning : inputs must be in negative order (ex : dump from level -1 to level -10)
 
 	FString GetVersion();
 

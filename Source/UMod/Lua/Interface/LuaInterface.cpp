@@ -151,6 +151,9 @@ FString LuaInterface::ToString(int id)
 	case UNKNOWN:
 		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
 		break;
+	case FUNCTION:
+		s = "FUNC";
+		break;
 	case NIL:
 		s = "NIL";
 		break;
@@ -214,12 +217,14 @@ ELuaType LuaInterface::GetType(int id)
 	switch (i) {
 	case LUA_TNUMBER:
 		return ELuaType::NUMBER;
+	case LUA_TFUNCTION:
+		return ELuaType::FUNCTION;
 	case LUA_TTABLE:
 		{PushValue(id);
 		PushString("__type");
 		GetTable(-2);
 		FString type = ToString(-1);
-		Pop(1);
+		Pop(2);
 		if (type == "VECTOR") {
 			return ELuaType::VECTOR;
 		} else if (type == "COLOR") {
@@ -243,7 +248,7 @@ ELuaType LuaInterface::GetType(int id)
 		if (t == "ENTITY") {
 			
 		}}*/
-		return ELuaType::UNKNOWN;
+		return ELuaType::UNKNOWN;	
 	}
 	return ELuaType::NIL;
 }
@@ -452,8 +457,7 @@ void LuaInterface::ArgumentCheck(bool b, int id, FString msg)
 
 bool LuaInterface::IsNil(int id)
 {
-	ELuaType t = GetType(id);
-	if (t == NIL) {
+	if (GetType(id) == NIL) {
 		return true;
 	}
 	return false;
@@ -470,4 +474,12 @@ void LuaInterface::PushRef(int ref)
 void LuaInterface::UnRef(int ref)
 {
 	luaL_unref(luaVM, LUA_REGISTRYINDEX, ref);
+}
+
+void LuaInterface::StackDump(int start, int end)
+{
+	for (int i = start; i > end; i--) {
+		FString s = ToString(i);
+		UE_LOG(UMod_Lua, Warning, TEXT("Level %i: %s"), i, *s);
+	}
 }

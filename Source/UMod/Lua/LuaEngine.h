@@ -173,6 +173,7 @@ public:
 	void RunScriptFunctionOneParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0)
 	{
 		//Lua->TraceBack(-1);
+		int argNum = 1;
 
 		switch (Tbl) {
 		case GLOBAL:
@@ -180,23 +181,29 @@ public:
 			break;
 		case GAMEMODE:
 			Lua->GetGlobal("GM");
+			argNum++;
 			break;
 		}
 		Lua->PushString(FuncName);
 		Lua->GetTable(-2);
 
+		if (Tbl == GAMEMODE) {
+			Lua->GetGlobal("GM");
+		}
+		
 		var0.Push(Lua);
 
-		ELuaErrorType t = Lua->PCall(1, resultNumber, 0);
+		ELuaErrorType t = Lua->PCall(2, resultNumber, 0);
 		if (t != ELuaErrorType::NONE) {
 			FString msg = Lua->ToString(-1);
 			HandleLuaError(t, msg);
-		}
+		}		
 	}
 	template<typename T, typename T1>
 	void RunScriptFunctionTwoParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1)
 	{
 		//Lua->TraceBack(-1);
+		int argNum = 2;
 
 		switch (Tbl) {
 		case GLOBAL:
@@ -204,15 +211,20 @@ public:
 			break;
 		case GAMEMODE:
 			Lua->GetGlobal("GM");
+			argNum++;
 			break;
 		}
 		Lua->PushString(FuncName);
 		Lua->GetTable(-2);
 
+		if (Tbl == GAMEMODE) {
+			Lua->GetGlobal("GM");
+		}
+
 		var0.Push(Lua);
 		var1.Push(Lua);
 
-		ELuaErrorType t = Lua->PCall(2, resultNumber, 0);
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
 		if (t != ELuaErrorType::NONE) {
 			FString msg = Lua->ToString(-1);
 			HandleLuaError(t, msg);
@@ -222,6 +234,7 @@ public:
 	void RunScriptFunctionThreeParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1, FLuaParam<T2> var2)
 	{
 		//Lua->TraceBack(-1);
+		int argNum = 3;
 
 		switch (Tbl) {
 		case GLOBAL:
@@ -229,16 +242,21 @@ public:
 			break;
 		case GAMEMODE:
 			Lua->GetGlobal("GM");
+			argNum++;
 			break;
 		}
 		Lua->PushString(FuncName);
 		Lua->GetTable(-2);
 
+		if (Tbl == GAMEMODE) {
+			Lua->GetGlobal("GM");
+		}
+
 		var0.Push(Lua);
 		var1.Push(Lua);
 		var2.Push(Lua);
 
-		ELuaErrorType t = Lua->PCall(3, resultNumber, 0);
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
 		if (t != ELuaErrorType::NONE) {
 			FString msg = Lua->ToString(-1);
 			HandleLuaError(t, msg);
