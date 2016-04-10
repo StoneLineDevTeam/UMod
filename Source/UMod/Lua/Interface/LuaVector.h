@@ -40,8 +40,15 @@ static int Vec_Subtract(lua_State *L) {
 static int Vec_Multiply(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	FVector v = Lua.CheckVector(1); //Get the "self" vector
-	FVector v1 = Lua.CheckVector(2); //Get the param vector
-	FVector v2 = v * v1;
+	ELuaType t = Lua.GetType(2);
+	FVector v2;
+	if (t == NUMBER) {
+		FVector v1 = Lua.CheckVector(2); //Get the param vector
+		v2 = v * v1;
+	} else if (t == VECTOR) {
+		float f = Lua.CheckFloat(2);
+		v2 = v * f;
+	}	
 	Lua.PushValue(1);
 	Lua.PushString("X");
 	Lua.PushFloat(v2.X);

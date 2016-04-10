@@ -14,36 +14,36 @@ static bool Check2DRenderingContext(lua_State *L) {
 }
 static int LoadFont(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	uint32 i = URender2D::LoadFont(Lua.CheckString(-3), Lua.CheckInt(-2), FName(*Lua.CheckString(-1)));
+	uint32 i = URender2D::LoadFont(Lua.CheckString(1), Lua.CheckInt(2), FName(*Lua.CheckString(3)));
 	Lua.PushInt(i);
 	return 1;
 }
 static int LoadTexture(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	uint32 i = URender2D::LoadTexture(Lua.CheckString(-1));
+	uint32 i = URender2D::LoadTexture(Lua.CheckString(1));
 	Lua.PushInt(i);
 	return 1;
 }
 static int UnloadFont(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	URender2D::UnloadFont(Lua.CheckInt(-1));
+	URender2D::UnloadFont(Lua.CheckInt(1));
 	return 0;
 }
 static int UnloadTexture(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	URender2D::UnloadTexture(Lua.CheckInt(-1));
+	URender2D::UnloadTexture(Lua.CheckInt(1));
 	return 0;
 }
 static int SetColor(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetColor(Lua.CheckColor(-1));
+	URender2D::SetColor(Lua.CheckColor(1));
 	return 0;
 }
 static int SetTexture(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetTexture(Lua.CheckInt(-1));
+	URender2D::SetTexture(Lua.CheckInt(1));
 	return 0;
 }
 static int ResetTexture(lua_State *L) {
@@ -55,31 +55,31 @@ static int ResetTexture(lua_State *L) {
 static int SetFont(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetFont(Lua.CheckInt(-1));
+	URender2D::SetFont(Lua.CheckInt(1));
 	return 0;
 }
 static int DrawRect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawRect(Lua.CheckFloat(-4), Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckFloat(-1));
+	URender2D::DrawRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4));
 	return 0;
 }
 static int DrawOutlineRect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawOutlineRect(Lua.CheckFloat(-5), Lua.CheckFloat(-4), Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckFloat(-1));
+	URender2D::DrawOutlineRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckFloat(5));
 	return 0;
 }
 static int SetScissorRect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetScissorRect(Lua.CheckInt(-4), Lua.CheckInt(-3), Lua.CheckInt(-2), Lua.CheckInt(-1));
+	URender2D::SetScissorRect(Lua.CheckInt(1), Lua.CheckInt(2), Lua.CheckInt(3), Lua.CheckInt(4));
 	return 0;
 }
 static int DrawText(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawText(Lua.CheckString(-4), Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckInt(-1));
+	URender2D::DrawText(Lua.CheckString(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckInt(4));
 	return 0;
 }
 static int GetTextSize(lua_State *L) {
@@ -87,7 +87,7 @@ static int GetTextSize(lua_State *L) {
 	if (!Check2DRenderingContext(L)) { return 0; }
 	float w;
 	float h;
-	URender2D::GetTextSize(Lua.CheckString(-1), w, h);
+	URender2D::GetTextSize(Lua.CheckString(1), w, h);
 	Lua.PushFloat(w);
 	Lua.PushFloat(h);
 	return 2;
@@ -95,31 +95,32 @@ static int GetTextSize(lua_State *L) {
 static int SetFontScale(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetFontScale(Lua.CheckFloat(-2), Lua.CheckFloat(-1));
+	URender2D::SetFontScale(Lua.CheckFloat(1), Lua.CheckFloat(2));
 	return 0;
 }
 static int DrawLine(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawLine(Lua.CheckFloat(-5), Lua.CheckFloat(-4), Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckFloat(-1));
+	URender2D::DrawLine(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckFloat(5));
 	return 0;
 }
 static int DrawCircle(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawCircle(Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckInt(-1));
+	URender2D::DrawCircle(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckInt(3));
 	return 0;
 }
 static int DrawRoundedRect(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawRoundedRect(Lua.CheckFloat(-5), Lua.CheckFloat(-4), Lua.CheckFloat(-3), Lua.CheckFloat(-2), Lua.CheckInt(-1));
+	URender2D::DrawRoundedRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckInt(5));
 	return 0;
 }
 //FUTURE METHODS : NEEDS UE4 C++ TRICKS
 static int DrawPoly(lua_State *L) { //Not sure that the function works (lua side as in all cases URender2D has empty function body for DrawPoly...
 	LuaInterface Lua = LuaInterface::Get(L);
 	if (!Check2DRenderingContext(L)) { return 0; }
+	Lua.ArgumentCheck(Lua.GetType(1) == TABLE, 1, "expected table");
 	TArray<FVertex> Vertices;
 	while (Lua.Next(-1) != 0) {
 		Lua.PushString("X");

@@ -62,7 +62,7 @@ static int GameIsDedicated(lua_State *L) {
 }
 static int GameIsListen(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.PushBool(Game1->IsDedicatedServer());
+	Lua.PushBool(Game1->IsListenServer());
 	return 1;
 }
 static int GameDisconnect(lua_State *L) {
@@ -92,6 +92,7 @@ void LuaLibGame::RegisterGameLib(LuaEngine *Lua, UUModGameInstance *Inst)
 	Lua->AddLibFunction("GetMapList", GameGetMaps);
 	Lua->AddLibFunction("GetAssetList", GameGetAssets);
 	Lua->AddLibFunction("IsDedicated", GameIsDedicated);
+	Lua->AddLibFunction("IsListen", GameIsListen);
 	Lua->AddLibFunction("Disconnect", GameDisconnect);
 	Lua->AddLibFunction("ShowFatalMessage", GameShowFatalMessage);
 	Lua->CreateLibrary();

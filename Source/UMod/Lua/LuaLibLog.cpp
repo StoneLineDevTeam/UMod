@@ -5,19 +5,19 @@
 /*Base log.* library*/
 static int LogInfo(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
+	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Log, TEXT("%s"), *msg);
 	return 0;
 }
 static int LogWarn(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
+	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Warning, TEXT("%s"), *msg);
 	return 0;
 }
 static int LogErr(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	FString msg = Lua.CheckString(-1);
+	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Error, TEXT("%s"), *msg);
 	return 0;
 }
