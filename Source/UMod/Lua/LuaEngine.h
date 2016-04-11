@@ -78,7 +78,6 @@ struct FLuaParam<FString> {
 
 	void Push(LuaInterface* Lua)
 	{
-		UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Lua->PushString(%s)"), *Value);
 		Lua->PushString(Value);
 	}
 	void Check(LuaInterface* Lua, int id)
@@ -101,6 +100,40 @@ struct FLuaParam<FColor> {
 	void Check(LuaInterface* Lua, int id)
 	{
 		Value = Lua->CheckColor(id);
+	}
+};
+template<>
+struct FLuaParam<FVector> {
+	FVector Value;
+
+	FLuaParam(FVector val) {
+		Value = val;
+	}
+
+	void Push(LuaInterface* Lua)
+	{
+		Lua->PushVector(Value);
+	}
+	void Check(LuaInterface* Lua, int id)
+	{
+		Value = Lua->CheckVector(id);
+	}
+};
+template<>
+struct FLuaParam<FRotator> {
+	FRotator Value;
+
+	FLuaParam(FRotator val) {
+		Value = val;
+	}
+
+	void Push(LuaInterface* Lua)
+	{
+		Lua->PushAngle(Value);
+	}
+	void Check(LuaInterface* Lua, int id)
+	{
+		Value = Lua->CheckAngle(id);
 	}
 };
 template<>
@@ -193,7 +226,7 @@ public:
 		
 		var0.Push(Lua);
 
-		ELuaErrorType t = Lua->PCall(2, resultNumber, 0);
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
 		if (t != ELuaErrorType::NONE) {
 			FString msg = Lua->ToString(-1);
 			HandleLuaError(t, msg);

@@ -58,11 +58,23 @@ void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
 {
 	//TODO : make something when player die
 	player->StripWeapons();
+	player->Destroy();
 }
 
 void AUModGameMode::OnPlayerInitialSpawn(AUModCharacter *player)
 {
 	player->GiveWeapon(AWeaponPhysgun::StaticClass());
+}
+
+void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
+{
+	Game->Lua->RunScriptFunctionOneParam(ETableType::GLOBAL, 0, "EntitySpawned", FLuaParam<AEntityBase>(ent));
+}
+
+//TODO : Bind to Lua
+void AUModGameMode::OnPlayerSpawn(AUModCharacter *player)
+{
+
 }
 
 //Loggs in the player

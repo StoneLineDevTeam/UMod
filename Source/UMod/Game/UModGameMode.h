@@ -20,6 +20,8 @@ public:
 
 	void OnPlayerSpawn(AUModCharacter *player);
 
+	void OnEntitySpawn(AEntityBase *ent);
+
 	virtual APlayerController *Login(class UPlayer *NewPlayer, ENetRole InRemoteRole, const FString & Portal, const FString & Options, const TSharedPtr< const FUniqueNetId > & UniqueId, FString & ErrorMessage);
 
 	virtual void PostLogin(APlayerController *newCtrl);

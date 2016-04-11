@@ -447,8 +447,7 @@ void UUModGameInstance::Init()
 		UE_LOG(UMod_Lua, Log, TEXT("%s"), *lua);
 
 		Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
-		Lua->RunScriptFunctionTwoParam<int, FString>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25), FLuaParam<FString>(lua));
-		Lua->RunScriptFunctionThreeParam<int, int, int>(GLOBAL, 0, "TestFunc", FLuaParam<int>(0), FLuaParam<int>(1), FLuaParam<int>(2));
+		//Lua->RunScriptFunctionTwoParam<int, FString>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25), FLuaParam<FString>(lua));
 	}
 }
 

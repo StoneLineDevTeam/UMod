@@ -10,7 +10,11 @@ static int SetPos(lua_State *L) {
 }
 
 static int GetPos(lua_State *L) {
-	return 0;
+	LuaInterface Lua = LuaInterface::Get(L);
+	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua); //Get the self entity
+	FVector pos = ent->GetActorLocation();
+	Lua.PushVector(pos);
+	return 1;
 }
 
 void LuaEntity::RegisterEntityMetaTable(LuaInterface* Lua)
@@ -46,7 +50,11 @@ void LuaEntity::PushEntity(AEntityBase *Base, LuaInterface* Lua)
 
 AEntityBase *LuaEntity::CheckEntity(int id, LuaInterface* Lua)
 {
-	return NULL;
+	Lua->PushValue(id);
+	Lua->PushString("__self");
+	Lua->GetTable(-2);
+	AEntityBase *Base = (AEntityBase*)Lua->CheckUserData(-1, "CEntity");
+	return Base;
 }
 
 void LuaEntity::NewEntity(AEntityBase *Base, LuaInterface* Lua)
@@ -56,7 +64,7 @@ void LuaEntity::NewEntity(AEntityBase *Base, LuaInterface* Lua)
 	//Push the Entity table onto the stack
 	Lua->PushString("Entity");
 	Lua->GetTable(LUA_REGISTRYINDEX);
-		
+
 	if (PushLuaEntityClass(Base->GetClass(), Lua)) {
 		Lua->PushString("__index");
 		Lua->PushValue(-3);
@@ -75,7 +83,7 @@ void LuaEntity::NewEntity(AEntityBase *Base, LuaInterface* Lua)
 	Lua->SetTable(-3); //Create and set Lua pointer
 	LuaBase = &Base;
 
-	int id = Lua->Ref(); //Create Entity reference
+	int id = Lua->Ref();
 	Base->SetLuaRef(id);
 }
 

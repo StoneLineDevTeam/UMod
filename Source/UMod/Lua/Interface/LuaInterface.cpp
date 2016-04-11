@@ -109,7 +109,7 @@ FString LuaInterface::ToString(int id)
 	FString s;
 	switch (GetType(id)) {
 	case TABLE:
-		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
+		s = ToStringRaw(id);
 		break;
 	case STRING:
 		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
@@ -128,7 +128,7 @@ FString LuaInterface::ToString(int id)
 		break;
 	}
 	case ENTITY:
-		s = "ENTITY";
+		s = "ENTITY[]";
 		break;
 	case COLOR:
 	{
@@ -149,10 +149,10 @@ FString LuaInterface::ToString(int id)
 		break;
 	}
 	case UNKNOWN:
-		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
+		s = ToStringRaw(id);
 		break;
 	case FUNCTION:
-		s = "FUNC";
+		s = ToStringRaw(id);
 		break;
 	case NIL:
 		s = "NIL";
@@ -220,11 +220,15 @@ ELuaType LuaInterface::GetType(int id)
 	case LUA_TFUNCTION:
 		return ELuaType::FUNCTION;
 	case LUA_TTABLE:
-		{PushValue(id);
+	{		
 		PushString("__type");
-		GetTable(-2);
-		FString type = ToString(-1);
-		Pop(2);
+		if (id < 0) {
+			GetTable(id - 1);
+		} else {
+			GetTable(id + 1);
+		}		
+		FString type = ANSI_TO_TCHAR(lua_tostring(luaVM, -1));
+		Pop(1);
 		if (type == "VECTOR") {
 			return ELuaType::VECTOR;
 		} else if (type == "COLOR") {
@@ -233,8 +237,9 @@ ELuaType LuaInterface::GetType(int id)
 			return ELuaType::ANGLE;
 		} else if (type == "ENTITY") {
 			return ELuaType::ENTITY;
-		}}
+		}
 		return ELuaType::TABLE;
+	}		
 	case LUA_TBOOLEAN:
 		return ELuaType::BOOLS;
 	case LUA_TSTRING:
@@ -325,6 +330,8 @@ FColor LuaInterface::CheckColor(int id)
 	uint8 a = (uint8)CheckInt(-1);
 	Pop(1);
 
+	Pop(1); //This will remove the pushed table from the stack (PushValue(id))
+
 	return FColor(r, g, b, a);
 }
 
@@ -404,6 +411,8 @@ FVector LuaInterface::CheckVector(int id)
 	float Z = CheckFloat(-1);
 	Pop(1); //Removes the float on top
 
+	Pop(1); //This will remove the pushed table from the stack (PushValue(id))
+
 	return FVector(X, Y, Z);
 }
 
@@ -443,6 +452,8 @@ FRotator LuaInterface::CheckAngle(int id)
 	float R = CheckFloat(-1);
 	Pop(1); //Removes the float on top
 
+	Pop(1); //This will remove the pushed table from the stack (PushValue(id))
+
 	return FRotator(P, Y, R);
 }
 
@@ -465,7 +476,10 @@ bool LuaInterface::IsNil(int id)
 
 int LuaInterface::Ref()
 {
-	return luaL_ref(luaVM, LUA_REGISTRYINDEX);
+	int i =  luaL_ref(luaVM, LUA_REGISTRYINDEX);
+	//Now because Lua wants to do in it's head and remove from stack, I say FUCK IT !
+	PushRef(i);
+	return i;
 }
 void LuaInterface::PushRef(int ref)
 {
@@ -482,4 +496,14 @@ void LuaInterface::StackDump(int start, int end)
 		FString s = ToString(i);
 		UE_LOG(UMod_Lua, Warning, TEXT("Level %i: %s"), i, *s);
 	}
+}
+
+FString LuaInterface::ToStringRaw(int id)
+{
+	GetGlobal("tostring");
+	PushValue(id);
+	lua_call(luaVM, 1, 1);
+	FString s = ANSI_TO_TCHAR(lua_tostring(luaVM, -1));
+	Pop(2);
+	return s;
 }

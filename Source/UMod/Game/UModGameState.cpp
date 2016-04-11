@@ -4,6 +4,7 @@
 #include "UModGameState.h"
 #include "UModGameInstance.h"
 #include "Renderer/Render3D.h"
+#include "Entities/EntityBase.h"
 
 void AUModGameState::HandleMatchIsWaitingToStart()
 {
@@ -12,7 +13,7 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 	if (!umod->IsDedicatedServer()) {
 		URender3D::SetWorld(GetWorld());
 	}
-
+		
 	FString MapPackageLongName = GetWorld()->GetCurrentLevel()->GetOutermost()->GetName();
 	if (MapPackageLongName.Contains("/Game/Internal/")) {
 		if (!umod->IsDedicatedServer()) {
@@ -26,11 +27,14 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 	
 	bool hasStart = false;
 	for (TObjectIterator<AActor> Itr; Itr; ++Itr) {
+		if (Itr->IsA(AEntityBase::StaticClass())) {
+			AEntityBase *b = Cast<AEntityBase>(*Itr);
+			b->OnClientInit();
+		}
 		FString cl = Itr->GetClass()->GetName();
 		if (cl.Equals("PlayerStart", ESearchCase::Type::IgnoreCase)) { //The map has a player start
 			hasStart = true;
-		}
-		if (cl.Equals("StaticMeshActor", ESearchCase::Type::IgnoreCase)) { //Check if is static if not remove
+		} else if (cl.Equals("StaticMeshActor", ESearchCase::Type::IgnoreCase)) { //Check if is static if not remove
 			TArray<UStaticMeshComponent*> comps;
 			Itr->GetComponents<UStaticMeshComponent>(comps);
 

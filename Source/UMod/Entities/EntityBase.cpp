@@ -3,6 +3,7 @@
 #include "UMod.h"
 #include "EntityBase.h"
 #include "UModGameInstance.h"
+#include "Game/UModGameMode.h"
 
 /*AActor base integration*/
 AEntityBase::AEntityBase()
@@ -13,6 +14,8 @@ AEntityBase::AEntityBase()
 	bReplicates = true;
 
 	EntityModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EntityModel"));
+
+	LuaReference = LUA_NOREF;
 }
 void AEntityBase::BeginPlay()
 {
@@ -20,9 +23,9 @@ void AEntityBase::BeginPlay()
 
 	EntityModel->OnComponentBeginOverlap.AddDynamic(this, &AEntityBase::ActorBeginOverlap);
 	EntityModel->OnComponentEndOverlap.AddDynamic(this, &AEntityBase::ActorEndOverlap);
-
+	
 	this->OnInit();
-
+	
 	if (PhysEnabled) {
 		if (Role == ROLE_Authority) {
 			EntityModel->WakeRigidBody();
@@ -34,6 +37,9 @@ void AEntityBase::BeginPlay()
 	}
 
 	Game = Cast<UUModGameInstance>(GetGameInstance());
+
+	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+	gm->OnEntitySpawn(this);
 }
 void AEntityBase::Tick(float DeltaTime)
 {
@@ -347,6 +353,10 @@ void AEntityBase::OnBeginOverlap(AEntityBase *other)
 
 }
 void AEntityBase::OnEndOverlap(AEntityBase *other)
+{
+
+}
+void AEntityBase::OnClientInit()
 {
 
 }

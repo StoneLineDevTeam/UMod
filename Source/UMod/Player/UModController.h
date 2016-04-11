@@ -34,6 +34,7 @@ class UMOD_API AUModController : public APlayerController
 		
 public:
 	virtual void InitInputSystem();
+	virtual void BeginPlay();
 	
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set KeyBinding", Keywords = "key binding set"), Category = "UMod_Specific|Player")
 		void SetKeyBinding(EKeyBindings in, FKey newKey);

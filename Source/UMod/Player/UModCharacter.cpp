@@ -40,10 +40,8 @@ AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer)	: Su
 
 void AUModCharacter::BeginPlay()
 {
-	if (Role == ROLE_Authority) {
-		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-		gm->OnPlayerInitialSpawn(this);
-	}
+	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+	gm->OnPlayerSpawn(this);
 }
 
 //////////////////////////////////////////////////////////////////////////

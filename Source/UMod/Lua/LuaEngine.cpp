@@ -129,8 +129,8 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	Lua->PushNil();
 	Lua->SetGlobal("package");
 	//Remove debug lib (I believe it's useless in UMod environment)
-	Lua->PushNil();
-	Lua->SetGlobal("debug");
+	//Lua->PushNil();
+	//Lua->SetGlobal("debug"); Just to know if it works with UMod environment
 	//Remove os lib (will replace by a system lib which will bridge with UE4)
 	Lua->PushNil();
 	Lua->SetGlobal("os");
@@ -172,8 +172,9 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	AddLibConstant("ENTITY", 4);
 	AddLibConstant("COLOR", 5);
 	AddLibConstant("VECTOR", 6);
-	AddLibConstant("UNKNOWN", 7);
-	AddLibConstant("NIL", 8);
+	AddLibConstant("ANGLE", 7);
+	AddLibConstant("UNKNOWN", 8);
+	AddLibConstant("NIL", 9);
 	CreateLibrary();
 
 	//Add the GM (GameMode) global table

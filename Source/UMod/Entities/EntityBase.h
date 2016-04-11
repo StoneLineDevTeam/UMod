@@ -185,7 +185,8 @@ public:
 
 	virtual FString GetClass(); //Shared
 	virtual void OnTick(); //Shared
-	virtual void OnInit(); //Shared
+	virtual void OnInit(); //Server
+	virtual void OnClientInit(); //Client
 	virtual void OnPhysicsCollide(AEntityBase *other); //ServerSide
 	virtual void OnBeginOverlap(AEntityBase *other); //ServerSide
 	virtual void OnEndOverlap(AEntityBase *other); //ServerSide

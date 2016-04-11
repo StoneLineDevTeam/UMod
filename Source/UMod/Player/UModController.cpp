@@ -2,6 +2,7 @@
 
 #include "UMod.h"
 #include "UModController.h"
+#include "Game/UModGameMode.h"
 
 void SetKeyInConfig(FString category, FString name, FKey key)
 {
@@ -48,6 +49,16 @@ void AUModController::SendToConsole(const FString& Command) //Be sure nobody fin
 /**
  * End
  */
+
+void AUModController::BeginPlay()
+{
+	if (GIsEditor) { return; }
+	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+	if (GetCharacter() != NULL) {
+		AUModCharacter *ply = Cast<AUModCharacter>(GetCharacter());
+		gm->OnPlayerInitialSpawn(ply);
+	}	
+}
 
 void AUModController::InitInputSystem()
 {

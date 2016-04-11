@@ -114,6 +114,8 @@ public:
 
 	FString GetVersion();
 
+	FString ToStringRaw(int id);
+
 	void Close();
 private:
 	lua_State *luaVM;
