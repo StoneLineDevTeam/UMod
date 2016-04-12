@@ -9,6 +9,8 @@
 #include "LuaLibLog.h"
 #include "LuaLibGame.h"
 
+#include "Entities/EntityBase.h"
+
 static UUModGameInstance *Game;
 
 /*Base replacement methods*/
@@ -71,7 +73,6 @@ static int HasAuthority(lua_State *L) {
 /*End*/
 
 /*Add render lib*/
-//FUCK YOU MOTHER FUCKING GITHUB
 static int RenderCreate3D2DTarget(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	uint32 W = (uint32)Lua.CheckInt(1);
@@ -86,7 +87,26 @@ static int RenderRender3D2DTarget(lua_State *L) {
 	URender3D::Render3D2DTarget(id);
 	return 0;
 }
+/*End*/
 
+/*Add ents lib*/
+static int Ents_Create(lua_State *L) {
+	LuaInterface Lua = LuaInterface::Get(L);
+	FString cl = Lua.CheckString(-1);	
+	UClass **OutPtr = EntityClasses.Find(cl);
+	if (OutPtr == NULL) {
+		AEntityBase *Base = Cast<AEntityBase>(Game->GetWorld()->SpawnActor(AEntityBase::StaticClass())); //We are a going to spawn a Lua entity
+		//Base->SetLuaClass(cl);
+		LuaEntity::PushEntity(Base, &Lua);
+		return 1;
+	}
+	AEntityBase *Base = Cast<AEntityBase>(Game->GetWorld()->SpawnActor(*OutPtr)); //We are going to spawn a C++ entity
+	LuaEntity::PushEntity(Base, &Lua);
+	return 1;
+}
+static int Ents_Register(lua_State *L) {
+	return 0;
+}
 /*End*/
 
 LuaEngine::LuaEngine(UUModGameInstance *g)
@@ -128,9 +148,6 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Remove package lib (removed as I don't even know what it is)
 	Lua->PushNil();
 	Lua->SetGlobal("package");
-	//Remove debug lib (I believe it's useless in UMod environment)
-	//Lua->PushNil();
-	//Lua->SetGlobal("debug"); Just to know if it works with UMod environment
 	//Remove os lib (will replace by a system lib which will bridge with UE4)
 	Lua->PushNil();
 	Lua->SetGlobal("os");
@@ -158,6 +175,9 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 		AddLibFunction("Render3D2DTarget", RenderRender3D2DTarget);
 		CreateLibrary();
 	}
+	BeginLibReg("ents");
+	AddLibFunction("Create", Ents_Create);
+	CreateLibrary();
 
 	//Global MetaTables
 	LuaEntity::RegisterEntityMetaTable(Lua);

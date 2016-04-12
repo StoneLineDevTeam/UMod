@@ -24,3 +24,10 @@ void AEntityOverlapTest::OnEndOverlap(AEntityBase *other)
 	UE_LOG(UMod_Game, Warning, TEXT("An entity ended to overlap"));
 	SetModel("RoundedCube");
 }
+
+FString AEntityOverlapTest::GetClass()
+{
+	return "OverlapTest";
+}
+
+DEFINE_ENTITY(OverlapTest, AEntityOverlapTest::StaticClass())

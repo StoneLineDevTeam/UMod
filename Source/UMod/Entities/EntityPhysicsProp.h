@@ -5,9 +5,6 @@
 #include "Entities/EntityBase.h"
 #include "EntityPhysicsProp.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class UMOD_API AEntityPhysicsProp : public AEntityBase
 {

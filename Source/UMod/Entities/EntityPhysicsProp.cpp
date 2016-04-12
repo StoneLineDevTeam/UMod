@@ -28,3 +28,5 @@ void AEntityPhysicsProp::OnInit()
 	SetGravityScale(InGravityScale);
 	Construct();
 }
+
+DEFINE_ENTITY(PhysicsProp, AEntityPhysicsProp::StaticClass())

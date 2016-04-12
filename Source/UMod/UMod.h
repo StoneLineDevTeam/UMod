@@ -28,6 +28,18 @@ DECLARE_LOG_CATEGORY_EXTERN(UMod_Lua, Log, All);
 
 #define CHANNEL_VOICE static_cast<EChannelType>(5) //UMod voice channel (I know it's a bit hacky, but UE4 does not provide an easier way to create a new channel)
 
+//Static array to represent entities
+static TMap<FString, UClass*> EntityClasses;
+
+#define DEFINE_ENTITY(ClassName, UClassPtr) \
+struct Initializer##ClassName { \
+	Initializer##ClassName() { \
+		UE_LOG(UMod_Game, Log, TEXT("Registering Entity %s"), *FString(#ClassName)); \
+		EntityClasses.Add(#ClassName, UClassPtr); \
+	} \
+}; \
+Initializer##ClassName Init##ClassName; \
+
 template <typename ObjClass>
 static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
 {

@@ -190,4 +190,5 @@ public:
 	virtual void OnPhysicsCollide(AEntityBase *other); //ServerSide
 	virtual void OnBeginOverlap(AEntityBase *other); //ServerSide
 	virtual void OnEndOverlap(AEntityBase *other); //ServerSide
+
 };
