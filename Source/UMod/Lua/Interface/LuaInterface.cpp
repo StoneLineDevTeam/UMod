@@ -492,10 +492,17 @@ void LuaInterface::UnRef(int ref)
 
 void LuaInterface::StackDump(int start, int end)
 {
-	for (int i = start; i > end; i--) {
-		FString s = ToString(i);
-		UE_LOG(UMod_Lua, Warning, TEXT("Level %i: %s"), i, *s);
-	}
+	if (start < 0 && end < 0) {
+		for (int i = start; i > end; i--) {
+			FString s = ToString(i);
+			UE_LOG(UMod_Lua, Warning, TEXT("Level %i: %s"), i, *s);
+		}
+	} else {
+		for (int i = start; i < end; i++) {
+			FString s = ToString(i);
+			UE_LOG(UMod_Lua, Warning, TEXT("Level %i: %s"), i, *s);
+		}
+	}	
 }
 
 FString LuaInterface::ToStringRaw(int id)
