@@ -8,6 +8,13 @@
 #include "DataChannel.h"
 #include "UModGameInstance.generated.h"
 
+struct FPlatformStats {
+	uint32 UsedMemory;
+	uint32 AvailableMemory;
+	float CpuUsage;
+	float CpuUsedOneCore;
+};
+
 USTRUCT(BlueprintType)
 struct FServerPollResult {
 	GENERATED_USTRUCT_BODY()
