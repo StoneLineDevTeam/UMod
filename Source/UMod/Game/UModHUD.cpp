@@ -44,6 +44,8 @@ AUModHUD::AUModHUD(const FObjectInitializer& ObjectInitializer) : Super(ObjectIn
 
 void AUModHUD::BeginPlay()
 {
+	Super::BeginPlay();
+
 	Game = Cast<UUModGameInstance>(GetGameInstance());
 }
 

@@ -38,8 +38,10 @@ void AEntityBase::BeginPlay()
 
 	Game = Cast<UUModGameInstance>(GetGameInstance());
 
-	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-	gm->OnEntitySpawn(this);
+	if (Role == ROLE_Authority) {
+		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+		gm->OnEntitySpawn(this);
+	}
 }
 void AEntityBase::Tick(float DeltaTime)
 {

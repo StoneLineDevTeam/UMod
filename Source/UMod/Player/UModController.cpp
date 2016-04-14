@@ -3,6 +3,8 @@
 #include "UMod.h"
 #include "UModController.h"
 #include "Game/UModGameMode.h"
+#include "Game/MenuGameMode.h"
+#include "Player/UModCharacter.h"
 
 void SetKeyInConfig(FString category, FString name, FKey key)
 {
@@ -50,14 +52,45 @@ void AUModController::SendToConsole(const FString& Command) //Be sure nobody fin
  * End
  */
 
+bool NeedInitialSpawn = false;
+
+void AUModController::Tick(float f)
+{
+	if (GetWorld() != NULL && GetWorld()->GetAuthGameMode() != NULL && GetWorld()->GetAuthGameMode()->IsA(AMenuGameMode::StaticClass())) { return; }
+
+	if (Role == ROLE_Authority) {
+		if (GetCharacter() != NULL && NeedInitialSpawn) {
+			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+			UE_LOG(UMod_Game, Log, TEXT("[DEBUG]Sending spawn notification"));
+			AUModCharacter *ply = Cast<AUModCharacter>(GetCharacter());
+			gm->OnPlayerInitialSpawn(ply);
+
+			NeedInitialSpawn = false;
+		}
+
+		if (GetCharacter() == NULL) {
+			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+			if (gm->CanPlayerRespawn(this)) {
+				AUModCharacter *ply = GetWorld()->SpawnActor<AUModCharacter>();
+				ply->SetActorLocation(GetSpawnLocation());
+				ply->SetActorRotation(FRotator::ZeroRotator);
+				Possess(ply);
+			}
+		}
+	}
+}
+
 void AUModController::BeginPlay()
 {
+	Super::BeginPlay();
+
+	if (GetWorld()->GetAuthGameMode()->IsA(AMenuGameMode::StaticClass())) { return; }
+
 	if (GIsEditor) { return; }
-	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-	if (GetCharacter() != NULL) {
-		AUModCharacter *ply = Cast<AUModCharacter>(GetCharacter());
-		gm->OnPlayerInitialSpawn(ply);
-	}	
+	if (Role == ROLE_Authority) {
+		UE_LOG(UMod_Game, Log, TEXT("[DEBUG]PlayerController has spawned !"))
+		NeedInitialSpawn = true;
+	}
 }
 
 void AUModController::InitInputSystem()

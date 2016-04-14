@@ -20,9 +20,6 @@ FString LuaVersion;
 const FString LuaEngineVersion = FString("NULL");
 static bool DedicatedStatic;
 
-//WARNING : Client side only bool
-bool IsPollingServer;
-
 UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	OnCreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &UUModGameInstance::OnCreateSessionComplete);
@@ -124,14 +121,16 @@ UUModGameEngine *UUModGameInstance::GetGameEngine()
 
 void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
-	if (!IsPollingServer && !UUModGameEngine::IsDedicated) {
+	if (UUModGameEngine::IsPollingServer) {
+		//We are obviously no longer polling the server (we crashed !)
+		UUModGameEngine::IsPollingServer = false;
+		return;
+	}
+	if (!UUModGameEngine::IsPollingServer && !UUModGameEngine::IsDedicated) {
 		UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
 
 		FString err = ErrorMessage;
-		Disconnect(err);
-		if (IsPollingServer) {
-			IsPollingServer = false;
-		}
+		Disconnect(err);		
 	}
 }
 
@@ -341,7 +340,6 @@ bool UUModGameInstance::PollServer(FString ip, int32 port, FString &error)
 	FString str = WorkedIP + FString(":");
 	str.AppendInt(port);
 	GetGameEngine()->RunPollServer(str, Player);
-	IsPollingServer = true;
 	return true;
 }
 
@@ -379,7 +377,7 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 			str.AppendInt(port);
 			ConnectIP = str;
 
-			//Set vars for gloabl host ip/name retrieve
+			//Set vars for gloabl host ip/name retrieve		
 			CurConnectedIP = ConnectIP;
 			CurConnectedAddress = ip + ":";
 			CurConnectedAddress.AppendInt(port);
@@ -539,32 +537,7 @@ void UUModGameInstance::Tick(float DeltaTime)
 		}
 	}
 
-	/*if (!IsDedicated && !IsDisplayCreated) {
-		const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
-		if (Viewport != NULL) {
-			OnDisplayCreated();
-			IsDisplayCreated = true;
-		}
-	}*/
-
 	AssetsManager->UpdateTick();
-
-	/*if (!CurSessionName.IsEmpty()) {
-		IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
-		IOnlineSessionPtr Sessions = NULL;
-		if (OnlineSub == NULL) {
-			return;
-		}
-		Sessions = OnlineSub->GetSessionInterface();
-		if (!Sessions.IsValid()) {
-			return;
-		}
-
-		EOnlineSessionState::Type state = Sessions->GetSessionState(*CurSessionName);
-		if (state == EOnlineSessionState::Ended) {
-			Disconnect(FString("Lost Connection..."));
-		}
-	}*/
 }
 
 bool UUModGameInstance::IsTickable() const
@@ -583,40 +556,36 @@ int32 total;
 int32 status;
 void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix the fucking dedicated server CRASHING OVER AND OVER by calling this function !
 {
-	if (!ConnectIP.IsEmpty()) {
-		ULocalPlayer * const ply = GetFirstGamePlayer();
-		if (ply->GetWorld() != NULL && ply->GetWorld()->GetNetDriver() != NULL) {
-			ply->GetWorld()->GetNetDriver()->Shutdown();
-		}
+	if (!ConnectIP.IsEmpty()) {		
 		ConnectIP = "";
 
 		netError = error;
 		ULocalPlayer* const Player = GetFirstGamePlayer();
-		Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
-		return;
+		Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);		
 	}
 
 	if (UUModGameEngine::IsListen) {
 		IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 		IOnlineSessionPtr Sessions = NULL;
-		if (OnlineSub == NULL) {
-			return;
-		}
-		Sessions = OnlineSub->GetSessionInterface();
-		if (!Sessions.IsValid()) {
-			return;
-		}
-		if (!CurSessionName.IsEmpty()) {
-			DestroyCurSession(Sessions);
+		if (OnlineSub != NULL) {
+			
+			if (Sessions.IsValid()) {
+				Sessions = OnlineSub->GetSessionInterface();
+				if (!CurSessionName.IsEmpty()) {
+					DestroyCurSession(Sessions);
+				}
+			}
 		}
 		UUModGameEngine::IsListen = false;
 	}
 
+	GetGameEngine()->NetworkCleanUp();
+
 	AssetsManager->HandleServerDisconnect();
 
 	//Set gloabl host ip/address vars
-	CurConnectedIP = FString();
-	CurConnectedAddress = FString();
+	CurConnectedIP.Empty();
+	CurConnectedAddress.Empty();
 	//End
 
 	netError = error;
@@ -663,25 +632,25 @@ AUModCharacter* UUModGameInstance::GetLocalPlayer()
 	return NULL;
 }
 
-FString UUModGameInstance::GetHostIP()
+FConnectionStats UUModGameInstance::GetConnectionInfo()
 {
-	return CurConnectedIP;
+	FConnectionStats stats;
+	stats.HostIP = CurConnectedIP;
+	stats.HostAddress = CurConnectedAddress;
+	stats.HostName = ConsoleManager->GetConsoleVar<FString>("HostName");
+	return stats;
 }
 
-FString UUModGameInstance::GetHostAddress()
-{
-	return CurConnectedAddress;
-}
-
+/*Begin server side library*/
 FString UUModGameInstance::GetHostName()
 {
 	return HostName;
 }
-
 FString UUModGameInstance::GetGameMode()
 {
 	return GameMode;
 }
+/*End*/
 
 bool UUModGameInstance::IsListenServer()
 {

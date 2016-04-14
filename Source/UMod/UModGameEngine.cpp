@@ -24,6 +24,7 @@ const uint32 MinResY = 650;
 
 bool UUModGameEngine::IsDedicated = false;
 bool UUModGameEngine::IsListen = false;
+bool UUModGameEngine::IsPollingServer = false;
 
 bool SendPollPacket;
 
@@ -36,36 +37,39 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 		if (t == EBrowseReturnVal::Type::Success || t == EBrowseReturnVal::Type::Pending) {
 			UNetDriver *NetDriver = GEngine->FindNamedNetDriver(WorldContext.PendingNetGame, NAME_PendingNetDriver);
 			//HEHEHEHHE ! You did not saw that, you are so stupid UE4 !
-			NetHandleCL = NewObject<UClientHandler>();
+			NetHandleCL = new UClientHandler();
 			NetHandleCL->InitHandler(this, NetDriver->Notify, SendPollPacket);
 			NetDriver->Notify = NetHandleCL;
 			SendPollPacket = false;
 			UE_LOG(UMod_Game, Error, TEXT("Disconnected UPendingNetGame from network notify system !"));
 		}
 		return t;
-	}
-	//Ok relaying on the normal browse system as we don't want to change UE4's map loading system
+	}	
 	if (IsDedicated || IsListen) {
 		//Break server (that will be much more reliable)
 		EBrowseReturnVal::Type t = Super::Browse(WorldContext, URL, Error);
-		UNetDriver *NetDriver = WorldContext.World()->GetNetDriver();
-		NetHandleSV = NewObject<UServerHandler>();
+		UNetDriver *NetDriver = GetGameWorld()->GetNetDriver();
+		NetHandleSV = new UServerHandler();
 		NetHandleSV->InitHandler(this, NetDriver->Notify);
 		NetDriver->Notify = NetHandleSV;
 		UE_LOG(UMod_Game, Error, TEXT("Disconnected UWorld from network notify system !"));
 		return t;
-	} else if (!IsDedicated && !IsListen) {
-		//We are neither dedicated neither listen.
-		//We can't become dedicated as this requires command line, so we are a client.
-		//We are not even connecting a server, so we must be browsing screen maps with no network, conslusion destroy network systems.
-		if (NetHandleSV != NULL) {
-			NetHandleSV->ConditionalBeginDestroy();
-		}
-		if (NetHandleCL != NULL) {
-			NetHandleCL->ConditionalBeginDestroy();
-		}
 	}
+	//Ok relaying on the normal browse system as we don't want to change UE4's map loading system
 	return Super::Browse(WorldContext, URL, Error);
+}
+
+void UUModGameEngine::NetworkCleanUp()
+{
+	if (GetGameWorld()->GetNetDriver() != NULL) {
+		GetGameWorld()->GetNetDriver()->Shutdown();
+	}
+	if (NetHandleCL != NULL) {
+		delete NetHandleCL;
+	}
+	if (NetHandleSV != NULL) {
+		delete NetHandleSV;
+	}
 }
 
 UUModGameInstance *UUModGameEngine::GetGame()
@@ -128,11 +132,17 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 	}
 #endif
 
-	OnDisplayCreated();
-	UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
-	Super::Init(InEngineLoop);
-	OnDisplayCreated();
-	UE_LOG(UMod_Game, Log, TEXT("Display data has been re-overwritten."));
+	if (!IsDedicated) {
+		//Obviously dedicated server has no SWindow... Neither any viwports...
+		OnDisplayCreated();
+		UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
+		Super::Init(InEngineLoop);
+		OnDisplayCreated();
+		UE_LOG(UMod_Game, Log, TEXT("Display data has been re-overwritten."));
+	} else {
+		UE_LOG(UMod_Game, Log, TEXT("Running UMod as server application..."));
+		Super::Init(InEngineLoop);
+	}
 }
 
 void UUModGameEngine::OnDisplayCreated()

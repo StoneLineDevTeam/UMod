@@ -46,6 +46,8 @@ public:
 	virtual FString ConsoleCommand(const FString& Cmd, bool bWriteToLog);
 	virtual void ConsoleKey(FKey Key);
 	virtual void SendToConsole(const FString& Command);
+
+	virtual void Tick(float f);
 private:
 	FInputAxisKeyMapping moveForward;
 	FInputAxisKeyMapping moveBackward;

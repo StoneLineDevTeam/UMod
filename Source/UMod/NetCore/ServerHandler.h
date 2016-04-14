@@ -1,13 +1,9 @@
 #pragma once
 #include "UMod.h"
-#include "Object.h"
-#include "ServerHandler.generated.h"
 
 class UUModGameEngine;
 
-UCLASS()
-class UServerHandler : public UObject, public FNetworkNotify {
-	GENERATED_BODY()
+class UServerHandler : public FNetworkNotify {
 
 public:
 	void InitHandler(UUModGameEngine *eng, FNetworkNotify *n);

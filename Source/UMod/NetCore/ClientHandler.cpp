@@ -34,6 +34,7 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		if (SendPollPacket) {
 			Type = 1;
 			SendPollPacket = false;
+			UUModGameEngine::IsPollingServer = true;
 		} else {
 			Type = 0;
 
@@ -50,8 +51,9 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		uint32 Max;
 		FNetControlMessage<NMT_UModPoll>::Receive(Bunch, Name, Cur, Max);
 		FServerPollResult res = FServerPollResult(Name, Cur, Max);
-		Connection->Close();
+		GEngine->NetworkCleanUp();
 		GEngine->PollEndDelegate.Broadcast(res);
+		UUModGameEngine::IsPollingServer = false;
 		break;
 	}
 	case NMT_UModStartVars:

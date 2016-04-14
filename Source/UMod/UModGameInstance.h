@@ -8,27 +8,11 @@
 #include "DataChannel.h"
 #include "UModGameInstance.generated.h"
 
-USTRUCT(BlueprintType)
-struct FServerPollResult {
-	GENERATED_USTRUCT_BODY()
-
-	FServerPollResult() {
-	}
-
-	FServerPollResult(FString s, int32 i, int32 j) {
-		Name = s;
-		MaxPlayers = j;
-		CurPlayers = i;
-	}
-
-	UPROPERTY(BlueprintReadOnly)
-	FString Name;
-
-	UPROPERTY(BlueprintReadOnly)
-	int32 MaxPlayers;
-
-	UPROPERTY(BlueprintReadOnly)
-	int32 CurPlayers;
+//ClientSide struct
+struct FConnectionStats {
+	FString HostIP; //Resolved IP
+	FString HostAddress; //Entered IP in main menu
+	FString HostName; //Retrieved by console vars
 };
 
 USTRUCT(BlueprintType)
@@ -146,14 +130,12 @@ public:
 	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
 	void OnStartOnlineGameComplete(FName SessionName, bool bWasSuccessful);
 
-	//Get the host IP that this client is connected to
-	FString GetHostIP();
-	//Get the host address (input from user inside menu text box) that this client is connected to
-	FString GetHostAddress();
-	//Retrieve Server hostname
-	FString GetHostName();
-	//Retrieve Server GameMode
-	FString GetGameMode();
+	FConnectionStats GetConnectionInfo();
+
+	/*Begin ServerSide library*/
+	FString GetHostName(); //Will be passed to client by console vars
+	FString GetGameMode(); //Will be passed to client by console vars
+	/*End*/
 
 	//Start to implement lua
 	LuaEngine *Lua;
@@ -178,8 +160,7 @@ public:
 private:
 	//Global connected host vars
 	FString CurConnectedIP;
-	FString CurConnectedAddress;
-	FString CurConnectedName;
+	FString CurConnectedAddress;	
 	//End
 
 	//Server vars

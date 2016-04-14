@@ -4,6 +4,29 @@
 #include "UModGameInstance.h"
 #include "UModGameEngine.generated.h"
 
+USTRUCT(BlueprintType)
+struct FServerPollResult {
+	GENERATED_USTRUCT_BODY()
+
+		FServerPollResult() {
+	}
+
+	FServerPollResult(FString s, int32 i, int32 j) {
+		Name = s;
+		MaxPlayers = j;
+		CurPlayers = i;
+	}
+
+	UPROPERTY(BlueprintReadOnly)
+		FString Name;
+
+	UPROPERTY(BlueprintReadOnly)
+		int32 MaxPlayers;
+
+	UPROPERTY(BlueprintReadOnly)
+		int32 CurPlayers;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FServerPollEndDelegate, FServerPollResult, ServerPollResult);
 
 USTRUCT(BlueprintType)
@@ -85,8 +108,12 @@ public:
 
 	UUModGameInstance *GetGame();
 
+	//This is intended to be called from the client
+	void NetworkCleanUp();
+
 	static bool IsDedicated;
 	static bool IsListen;
+	static bool IsPollingServer;
 private:
 	//Function called by GameInstance itself by a trickky method...
 	void OnDisplayCreated();

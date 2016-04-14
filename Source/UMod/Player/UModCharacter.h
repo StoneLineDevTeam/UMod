@@ -21,7 +21,7 @@ private:
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
 		uint8 curWeapon;
 	//The ammo the player currently has
-	//UPROPERTY(ReplicatedUsing = UpdateClientSideData)
+	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
 		TMap<FString, uint32> PlayerAmmo;
 
 	//Function to be called right after some vars have been replicated.

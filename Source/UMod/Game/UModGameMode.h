@@ -5,6 +5,7 @@
 
 class AUModCharacter;
 class UUModGameInstance;
+class AUModController;
 
 UCLASS(minimalapi)
 class AUModGameMode : public AGameMode
@@ -21,6 +22,8 @@ public:
 	void OnPlayerSpawn(AUModCharacter *player);
 
 	void OnEntitySpawn(AEntityBase *ent);
+
+	bool CanPlayerRespawn(AUModController *ctrl);
 
 	virtual APlayerController *Login(class UPlayer *NewPlayer, ENetRole InRemoteRole, const FString & Portal, const FString & Options, const TSharedPtr< const FUniqueNetId > & UniqueId, FString & ErrorMessage);
 

@@ -29,6 +29,7 @@ AUModGameMode::AUModGameMode(const FObjectInitializer& ObjectInitializer) : Supe
 
 void AUModGameMode::BeginPlay()
 {
+	Super::BeginPlay();
 	//Lua change : start implementing call to GM functions
 
 	//Init Lua GameMode (only loads init.lua gamemode file currently)
@@ -75,6 +76,11 @@ void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
 void AUModGameMode::OnPlayerSpawn(AUModCharacter *player)
 {
 
+}
+
+bool AUModGameMode::CanPlayerRespawn(AUModController *ctrl)
+{
+	return true;
 }
 
 //Loggs in the player
