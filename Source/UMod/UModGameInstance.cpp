@@ -15,27 +15,10 @@
 
 #include "UModGameEngine.h"
 
-//Custom control channel messages
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsBool);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsInt);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsString);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndLua);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEnd);
-//The poll control channel message
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModPoll);
-
 const FString GVersion = FString("0.4 - Alpha");
 FString LuaVersion;
 const FString LuaEngineVersion = FString("NULL");
 static bool DedicatedStatic;
-
-const uint32 MinResX = 1200;
-const uint32 MinResY = 650;
 
 //WARNING : Client side only bool
 bool IsPollingServer;
@@ -47,193 +30,6 @@ UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer
 
 	AssetsManager = NewObject<UUModAssetsManager>();
 }
-
-//FNetworkNotify interface (ServerSide)
-void UUModGameInstance::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch)
-{
-	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
-	switch (MessageType) {
-	case NMT_Hello:
-	{
-		uint8 LittleEndian = 0;
-		uint32 ClientVersion = 0;
-		uint32 ServerVersion = FNetworkVersion::GetLocalNetworkVersion();
-
-		FNetControlMessage<NMT_Hello>::Receive(Bunch, LittleEndian, ClientVersion);
-
-		if (!FNetworkVersion::IsNetworkCompatible(ClientVersion, ServerVersion)) {
-			UE_LOG(UMod_Game, Error, TEXT("NMT_Hello : Client connecting with invalid version."));
-			FNetControlMessage<NMT_Upgrade>::Send(Connection, ServerVersion);
-			Connection->FlushNet(true);
-			Connection->Close();
-		} else {
-			Connection->SetExpectedClientLoginMsgType(NMT_UModStart);
-			uint8 Type = 2;
-			FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
-		}
-		break;
-	}
-	case NMT_UModStart:
-		uint8 ConnectType;
-		FNetControlMessage<NMT_UModStart>::Receive(Bunch, ConnectType);
-		if (ConnectType == 0) {
-			FNetControlMessage<NMT_UModStartVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
-			
-			//Create the voice channel (test purposes)
-			Connection->CreateChannel(CHANNEL_VOICE, true, 5);
-		} else if (ConnectType == 1) {
-			uint32 cur = 0;
-			uint32 max = 0;
-			FString str = GetHostName();
-			FNetControlMessage<NMT_UModPoll>::Send(Connection, str, cur, max);
-			Connection->FlushNet(true);
-		} else if (ConnectType == 2) {
-			UE_LOG(UMod_Game, Error, TEXT("NMT_UModStart : Unable to continue, client is a server !"));
-			Connection->FlushNet(true);
-			Connection->Close();
-		}
-		break;
-	case NMT_UModStartVars:
-	{
-		//Send the first variable or NMT_UModEndVars
-		Connection->Challenge = "UModVars";
-		Connection->ResponseId = 0;
-		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
-			//We have not currently reached integers limit
-			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
-			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else {
-			//We have no console vars to send
-			Connection->Challenge = "UModLua";
-			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-		}
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModEndVars:
-	{
-		Connection->ResponseId++;
-		//Send the next variable or NMT_UModEndVars in case nothing else
-		if (ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
-			//We have not currently reached integers limit
-			int t = ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
-			FString name = ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else if (ConsoleManager->ConsoleBooleans.Num() + ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && ConsoleManager->ConsoleBooleans[Connection->ResponseId].Synced) {
-			//We have reached integer limit but not bool limit
-			bool b = ConsoleManager->ConsoleBooleans[Connection->ResponseId].Value;
-			FString name = ConsoleManager->ConsoleBooleans[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsBool>::Send(Connection, name, b);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else {
-			Connection->Challenge = "UModLua";
-			Connection->ResponseId = 0;
-			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-		}
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModEndLua:
-		//TODO : Send the next lua file or UModEndLua if no more files
-		if (Connection->Challenge == "UModLua_End") {
-			Connection->ResponseId++;
-			if (AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
-				Connection->Challenge = "UModLua_Start";
-				FString str = AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].VirtualPath;
-				FNetControlMessage<NMT_UModStartLua>::Send(Connection, str);
-				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
-				Connection->FlushNet();
-			} else {
-				Connection->Challenge = "";
-				Connection->ResponseId = 0;
-				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
-				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-				Connection->FlushNet();
-			}
-		} else {
-			FString str;
-			uint8 Mode;
-			bool b = true;
-			if (Connection->Challenge == "UModLua_Start") {
-				b = FFileHelper::LoadFileToString(str, *AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath, 0);
-				Connection->Challenge = str;
-			}
-			if (!b) {
-				FString fuck = "Error while loading lua file into string " + AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].RealPath;
-				FNetControlMessage<NMT_Failure>::Send(Connection, fuck);
-				Connection->FlushNet(true);
-			} else {
-				if (Connection->Challenge.Len() > NAME_SIZE - 1) {
-					FString Content = Connection->Challenge.Mid(0, NAME_SIZE - 1);
-					Connection->Challenge = Connection->Challenge.Mid(Content.Len(), Connection->Challenge.Len() - Content.Len());
-					Mode = 1; //Send middle part
-					FNetControlMessage<NMT_UModSendLua>::Send(Connection, Content, Mode);
-					Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
-					Connection->FlushNet();
-				} else {
-					Mode = 2; //Send the last part of the file
-					FNetControlMessage<NMT_UModSendLua>::Send(Connection, Connection->Challenge, Mode);
-					Connection->Challenge = "UModLua_End";
-					Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
-					Connection->FlushNet();
-				}
-			}
-		}
-		break;
-	case NMT_UModEnd:
-		if (Connection->Challenge == "UModLua") {
-			//TODO : Start sending first lua file
-			if (AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
-				Connection->Challenge = "UModLua_Start";
-				FString str = AssetsManager->GetAllRegisteredFiles()[Connection->ResponseId].VirtualPath;
-				FNetControlMessage<NMT_UModStartLua>::Send(Connection, str);
-				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
-				Connection->FlushNet();
-			} else {
-				Connection->Challenge = "";
-				Connection->ResponseId = 0;
-				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
-				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-				Connection->FlushNet();
-			}
-		} else {
-			//We are ready to resume UE4 normal connection system
-			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
-			Connection->SetExpectedClientLoginMsgType(NMT_Login);
-			FNetControlMessage<NMT_Challenge>::Send(Connection, Connection->Challenge);
-			Connection->FlushNet();
-		}
-		break;
-	default:
-		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
-	}
-
-	//This runs if we have a zero param message
-	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
-		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
-		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
-	}
-}
-void UUModGameInstance::NotifyAcceptedConnection(UNetConnection* Connection)
-{
-	//ServerSide
-	Notify->NotifyAcceptedConnection(Connection);
-}
-EAcceptConnection::Type UUModGameInstance::NotifyAcceptingConnection()
-{
-	return Notify->NotifyAcceptingConnection(); //ServerSide
-}
-bool UUModGameInstance::NotifyAcceptingChannel(UChannel* Channel)
-{
-	return Notify->NotifyAcceptingChannel(Channel); //ServerSide
-}
-//End
 
 //Network hack
 void UUModGameInstance::OnNetworkConnectionCreation(ULocalPlayer *Player)
@@ -328,7 +124,7 @@ UUModGameEngine *UUModGameInstance::GetGameEngine()
 
 void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENetworkFailure::Type failType, const FString &ErrorMessage)
 {
-	if (!IsPollingServer && !IsDedicated) {
+	if (!IsPollingServer && !UUModGameEngine::IsDedicated) {
 		UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
 
 		FString err = ErrorMessage;
@@ -407,38 +203,7 @@ void UUModGameInstance::Init()
 		GConfig->SetString(TEXT("Common"), TEXT("GameMode"), *GameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
 	}
 	/*End*/
-
-	FString str = FCommandLine::Get();
-	TArray<FString> cmds;
-	str.ParseIntoArray(cmds, TEXT(" "));	
-	if (cmds.Contains("-server")) {
-		//Retrieve map name from config
-		FString MapToLoad;
-		GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
-		if (MapToLoad.IsEmpty()) {
-			MapToLoad = FString("FirstPersonExampleMap");
-			GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
-		}
-
-		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-		GameMapsSettings->SetGameDefaultMap("/Game/Maps/" + MapToLoad);
-		GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
-
-		GLogConsole->Show(true);
-		GLogConsole->SetSuppressEventTag(false);
-
-		FString str = "/Game/Maps/" + MapToLoad + " -server -log";
-		FCommandLine::Set(*str);
-
-		IsDedicated = true;
-		DedicatedStatic = true;
-	} else {
-		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-		GameMapsSettings->SetGameDefaultMap("/Game/Internal/Maps/MainMenu");
-
-		IsDedicated = false;
-	}
-
+	
 	UE_LOG(UMod_Game, Log, TEXT("UMod - Starting Lua Engine..."));
 	Lua = new LuaEngine(this);
 	if (!IsEditor()) {
@@ -451,24 +216,9 @@ void UUModGameInstance::Init()
 	}
 }
 
-void UUModGameInstance::OnDisplayCreated()
-{
-	int32 width = MinResX;
-	int32 height = MinResY;
-	bool full;
-	GConfig->GetInt(TEXT("Viewport"), TEXT("Width"), width, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	GConfig->GetInt(TEXT("Viewport"), TEXT("Height"), height, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	GConfig->GetBool(TEXT("Viewport"), TEXT("FullScreen"), full, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	if (ChangeGameResolution(FUModGameResolution(width, height, full))) {
-		UE_LOG(UMod_Game, Log, TEXT("Applied saved game resolution."));
-	} else {
-		UE_LOG(UMod_Game, Log, TEXT("Error applying saved game resolution."));
-	}
-}
-
 bool UUModGameInstance::IsDedicatedServer()
 {
-	return IsDedicated;
+	return UUModGameEngine::IsDedicated;
 }
 
 //Game shutdown
@@ -650,43 +400,6 @@ bool UUModGameInstance::JoinGame(FString ip, int32 port)
 	//End
 }
 
-bool UUModGameInstance::ChangeGameResolution(FUModGameResolution res)
-{
-	if (GetGameResolution() == res) {
-		return false;
-	}
-
-	if (res.GameWidth < MinResX || res.GameHeight < MinResY) {
-		return false;
-	}
-
-	FDisplayMetrics metrics;
-	FDisplayMetrics::GetDisplayMetrics(metrics);
-	int32 width = metrics.PrimaryDisplayWidth;
-	int32 height = metrics.PrimaryDisplayHeight;
-	if (res.GameWidth > width || res.GameHeight > height) {
-		return false;
-	}
-	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
-	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	EWindowMode::Type type;
-	if (res.FullScreen) {
-		type = EWindowMode::Fullscreen;
-	} else {
-		type = EWindowMode::Windowed;
-	}
-	Settings->SetScreenResolution(FIntPoint(res.GameWidth, res.GameHeight));
-	Settings->SetFullscreenMode(type);
-	Settings->RequestResolutionChange(res.GameWidth, res.GameHeight, type);
-	Settings->ConfirmVideoMode();
-	Settings->ApplyResolutionSettings(false);
-
-	GConfig->SetInt(TEXT("Viewport"), TEXT("Width"), res.GameWidth, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	GConfig->SetInt(TEXT("Viewport"), TEXT("Height"), res.GameHeight, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	GConfig->SetBool(TEXT("Viewport"), TEXT("FullScreen"), res.FullScreen, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
-	return true;
-}
-
 void UUModGameInstance::ShowFatalMessage(FString content)
 {
 	FString title;
@@ -699,34 +412,6 @@ void UUModGameInstance::ShowFatalMessage(FString content)
 	FMessageDialog::Open(EAppMsgType::Type::Ok, FText::FromString(content), text);
 	delete text;
 	FGenericPlatformMisc::RequestExit(true);
-}
-
-FUModGameResolution UUModGameInstance::GetGameResolution()
-{
-	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
-	if (Viewport == NULL) {
-		return FUModGameResolution();
-	}
-	FVector2D vec;
-	Viewport->GetViewportSize(vec);
-	return FUModGameResolution(vec.X, vec.Y, Viewport->IsFullScreenViewport());
-}
-
-TArray<FUModGameResolution> UUModGameInstance::GetAvailableGameResolutions()
-{
-	FScreenResolutionArray Resolutions;
-	if (RHIGetAvailableResolutions(Resolutions, false)) {
-		TArray<FUModGameResolution> list;
-		for (const FScreenResolutionRHI& EachResolution : Resolutions) {
-			if (EachResolution.Width >= MinResX && EachResolution.Height >= MinResY) {
-				list.Add(FUModGameResolution(EachResolution.Width, EachResolution.Height, false));
-			}
-		}
-		return list;
-	} else {
-		UE_LOG(UMod_Game, Error, TEXT("Screen Resolutions could not be obtained"));
-		return TArray<FUModGameResolution>();
-	}
 }
 
 void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -774,16 +459,6 @@ void UUModGameInstance::OnStartOnlineGameComplete(FName SessionName, bool bWasSu
 	}
 }
 
-/**
- * This function is intended to prevent user connecting to itself (yes indeed UE4 loves to connect to maps that are internal)
- * Note : Epic Games seriously you realy should think of making a better network system. I like your Engine I find realy usefull for easy rendering/physics but again please FIIIIIXXXXX network !
- * PS : I'm realy tired to have to come behind fixing your network issues ! Anyways I still find your Engine better than Unity (obviously Unity has a much more broken network so...)
- */
-void CreateNetworkHackerActor()
-{
-
-}
-
 void UUModGameInstance::OnAsyncLevelLoadingDone()
 {
 	if (IsLAN) {
@@ -797,8 +472,7 @@ void UUModGameInstance::OnAsyncLevelLoadingDone()
 	CurSessionMapName = NULL;
 	DelayedRunMap = false;
 
-	IsListen = true;
-	BrokeListenServer = false;
+	UUModGameEngine::IsListen = true;
 }
 
 uint32 ticks = 0;
@@ -806,7 +480,7 @@ bool BrokeDedicatedServer = false;
 void UUModGameInstance::Tick(float DeltaTime)
 {
 	//Redirect FNetworkNorify to this instance
-	if (IsListen && !BrokeListenServer) { //We are a listen server
+	/*if (UUModGameEngine::IsListen && !BrokeListenServer) { //We are a listen server
 		UWorld *World = GetWorld();
 		if (World != NULL && World->GetNetDriver() != NULL) {
 			Notify = World->GetNetDriver()->Notify;
@@ -815,7 +489,7 @@ void UUModGameInstance::Tick(float DeltaTime)
 			BrokeListenServer = true;
 		}
 	}
-	if (IsDedicated && !BrokeDedicatedServer) { //We are a dedicated server
+	if (UUModGameEngine::IsDedicated && !BrokeDedicatedServer) { //We are a dedicated server
 		UWorld *World = GetWorld();
 		if (World != NULL && World->GetNetDriver() != NULL) {
 			Notify = World->GetNetDriver()->Notify;
@@ -823,7 +497,7 @@ void UUModGameInstance::Tick(float DeltaTime)
 			UE_LOG(UMod_Game, Error, TEXT("HAVE FUN UWORLD ! I DISCONNECTED YOU FROM THE NETWORK !"));
 			BrokeDedicatedServer = true;
 		}
-	}
+	}*/
 	//End
 
 	if (DelayedRunMap) {
@@ -865,13 +539,13 @@ void UUModGameInstance::Tick(float DeltaTime)
 		}
 	}
 
-	if (!IsDedicated && !IsDisplayCreated) {
+	/*if (!IsDedicated && !IsDisplayCreated) {
 		const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
 		if (Viewport != NULL) {
 			OnDisplayCreated();
 			IsDisplayCreated = true;
 		}
-	}
+	}*/
 
 	AssetsManager->UpdateTick();
 
@@ -922,7 +596,7 @@ void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix
 		return;
 	}
 
-	if (IsListen) {
+	if (UUModGameEngine::IsListen) {
 		IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 		IOnlineSessionPtr Sessions = NULL;
 		if (OnlineSub == NULL) {
@@ -935,7 +609,7 @@ void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix
 		if (!CurSessionName.IsEmpty()) {
 			DestroyCurSession(Sessions);
 		}
-		IsListen = false;
+		UUModGameEngine::IsListen = false;
 	}
 
 	AssetsManager->HandleServerDisconnect();
@@ -1011,7 +685,7 @@ FString UUModGameInstance::GetGameMode()
 
 bool UUModGameInstance::IsListenServer()
 {
-	return IsListen;
+	return UUModGameEngine::IsListen;
 }
 
 void UUModGameInstance::ReloadLua()

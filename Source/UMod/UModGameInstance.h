@@ -8,13 +8,6 @@
 #include "DataChannel.h"
 #include "UModGameInstance.generated.h"
 
-struct FPlatformStats {
-	uint32 UsedMemory;
-	uint32 AvailableMemory;
-	float CpuUsage;
-	float CpuUsedOneCore;
-};
-
 USTRUCT(BlueprintType)
 struct FServerPollResult {
 	GENERATED_USTRUCT_BODY()
@@ -53,33 +46,6 @@ struct FLuaEngineVersion {
 	FString LuaEngineVersion;
 };
 
-USTRUCT(BlueprintType)
-struct FUModGameResolution {
-	GENERATED_USTRUCT_BODY()
-
-	FUModGameResolution() {
-	}
-	
-	FUModGameResolution(int32 width, int32 height, bool full) {
-		GameWidth = width;
-		GameHeight = height;
-		FullScreen = full;
-	}
-
-	UPROPERTY(BlueprintReadWrite)
-	int32 GameWidth;
-
-	UPROPERTY(BlueprintReadWrite)
-	int32 GameHeight;
-
-	UPROPERTY(BlueprintReadWrite)
-	bool FullScreen;
-
-	bool operator==(FUModGameResolution other) {
-		return GameWidth == other.GameWidth && GameHeight == other.GameHeight;
-	}
-};
-
 UENUM(BlueprintType)
 enum ELogCategory {
 	CATEGORY_GAME,
@@ -97,27 +63,13 @@ enum ELogLevel {
 
 class AUModCharacter;
 
-//Custom control channel messages
-DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 20, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 21); //Start sending bools and different variables like warnings, etc
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsInt, 22, FString, int32); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsBool, 33, FString, bool); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsString, 34, FString, FString); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 23); //Done sending variables
-DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 24, FString); //Start sending a lua file
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendLua, 29, FString, uint8); //Send a line of the file (content, mode)
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 30); //Indicates client to close the file as the upload is done
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 31); //End UMod data
-//The poll control channel message
-DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 32, FString, uint32, uint32); //Server poll (server name, cur players, max players)
-
 class UUModGameEngine;
 
 /**
  * 
  */
 UCLASS()
-class UMOD_API UUModGameInstance : public UGameInstance, public FTickableGameObject, public FNetworkNotify
+class UMOD_API UUModGameInstance : public UGameInstance, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -147,9 +99,6 @@ public:
 	
 	void SetLoadData(int32 total, int32 cur, int32 status);
 
-	//Function called by GameInstance itself by a trickky method...
-	void OnDisplayCreated();
-
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Disconnect Client", Keywords = "disconnect client"), Category = UMod_Specific)
 	void Disconnect(FString error);
 
@@ -167,18 +116,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get LuaEngine Version", Keywords = "lua engine version get"), Category = UMod_Specific)
 	static FLuaEngineVersion GetLuaEngineVersion();
-
-	//Changes game's resolution returns true if success, false otherwise
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Change Game Resolution", Keywords = "game resolution set change"), Category = UMod_Specific)
-	bool ChangeGameResolution(FUModGameResolution res);
-
-	//Get's the current game resolution
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Resolution", Keywords = "game resolution get"), Category = UMod_Specific)
-	FUModGameResolution GetGameResolution();
-	
-	//Get's the current game resolution
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Available Game Resolutions", Keywords = "game available resolutions get"), Category = UMod_Specific)
-	TArray<FUModGameResolution> GetAvailableGameResolutions();
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is Dedicated", Keywords = "is dedicated"), Category = UMod_Specific)
 	bool IsDedicatedServer();
@@ -238,13 +175,6 @@ public:
 
 	//Network hack
 	void OnNetworkConnectionCreation(ULocalPlayer* Player);
-
-	//FNetworkNotify interface
-	virtual EAcceptConnection::Type NotifyAcceptingConnection() override;
-	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch) override;
-	virtual void NotifyAcceptedConnection(UNetConnection* Connection) override;
-	virtual bool NotifyAcceptingChannel(class UChannel* Channel) override;
-	//End
 private:
 	//Global connected host vars
 	FString CurConnectedIP;
@@ -257,15 +187,7 @@ private:
 	FString IP; //A bit more complicated to get
 	FString GameMode;
 	//End
-
-	//Network system handler variables
-	bool IsDedicated;
-	bool IsListen;
-	bool BrokeListenServer;
-	FNetworkNotify *Notify;
-
-	bool IsDisplayCreated;
-
+	
 	FString CurSessionName;
 	FString CurSessionMapName;
 	bool IsLAN;

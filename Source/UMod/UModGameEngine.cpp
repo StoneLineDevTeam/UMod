@@ -2,6 +2,30 @@
 #include "UModGameEngine.h"
 #include "Engine/PendingNetGame.h"
 #include "Console/UModConsoleManager.h"
+#include "NetCore/ServerHandler.h"
+#include "NetCore/ClientHandler.h"
+
+//Custom control channel messages
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsBool);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsInt);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsString);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndLua);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEnd);
+//The poll control channel message
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModPoll);
+
+const uint32 MinResX = 1200;
+const uint32 MinResY = 650;
+
+bool UUModGameEngine::IsDedicated = false;
+bool UUModGameEngine::IsListen = false;
+
+bool SendPollPacket;
 
 EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL URL, FString& Error)
 {
@@ -12,13 +36,35 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 		if (t == EBrowseReturnVal::Type::Success || t == EBrowseReturnVal::Type::Pending) {
 			UNetDriver *NetDriver = GEngine->FindNamedNetDriver(WorldContext.PendingNetGame, NAME_PendingNetDriver);
 			//HEHEHEHHE ! You did not saw that, you are so stupid UE4 !
-			Notify = NetDriver->Notify;
-			NetDriver->Notify = this;
+			NetHandleCL = NewObject<UClientHandler>();
+			NetHandleCL->InitHandler(this, NetDriver->Notify, SendPollPacket);
+			NetDriver->Notify = NetHandleCL;
+			SendPollPacket = false;
 			UE_LOG(UMod_Game, Error, TEXT("Disconnected UPendingNetGame from network notify system !"));
 		}
 		return t;
 	}
 	//Ok relaying on the normal browse system as we don't want to change UE4's map loading system
+	if (IsDedicated || IsListen) {
+		//Break server (that will be much more reliable)
+		EBrowseReturnVal::Type t = Super::Browse(WorldContext, URL, Error);
+		UNetDriver *NetDriver = WorldContext.World()->GetNetDriver();
+		NetHandleSV = NewObject<UServerHandler>();
+		NetHandleSV->InitHandler(this, NetDriver->Notify);
+		NetDriver->Notify = NetHandleSV;
+		UE_LOG(UMod_Game, Error, TEXT("Disconnected UWorld from network notify system !"));
+		return t;
+	} else if (!IsDedicated && !IsListen) {
+		//We are neither dedicated neither listen.
+		//We can't become dedicated as this requires command line, so we are a client.
+		//We are not even connecting a server, so we must be browsing screen maps with no network, conslusion destroy network systems.
+		if (NetHandleSV != NULL) {
+			NetHandleSV->ConditionalBeginDestroy();
+		}
+		if (NetHandleCL != NULL) {
+			NetHandleCL->ConditionalBeginDestroy();
+		}
+	}
 	return Super::Browse(WorldContext, URL, Error);
 }
 
@@ -27,156 +73,157 @@ UUModGameInstance *UUModGameEngine::GetGame()
 	return Cast<UUModGameInstance>(GameInstance);
 }
 
-bool SendPollPacket;
+void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
+{
+	//YOUHOU ! It's overWRITE now not override !
+#if UE_BUILD_SERVER
+	FString MapToLoad;
+	GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	if (MapToLoad.IsEmpty()) {
+		MapToLoad = FString("FirstPersonExampleMap");
+		GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	}
+
+	const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
+	GameMapsSettings->SetGameDefaultMap("/Game/Maps/" + MapToLoad);
+	GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
+
+	GLogConsole->Show(true);
+	GLogConsole->SetSuppressEventTag(false);
+
+	FString str = "/Game/Maps/" + MapToLoad + " -log";
+	FCommandLine::Set(*str);
+
+	IsDedicated = true;
+	IsListen = false;
+#else
+	FString str = FCommandLine::Get();
+	TArray<FString> cmds;
+	str.ParseIntoArray(cmds, TEXT(" "));
+	if (cmds.Contains("-server")) {
+		//Retrieve map name from config
+		FString MapToLoad;
+		GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		if (MapToLoad.IsEmpty()) {
+			MapToLoad = FString("FirstPersonExampleMap");
+			GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		}
+
+		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
+		GameMapsSettings->SetGameDefaultMap("/Game/Maps/" + MapToLoad);
+		GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
+
+		GLogConsole->Show(true);
+		GLogConsole->SetSuppressEventTag(false);
+
+		FString str = "/Game/Maps/" + MapToLoad + " -server -log";
+		FCommandLine::Set(*str);
+
+		IsDedicated = true;
+	} else {
+		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
+		GameMapsSettings->SetGameDefaultMap("/Game/Internal/Maps/MainMenu");
+
+		IsDedicated = false;
+	}
+#endif
+
+	OnDisplayCreated();
+	UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
+	Super::Init(InEngineLoop);
+	OnDisplayCreated();
+	UE_LOG(UMod_Game, Log, TEXT("Display data has been re-overwritten."));
+}
+
+void UUModGameEngine::OnDisplayCreated()
+{
+	int32 width = MinResX;
+	int32 height = MinResY;
+	bool full;
+	GConfig->GetInt(TEXT("Viewport"), TEXT("Width"), width, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	GConfig->GetInt(TEXT("Viewport"), TEXT("Height"), height, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	GConfig->GetBool(TEXT("Viewport"), TEXT("FullScreen"), full, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	GSystemResolution.ResX = width;
+	GSystemResolution.ResY = height;
+	if (full) {
+		GSystemResolution.WindowMode = EWindowMode::Fullscreen;
+	} else {
+		GSystemResolution.WindowMode = EWindowMode::Windowed;
+	}
+	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
+	WindowPtr->ReshapeWindow(FVector2D(0, 0), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
+	WindowPtr->SetWindowMode(GSystemResolution.WindowMode);
+	WindowPtr->SetTitle(FText::FromString("UMod - GMod Replacement Project [Client]"));
+}
+
+bool UUModGameEngine::ChangeGameResolution(FUModGameResolution res)
+{
+	if (GetGameResolution() == res) {
+		return false;
+	}
+
+	if (res.GameWidth < MinResX || res.GameHeight < MinResY) {
+		return false;
+	}
+
+	FDisplayMetrics metrics;
+	FDisplayMetrics::GetDisplayMetrics(metrics);
+	int32 width = metrics.PrimaryDisplayWidth;
+	int32 height = metrics.PrimaryDisplayHeight;
+	if (res.GameWidth > width || res.GameHeight > height) {
+		return false;
+	}
+	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
+	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+	EWindowMode::Type type;
+	if (res.FullScreen) {
+		type = EWindowMode::Fullscreen;
+	} else {
+		type = EWindowMode::Windowed;
+	}
+	Settings->SetScreenResolution(FIntPoint(res.GameWidth, res.GameHeight));
+	Settings->SetFullscreenMode(type);
+	Settings->RequestResolutionChange(res.GameWidth, res.GameHeight, type);
+	Settings->ConfirmVideoMode();
+	Settings->ApplyResolutionSettings(false);
+
+	GConfig->SetInt(TEXT("Viewport"), TEXT("Width"), res.GameWidth, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	GConfig->SetInt(TEXT("Viewport"), TEXT("Height"), res.GameHeight, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	GConfig->SetBool(TEXT("Viewport"), TEXT("FullScreen"), res.FullScreen, FPaths::GameConfigDir() + FString("UMod.Client.cfg"));
+	return true;
+}
+
+FUModGameResolution UUModGameEngine::GetGameResolution()
+{
+	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
+	if (Viewport == NULL) {
+		return FUModGameResolution();
+	}
+	FVector2D vec;
+	Viewport->GetViewportSize(vec);
+	return FUModGameResolution(vec.X, vec.Y, Viewport->IsFullScreenViewport());
+}
+
+TArray<FUModGameResolution> UUModGameEngine::GetAvailableGameResolutions()
+{
+	FScreenResolutionArray Resolutions;
+	if (RHIGetAvailableResolutions(Resolutions, false)) {
+		TArray<FUModGameResolution> list;
+		for (const FScreenResolutionRHI& EachResolution : Resolutions) {
+			if (EachResolution.Width >= MinResX && EachResolution.Height >= MinResY) {
+				list.Add(FUModGameResolution(EachResolution.Width, EachResolution.Height, false));
+			}
+		}
+		return list;
+	}
+	else {
+		UE_LOG(UMod_Game, Error, TEXT("Screen Resolutions could not be obtained"));
+		return TArray<FUModGameResolution>();
+	}
+}
+
 void UUModGameEngine::RunPollServer(FString ip, ULocalPlayer* const Player)
 {
 	Player->PlayerController->ClientTravel(ip, ETravelType::TRAVEL_Absolute);
 	SendPollPacket = true;
-}
-
-//FNetworkNotify interface (ClientSide)
-EAcceptConnection::Type UUModGameEngine::NotifyAcceptingConnection()
-{
-	return Notify->NotifyAcceptingConnection();
-}
-void UUModGameEngine::NotifyAcceptedConnection(class UNetConnection* Connection)
-{
-	Notify->NotifyAcceptedConnection(Connection);
-}
-bool UUModGameEngine::NotifyAcceptingChannel(class UChannel* Channel)
-{
-	return Notify->NotifyAcceptingChannel(Channel);
-}
-FString CurRegisteringLuaFile;
-FString CurLuaFileContent;
-uint32 CurRegisteringLuaFileID;
-void UUModGameEngine::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
-{
-	//WARNING : if you don't read/discard the message it's considered unhandled and the engine will crash because it don't know what is a custom net message !
-	UE_LOG(UMod_Game, Log, TEXT("Received message with ID : %i"), (int)MessageType);
-	switch (MessageType)
-	{
-	case NMT_UModStart:
-		uint8 Type;
-		FNetControlMessage<NMT_UModStart>::Receive(Bunch, Type);
-		if (Type != 2) {
-			UE_LOG(UMod_Game, Error, TEXT("NMT_UModStart : Unable to continue, server is a client !"));
-			Connection->Close();
-		}
-		if (SendPollPacket) {
-			Type = 1;
-			SendPollPacket = false;
-		} else {
-			Type = 0;
-
-			//Create the voice channel (test purposes)
-			Connection->CreateChannel(CHANNEL_VOICE, true, 5);
-		}
-		FNetControlMessage<NMT_UModStart>::Send(Connection, Type);
-		Connection->FlushNet();
-		break;
-	case NMT_UModPoll:
-	{
-		FString Name;
-		uint32 Cur;
-		uint32 Max;
-		FNetControlMessage<NMT_UModPoll>::Receive(Bunch, Name, Cur, Max);
-		FServerPollResult res = FServerPollResult(Name, Cur, Max);
-		Connection->Close();
-		PollEndDelegate.Broadcast(res);
-		break;
-	}
-	case NMT_UModStartVars:
-		FNetControlMessage<NMT_UModStartVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	case NMT_UModSendVarsInt:
-	{
-		FString str;
-		int t;
-		FNetControlMessage<NMT_UModSendVarsInt>::Receive(Bunch, str, t);
-		GetGame()->ConsoleManager->SetConsoleVar<int>(str, t);
-
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModSendVarsBool:
-	{
-		FString str;
-		bool b;
-		FNetControlMessage<NMT_UModSendVarsBool>::Receive(Bunch, str, b);
-		GetGame()->ConsoleManager->SetConsoleVar<bool>(str, b);
-
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModSendVarsString:
-	{
-		FString str;
-		FString s;
-		FNetControlMessage<NMT_UModSendVarsString>::Receive(Bunch, str, s);
-		GetGame()->ConsoleManager->SetConsoleVar<FString>(str, s);
-
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModStartLua:
-		FNetControlMessage<NMT_UModStartLua>::Receive(Bunch, CurRegisteringLuaFile);
-		
-		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	case NMT_UModSendLua:
-	{
-		FString Content;
-		uint8 Mode;
-		FNetControlMessage<NMT_UModSendLua>::Receive(Bunch, Content, Mode);
-		if (Mode == 1) {
-			CurLuaFileContent += Content;
-		} else if (Mode == 2) {
-			CurLuaFileContent += Content;
-
-			FString path = FPaths::GameDir() + "/Saved/LuaCache/" + FString::FromInt(CurRegisteringLuaFileID) + ".lac"; //.lac for lua asset cache
-			bool b = FFileHelper::SaveStringToFile(CurLuaFileContent, *path);
-			if (!b) {
-				GetGame()->Disconnect("Could not save downloaded lua file " + CurRegisteringLuaFile);
-			}
-
-			GetGame()->AssetsManager->AddCLLuaFile(path, CurRegisteringLuaFile);
-
-			CurLuaFileContent = "";
-
-			CurRegisteringLuaFileID++;
-		}		
-
-		FNetControlMessage<NMT_UModEndLua>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModEndVars:
-		//Server is done uploading console vars
-		FNetControlMessage<NMT_UModEnd>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	case NMT_UModEndLua:
-		//Server is done uploading lua
-		//UMod network intializer has done all work, send a packet to confirm connection (otherwise we can just close connection)
-		CurRegisteringLuaFile = "";
-		CurRegisteringLuaFileID = 0;
-
-		FNetControlMessage<NMT_UModEnd>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	default:
-		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
-	}
-
-	//This runs if we have a zero param message
-	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
-		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
-		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
-	}
 }
