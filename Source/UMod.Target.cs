@@ -21,5 +21,9 @@ public class UModTarget : TargetRules
 		)
 	{
 		OutExtraModuleNames.Add("UMod");
+		if (UEBuildConfiguration.bBuildEditor)
+        {
+            OutExtraModuleNames.Add("UModEditor");
+        }
 	}
 }

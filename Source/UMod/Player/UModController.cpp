@@ -10,14 +10,14 @@ void SetKeyInConfig(FString category, FString name, FKey key)
 {
 	FString str = key.ToString();
 
-	GConfig->SetString(*category, *name, *str, FPaths::GameConfigDir() + FString("UMod.Input.cfg"));
+	GConfig->SetString(*category, *name, *str, InputCFG);
 }
 
 void BindKeyFromConfigIfExists(FString category, FString name, FKey &key)
 {
 	FString str;
 
-	GConfig->GetString(*category, *name, str, FPaths::GameConfigDir() + FString("UMod.Input.cfg"));
+	GConfig->GetString(*category, *name, str, InputCFG);
 	if (!str.IsEmpty()) {
 		key = FKey(*str);
 
@@ -28,7 +28,7 @@ void BindKeyFromConfigIfExists(FString category, FString name, FKey &key)
 		FKey def = key;
 		FString str = def.ToString();
 
-		GConfig->SetString(*category, *name, *str, FPaths::GameConfigDir() + FString("UMod.Input.cfg"));
+		GConfig->SetString(*category, *name, *str, InputCFG);
 	}
 }
 

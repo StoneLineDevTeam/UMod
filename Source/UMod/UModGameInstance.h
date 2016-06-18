@@ -5,7 +5,6 @@
 #include "Engine/GameInstance.h"
 #include "Lua/LuaEngine.h"
 #include "UModAssetsManager.h"
-#include "DataChannel.h"
 #include "UModGameInstance.generated.h"
 
 //ClientSide struct

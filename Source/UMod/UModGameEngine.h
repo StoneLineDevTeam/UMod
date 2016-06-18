@@ -2,6 +2,7 @@
 #include "UMod.h"
 #include "Engine/GameEngine.h"
 #include "UModGameInstance.h"
+#include "DataChannel.h"
 #include "UModGameEngine.generated.h"
 
 USTRUCT(BlueprintType)

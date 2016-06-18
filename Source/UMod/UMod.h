@@ -40,6 +40,10 @@ struct Initializer##ClassName { \
 }; \
 Initializer##ClassName Init##ClassName; \
 
+static const FString InputCFG = FPaths::GameConfigDir() + FString("UMod.Input.cfg");
+static const FString ClientCFG = FPaths::GameConfigDir() + FString("UMod.Client.cfg");
+static const FString ServerCFG = FPaths::GameConfigDir() + FString("UMod.Server.cfg");
+
 template <typename ObjClass>
 static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
 {

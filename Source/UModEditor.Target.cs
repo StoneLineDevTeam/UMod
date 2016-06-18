@@ -21,5 +21,6 @@ public class UModEditorTarget : TargetRules
 		)
 	{
 		OutExtraModuleNames.Add("UMod");
+		OutExtraModuleNames.Add("UModEditor");
 	}
 }
