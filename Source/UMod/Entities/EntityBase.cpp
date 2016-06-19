@@ -88,7 +88,7 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 void AEntityBase::UpdateClientMDL()
 {
 	if (Role == ROLE_Authority) { return; }
-	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/Models/" + ServerMDLSync));
+	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/" + ServerMDLSync));
 	EntityModel->SetStaticMesh(model);
 	CurMdl = ServerMDLSync;
 	ServerMATSync = new FString[GetSubMaterialsNum()];
@@ -217,7 +217,7 @@ void AEntityBase::SetModel(FString path)
 	if (Role == ROLE_Authority && !Initializing) {
 		ServerMDLSync = path;
 	}
-	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/Models/" + path));
+	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/" + path));
 	EntityModel->SetStaticMesh(model);
 	CurMdl = path;
 
@@ -226,7 +226,7 @@ void AEntityBase::SetModel(FString path)
 
 FString AEntityBase::GetModel()
 {
-	return "Models/" + CurMdl;
+	return CurMdl;
 }
 
 void AEntityBase::SetCollisionModel(ECollisionType collision)

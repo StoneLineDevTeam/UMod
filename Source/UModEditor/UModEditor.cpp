@@ -6,9 +6,22 @@ IMPLEMENT_GAME_MODULE(FUModEditorModule, UModEditor);
 
 DEFINE_LOG_CATEGORY(UModEditor)
 
-static void FillUModMenu(FMenuBuilder& MenuBuilder)
+void FUModEditorModule::CompileAddonContent()
 {
+	
+}
 
+void FUModEditorModule::FillUModMenu(FMenuBuilder &MenuBuilder)
+{
+	MenuBuilder.BeginSection("UMod");
+	MenuBuilder.AddMenuEntry(FText::FromString("Compile Addon Content"), FText::FromString("Compile Addon Content"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FUModEditorModule::CompileAddonContent)));
+	MenuBuilder.AddMenuEntry(FText::FromString("Cook UMod Content"), FText::FromString("Cook UMod Content"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FUModEditorModule::CompileAddonContent)));
+	MenuBuilder.EndSection();
+}
+
+void FUModEditorModule::CreateUModMenu(FMenuBarBuilder &MenuBuilder)
+{
+	MenuBuilder.AddPullDownMenu(FText::FromString("UMod"), FText::FromString("UMod"), FNewMenuDelegate::CreateRaw(this, &FUModEditorModule::FillUModMenu));
 }
 
 void FUModEditorModule::StartupModule()
@@ -17,7 +30,7 @@ void FUModEditorModule::StartupModule()
 
 	TSharedRef<FExtender> Extender(new FExtender());
 
-	Extender->AddMenuExtension("EditHistory", EExtensionHook::After, NULL, FMenuExtensionDelegate::CreateStatic(&FillUModMenu));
+	Extender->AddMenuBarExtension("Help", EExtensionHook::After, NULL, FMenuBarExtensionDelegate::CreateRaw(this, &FUModEditorModule::CreateUModMenu));
 	
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(Extender);

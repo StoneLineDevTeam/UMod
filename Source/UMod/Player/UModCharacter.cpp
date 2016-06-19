@@ -461,7 +461,7 @@ void AUModCharacter::SetModel(FString path)
 		return;
 	}
 
-	FString realPath = FString("/Game/Models/Player/") + path;
+	FString realPath = FString("/Game/") + path;
 	USkeletalMesh *m = LoadObjFromPath<USkeletalMesh>(*realPath);
 	PlayerModel->SetSkeletalMesh(m);
 }

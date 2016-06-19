@@ -12,4 +12,7 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	void FillUModMenu(FMenuBuilder &MenuBuilder);
+	void CreateUModMenu(FMenuBarBuilder &MenuBuilder);
+	void CompileAddonContent();
 };
