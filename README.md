@@ -9,6 +9,11 @@
 	- Add command system
 	- Fix lua always bugging with tables in C API
 
+#For .uproject file associations errors
+Go in your Epic Games folder/Launcher/Engine/Binaries/Win64.
+Then open CMD as administrator in that folder, then type :
+UnrealVersionSelector.exe /fileassociations
+
 This is the official repository for the UMod project.
 Yuri6037 and me (SuperPlayer) are playing Garry's Mod. But with the time we got upset about the limitations source engine has.
 We decided that we want to try to create a completely new sandbox game. As an engine we choosed unreal.
