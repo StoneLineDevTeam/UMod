@@ -13,6 +13,9 @@ class ALaserBeamRenderer : public AActor
 public:	
 	ALaserBeamRenderer();
 
+	UFUNCTION()
+	void Precache();
+	
 	virtual void BeginDestroy() override;
 	
 	void UpdateVectors(FVector Start, FVector End);

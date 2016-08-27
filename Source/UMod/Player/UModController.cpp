@@ -91,7 +91,7 @@ void AUModController::Tick(float f)
 		}
 
 		if (GetCharacter() != Player) { //Needed as UE4 seam to work realy weird with variables
-			Player = GetCharacter();
+			Player = Cast<AUModCharacter>(GetCharacter());
 		}
 	}
 }

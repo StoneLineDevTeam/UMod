@@ -2,6 +2,7 @@
 
 #include "UMod.h"
 #include "LaserBeamRenderer.h"
+#include "UModAssetsManager.h"
 
 
 ALaserBeamRenderer::ALaserBeamRenderer()
@@ -10,8 +11,23 @@ ALaserBeamRenderer::ALaserBeamRenderer()
 	BeamEffect = LoadObjFromPath<UParticleSystem>("/Game/UMod/Particles/LaserBeam");
 	comp = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("ParticleEmitter"));
 	comp->bAutoDestroy = true;
-	comp->SetTemplate(BeamEffect);
+	if (BeamEffect != NULL) {
+		comp->SetTemplate(BeamEffect);
+	}
 	RootComponent = comp;
+
+	UUModAssetsManager::PrecacheAssets.AddDynamic(this, &ALaserBeamRenderer::Precache);
+}
+
+void ALaserBeamRenderer::Precache()
+{
+	FString realPath;
+	EResolverResult res = UUModAssetsManager::Instance->ResolveAsset("UMod:Particles/LaserBeam", EUModAssetType::OTHER, realPath);
+	if (res != EResolverResult::SUCCESS) {
+		UE_LOG(UMod_Game, Error, TEXT("Unable to load LaserBeam particle system"));
+		return;
+	}
+	BeamEffect = LoadObjFromPath<UParticleSystem>(*realPath);
 }
 
 void ALaserBeamRenderer::BeginDestroy()

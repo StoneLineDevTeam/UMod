@@ -232,6 +232,8 @@ void UUModGameInstance::Init()
 	}
 	
 	if (!IsDedicatedServer()) {
+		UE_LOG(UMod_Game, Log, TEXT("Precaching required assets..."));
+		float cur = FPlatformTime::ToMilliseconds(FPlatformTime::Cycles());
 		//Sending precache request for all surface types
 		EUModSurfaceTypes::FRegisterSurfaceTypes();
 		for (TPair<FString, FSurfaceType*> Elem : UModSurfaceTypes) {
@@ -241,6 +243,8 @@ void UUModGameInstance::Init()
 
 		//Sending global precache request
 		UUModAssetsManager::PrecacheAssets.Broadcast();
+		float elapsed = (FPlatformTime::ToMilliseconds(FPlatformTime::Cycles()) - cur) / 1000.0F;
+		UE_LOG(UMod_Game, Log, TEXT("Done (%f seconds) !"), elapsed);
 	}
 }
 
