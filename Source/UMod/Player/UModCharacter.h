@@ -8,7 +8,7 @@
 
 class UInputComponent;
 
-UCLASS(config=Game)
+UCLASS()
 class AUModCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -16,22 +16,22 @@ class AUModCharacter : public ACharacter
 private:
 	//The weapon matrix which stores all pointers to all AActors corresponding to those weapons
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
-		AWeaponBase *weapons[16];
+	AWeaponBase *weapons[16];
 	//The current weapon slot id which corresponds to the weapon the player holds
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
-		uint8 curWeapon;
+	uint8 curWeapon;
 	//The ammo the player currently has
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
-		TMap<FString, uint32> PlayerAmmo;
+	TMap<FString, uint32> PlayerAmmo;
 
 	//Function to be called right after some vars have been replicated.
 	UFUNCTION()
-		void UpdateClientSideData();
+	void UpdateClientSideData();
 
 	UFUNCTION(Server, UnReliable, WithValidation)
-		void OnPlayerClick(uint8 but);
+	void OnPlayerClick(uint8 but);
 	UFUNCTION(Server, UnReliable, WithValidation)
-		void OnPlayerSpecialKey(uint8 bind, bool pressed);
+	void OnPlayerSpecialKey(uint8 bind, bool pressed);
 
 	void OnPlayerClick_Implementation(uint8 but);
 	bool OnPlayerClick_Validate(uint8 but);
@@ -39,10 +39,10 @@ private:
 	bool OnPlayerSpecialKey_Validate(uint8 bind, bool pressed);
 
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
-		uint32 playerHealth;
+	uint32 playerHealth;
 	
 	UPROPERTY(ReplicatedUsing = UpdateClientSideData)
-		uint32 playerMaxHealth;
+	uint32 playerMaxHealth;
 
 	bool InFire1;
 	bool InFire2;
@@ -80,7 +80,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	
 	virtual void BeginPlay();
-
+	virtual void EndPlay(EEndPlayReason::Type reason);
+	
 	virtual void Tick(float DeltaSeconds) override;
 
 
@@ -120,14 +121,11 @@ public:
 	//Get the water level of the level
 	EWaterLevel GetWaterLevel();
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Damage Player", Keywords = "damage player"), Category = "UMod_Specific|Player")
-		void DamagePlayer(int32 force);
+	void DamagePlayer(int32 force);
 	
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Kill Player", Keywords = "kill player"), Category = "UMod_Specific|Player")
-		void KillPlayer();
+	void KillPlayer();
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Heal Player", Keywords = "heal player"), Category = "UMod_Specific|Player")
-		void HealPlayer(int32 amount);
+	void HealPlayer(int32 amount);
 
 	UPROPERTY(VisibleDefaultsOnly, Category = UMod_Specific)
 	class USkeletalMeshComponent* PlayerModel;

@@ -33,11 +33,12 @@ static int GameGetMaps(lua_State *L) {
 }
 static int GameGetAssets(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
-	int i = Lua.CheckInt(1);
+	FString mnt = Lua.CheckString(1);
+	int i = Lua.CheckInt(2);
 	Lua.NewTable();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
 	EUModAssetType t = EUModAssetType(i);
-	TArray<FUModAsset> Assets = Game1->AssetsManager->GetAssetList(t);
+	TArray<FUModAsset> Assets = Game1->AssetsManager->GetAssetList(mnt, t);
 	for (int i = 0; i < Assets.Num(); i++) {
 		FUModAsset Asset = Assets[i];
 		//Reverse the index so now lua can easely do #tbl or for k, v in pairs(tbl)

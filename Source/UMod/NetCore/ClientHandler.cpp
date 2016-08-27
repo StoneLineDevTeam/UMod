@@ -132,21 +132,35 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		Connection->FlushNet();
 		break;
 	case NMT_UModEndLua:
+	{
 		//Server is done uploading lua
 		//UMod network intializer has done all work, send a packet to confirm connection (otherwise we can just close connection)
 		CurRegisteringLuaFile = "";
 		CurRegisteringLuaFileID = 0;
 
 		FNetControlMessage<NMT_UModEnd>::Send(Connection);
-		Connection->FlushNet();
+		Connection->FlushNet();			
 		break;
+	}
+	case NMT_UModChangeMap:
+	{
+		FConnectionStats stats = GEngine->GetGame()->GetConnectionInfo();
+		TArray<FString> strs;
+		stats.HostIP.ParseIntoArray(strs, TEXT(":"), false);
+		FString recoIP = strs[0];
+		int32 recoPort = FCString::Atoi(*strs[1]);
+		GEngine->NetworkCleanUp();
+		GEngine->GetGame()->JoinGame(recoIP, recoPort);
+		GEngine->SetLoadData(0, 0, "Server is changing map...");
+		break;
+	}
 	default:
 		Notify->NotifyControlMessage(Connection, MessageType, Bunch);
 	}
 
 	//This runs if we have a zero param message
-	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
-		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
+	if (MessageType == NMT_UModStartVars || MessageType == NMT_UModEndVars || MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd || MessageType == NMT_UModChangeMap) {
+		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !		
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
 	}
 }

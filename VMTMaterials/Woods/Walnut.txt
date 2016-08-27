@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Woods/Walnut"
+	"$normalmap" "Woods/Walnut_N"
+	"$surfaceprop" "wood"
+}

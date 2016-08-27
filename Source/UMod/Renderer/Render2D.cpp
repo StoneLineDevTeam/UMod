@@ -3,6 +3,7 @@
 #include "UMod.h"
 #include "Render2D.h"
 #include "CanvasScissorRect.h"
+#include "UModGameInstance.h"
 
 //Statics here as linker is unable to link correctly with static vars inside H file
 static FVector2D FontScale;
@@ -88,8 +89,18 @@ uint32 URender2D::LoadFont(FString path, uint32 Size, FName ComposeType)
 	}
 
 	uint32 id = EmptyFontSlot;
-	UFont* obj = LoadObjFromPath<UFont>(*("/Game/Fonts/" + path));
+	FString fntp;
+	EResolverResult res = UUModAssetsManager::Instance->ResolveAsset(path, EUModAssetType::FONT, fntp);
+	if (res != EResolverResult::SUCCESS) {
+		UE_LOG(UMod_Game, Error, TEXT("Unable to load font : %s"), *UUModAssetsManager::Instance->GetErrorMessage(res));
+		return id;
+	}
+	UFont* obj = LoadObjFromPath<UFont>(*fntp);
+	obj->AddToRoot(); //Workarround that successfully says "Shout up !" to the peace of crap that Epic Games designed only to break my game : The FUCKING SHITTY GARBAGE COLLECTOR !
 	FRuntimeCachedFont *fnt = new FRuntimeCachedFont(obj, Size, ComposeType);
+	TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
+	FCharacterList *lst = &FontCache->GetCharacterList(fnt->SlateFont, 1);
+	fnt->CharList = lst;
 	Fonts.Add(id, fnt);
 	StringFonts.Add(path, id);
 	FindNextFontMapSlot();
@@ -112,7 +123,14 @@ uint32 URender2D::LoadTexture(FString path)
 	}
 
 	uint32 id = EmptyTextureSlot;
-	UTexture2D* tex = LoadObjFromPath<UTexture2D>(*("/Game/" + path));
+	FString texp;
+	EResolverResult res = UUModAssetsManager::Instance->ResolveAsset(path, EUModAssetType::OTHER, texp);
+	if (res != EResolverResult::SUCCESS) {
+		UE_LOG(UMod_Game, Error, TEXT("Unable to load texture : %s"), *UUModAssetsManager::Instance->GetErrorMessage(res));
+		return id;
+	}
+	UTexture2D* tex = LoadObjFromPath<UTexture2D>(*texp);
+	tex->AddToRoot(); //Workarround that successfully says "Shout up !" to the peace of crap that Epic Games designed only to break my game : The FUCKING SHITTY GARBAGE COLLECTOR !
 	Textures.Add(id, tex);
 	StringTextures.Add(path, id);
 	FindNextTextureMapSlot();
@@ -136,6 +154,7 @@ void URender2D::DrawRect(float x, float y, float w, float h)
 	}
 	
 	Rectangle.BlendMode = SE_BLEND_Translucent;
+
 	Context->DrawItem(Rectangle);	
 }
 
@@ -175,32 +194,40 @@ void URender2D::SetScissorRect(int x, int y, int w, int h)
 
 //Draws a string
 void URender2D::DrawText(FString str, float x, float y, uint8 align)
-{
+{	
 	FRuntimeCachedFont *fnt = Fonts[CurFont];
 	if (fnt == NULL) {
 		return;
 	}
 
-	float TW, TH;
-	GetTextSize(str, TW, TH);
-
 	float TextX = 0;
 	float TextY = y;
+
+	float TW, TH;
 
 	switch (align)
 	{
 	case 0:
 		TextX = x;
 		break;
-	case 1:
+	case 1:		
+		GetTextSize(str, TW, TH);
+
 		TextX = x - TW / 2;
 		break;
-	case 2:
+	case 2:		
+		GetTextSize(str, TW, TH);
+
 		TextX = x - TW;
 		break;
 	}
 
-	FCanvasTextItem Text(FVector2D(TextX, TextY), FText::FromString(str), FSlateFontInfo(fnt->FontObject, fnt->FontSize, fnt->TypeName), CurColor);
+	if (!fnt->SlateFont.FontObject->IsValidLowLevel()) {
+		UE_LOG(UMod_Game, Error, TEXT("The fucking shit garbage collector of UE4 corrupted UMod memory !"));
+		return;
+	}
+
+	FCanvasTextItem Text(FVector2D(TextX, TextY), FText::FromString(str), fnt->SlateFont, CurColor);
 	Text.Scale = FontScale;
 	Context->DrawItem(Text);
 }
@@ -212,6 +239,8 @@ void URender2D::SetFontScale(float sx, float sy)
 
 void URender2D::GetTextSize(FString str, float& w, float& h)
 {
+	w = 0;
+	h = 0;
 	//TODO : Remake Context->TextSize function as it does not support runtime cached fonts !
 	//NOTE TO EPIC GAMES : Please fix this issue... You allow us to use fonts at runtime with different sizes, but you forget to implement C++ HUD support.
 	//Sometimes, there are people that wants to render texts that are intended to change each frame which is not good for UMG.
@@ -221,8 +250,16 @@ void URender2D::GetTextSize(FString str, float& w, float& h)
 	if (fnt == NULL) {
 		return;
 	}
-
-	Context->TextSize(fnt->FontObject, str, w, h, FontScale.X, FontScale.Y);
+	TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
+	FCharacterList &lst = FontCache->GetCharacterList(fnt->SlateFont, 1);
+	h = lst.GetMaxHeight() * FontScale.Y;
+	for (int i = 0; i < str.Len(); i++) {
+		TCHAR c = str[i];		
+		FCharacterEntry ce = lst.GetCharacter(c, EFontFallback::FF_NoFallback);
+		float advX = (float)ce.XAdvance;
+		w += advX * FontScale.X;		
+	}
+	//UE_LOG(UMod_Game, Log, TEXT("Text width : %f"), w);
 }
 
 void URender2D::DrawLine(float x, float y, float x1, float y1, float stroke)

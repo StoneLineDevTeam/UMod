@@ -7,9 +7,14 @@
 
 FUModContentPack ErrorPack = FUModContentPack(EUModContentChannel::CHANNEL_ERROR, FString("ERROR"), FString("ERROR"));
 
-UUModAssetsManager::UUModAssetsManager(class FObjectInitializer const &)
+UUModAssetsManager* UUModAssetsManager::Instance = NULL;
+FPrecacheAssets UUModAssetsManager::PrecacheAssets;
+
+UUModAssetsManager::UUModAssetsManager()
 {
 	CurrentGameModeName = FString("NULL");
+	MountPoints.Add("UMod");
+	MountPoints.Add("Internal");
 }
 
 bool UUModAssetsManager::InjectContentPack(FString InnerPath, EUModContentChannel InjectorChannel)
@@ -43,7 +48,7 @@ bool UUModAssetsManager::InjectContentPack(FString InnerPath, EUModContentChanne
 		UE_LOG(UMod_Game, Error, TEXT("%s mount failure, delegate does not exist !"), *virtualPath);
 		return false;
 	}
-	if (!FCoreDelegates::OnMountPak.Execute(realPath, 4)) {
+	if (!FCoreDelegates::OnMountPak.Execute(realPath, 4, NULL)) {
 		UE_LOG(UMod_Game, Error, TEXT("%s mount failure !"), *virtualPath);
 		return false;
 	}
@@ -61,16 +66,74 @@ FUModContentPack& UUModAssetsManager::GetContentPack(FString VirtualPath)
 	return ErrorPack;
 }
 
-FString UUModAssetsManager::GetUnrealPath(FString VirtualPath)
+EResolverResult UUModAssetsManager::ResolveAsset(FString VirtualPath, EUModAssetType t, FString &OutUEPath)
 {
-	return "/Game/" + VirtualPath;
+	//TODO : Add missing asset system
+	TArray<FString> strs;
+	VirtualPath.ParseIntoArray(strs, TEXT(":"), false);
+
+	if (strs.Num() > 1) {
+		FString mnt = strs[0];
+		if (!MountPoints.Contains(mnt)) {
+			return EResolverResult::INVALID_MOUNT_POINT;
+		}
+		FString path = strs[1];
+		FString dir;
+		switch (t) {
+		case EUModAssetType::MATERIAL:
+			dir = "Materials/";
+			break;
+		case EUModAssetType::TEXTURE:
+			dir = "Textures/";
+			break;
+		case EUModAssetType::MODEL:
+			dir = "Models/";
+			break;
+		case EUModAssetType::MAP:
+			dir = "Maps/";
+			break;
+		case EUModAssetType::SOUND:
+			dir = "Sounds/";
+			break;
+		case EUModAssetType::FONT:
+			dir = "Fonts/";
+			break;
+		}
+		bool Invalid = FPackageName::DoesPackageNameContainInvalidCharacters(FString("/Game/" + mnt + "/" + dir + path));
+		if (Invalid) {
+			return EResolverResult::SYNTAX_ERROR;
+		}
+		Invalid = !FPackageName::DoesPackageExist(FString("/Game/" + mnt + "/" + dir + path));
+		if (Invalid) {
+			return EResolverResult::INVALID_ASSET;
+		}
+		OutUEPath = "/Game/" + mnt + "/" + dir + path;
+		return EResolverResult::SUCCESS;
+	}
+
+	return EResolverResult::SYNTAX_ERROR;
+}
+
+FString UUModAssetsManager::GetErrorMessage(EResolverResult res)
+{
+	switch (res) {
+	case EResolverResult::SYNTAX_ERROR:
+		return "SYNTAX_ERROR";		
+	case EResolverResult::INVALID_MOUNT_POINT:
+		return "INVALID_MOUNT_POINT";
+	case EResolverResult::INVALID_ASSET:
+		return "INVALID_ASSET";
+	case EResolverResult::ASSET_SYSTEM_NOT_READY:
+		return "ASSET_SYSTEM_NOT_READY";
+	}
+	return "UNKNOWN_ERROR";
 }
 
 void UUModAssetsManager::UpdateTick()
 {
 }
 
-void UUModAssetsManager::LoadAddonsContent()
+void UUModAssetsManager::HandleServerConnect()
 {
 	//Clear lua cache
 	FString path = FPaths::GameDir() + "/Saved/LuaCache/";
@@ -128,21 +191,18 @@ void UUModAssetsManager::HandleServerDisconnect()
 TArray<FUModMap> UUModAssetsManager::GetMapList()
 {
 	TArray<FUModMap> Maps;
-	auto ObjectLibrary = UObjectLibrary::CreateLibrary(UWorld::StaticClass(), false, true);
-	ObjectLibrary->LoadAssetDataFromPath(TEXT("/Game/Maps"));
-	TArray<FAssetData> AssetDatas;
-	ObjectLibrary->GetAssetDataList(AssetDatas);
-	TArray<FString> Names = TArray<FString>();
-
-	for (int i = 0; i < AssetDatas.Num(); ++i) {
-		FAssetData asset = AssetDatas[i];
-		FUModMap map = FUModMap(asset.AssetName.ToString(), asset.AssetName.ToString(), asset.PackageName.ToString());
-		Maps.Add(map);
+	for (int j = 0; j < MountPoints.Num(); j++) {
+		FString mnt = MountPoints[j];
+		TArray<FUModAsset> assets = GetAssetList(mnt, EUModAssetType::MAP);
+		for (int i = 0; i < assets.Num(); i++) {
+			FUModAsset asset = assets[j];
+			Maps.Add(FUModMap(asset.NiceName, asset.NiceName, asset.Path));
+		}		
 	}
 	return Maps;
 }
 
-TArray<FUModAsset> UUModAssetsManager::GetAssetList(EUModAssetType type)
+TArray<FUModAsset> UUModAssetsManager::GetAssetList(FString MountPoint, EUModAssetType type)
 {
 	TArray<FUModAsset> Assets;
 	FString searchPath;
@@ -156,10 +216,13 @@ TArray<FUModAsset> UUModAssetsManager::GetAssetList(EUModAssetType type)
 	case EUModAssetType::MODEL:
 		searchPath = "Models/";
 		break;
+	case EUModAssetType::MAP:
+		searchPath = "Maps/";
+		break;
 	}
 
 	auto ObjectLibrary = UObjectLibrary::CreateLibrary(UWorld::StaticClass(), false, true);
-	ObjectLibrary->LoadAssetDataFromPath(TEXT("/Game/Maps"));
+	ObjectLibrary->LoadAssetDataFromPath("/Game/" + MountPoint + "/" + searchPath);
 	TArray<FAssetData> AssetDatas;
 	ObjectLibrary->GetAssetDataList(AssetDatas);
 	TArray<FString> Names = TArray<FString>();

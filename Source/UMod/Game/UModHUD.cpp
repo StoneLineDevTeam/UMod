@@ -8,6 +8,7 @@
 #include "Renderer/Render2D.h"
 
 #include "Player/UModCharacter.h"
+#include "Player/UModController.h"
 
 #include "UModGameInstance.h"
 
@@ -37,9 +38,13 @@ const Button* Buttons[16] = {
 
 AUModHUD::AUModHUD(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	CrosshairTex = URender2D::LoadTexture("Internal/Textures/FirstPersonCrosshair");
+	UUModAssetsManager::PrecacheAssets.AddDynamic(this, &AUModHUD::Precache);
+}
 
-	HUDFont = URender2D::LoadFont("FederationRegular", 32);
+void AUModHUD::Precache()
+{
+	CrosshairTex = URender2D::LoadTexture("Internal:Textures/FirstPersonCrosshair");
+	HUDFont = URender2D::LoadFont("UMod:FederationRegular", 32);
 }
 
 void AUModHUD::BeginPlay()
@@ -47,6 +52,11 @@ void AUModHUD::BeginPlay()
 	Super::BeginPlay();
 
 	Game = Cast<UUModGameInstance>(GetGameInstance());
+	PlyCtrl = Cast<AUModController>(GetOwningPlayerController());
+
+	PlyCtrl->OnMouseClick.AddDynamic(this, &AUModHUD::HandleMouseClick);
+
+	UE_LOG(UMod_Game, Log, TEXT("[DEBUG]BeginPlay called for HUD"));
 }
 
 FVector2D AUModHUD::ScreenSize()
@@ -65,35 +75,39 @@ bool IsMouseInRect(float msPosX, float msPosY, float x, float y, float w, float 
 	return false;
 }
 
-bool IngameMenu = false;
-bool clickDown = false;
-bool escapeDown = false;
 void AUModHUD::OnButtonClick(uint8 id)
-{
-	APlayerController *ctrl = GetOwningPlayerController();
+{	
 	switch (id)	{
-	case 0:
-		IngameMenu = !IngameMenu;
-		ctrl->bShowMouseCursor = IngameMenu;
-		ctrl->SetIgnoreLookInput(IngameMenu);
-		ctrl->SetIgnoreMoveInput(IngameMenu);
-		escapeDown = false;
+	case 0:		
+		PlyCtrl->ExitIngameMenu();
 		break;
 	case 1:
 		Game->Disconnect(FString("You disconnected !"));
 	}
 }
 
+void AUModHUD::HandleMouseClick(float x, float y)
+{
+	FVector2D size = ScreenSize();
+
+	for (int i = 0; i < 16; i++) {
+		const Button* but = Buttons[i];
+		if (but != NULL) {
+			if (IsMouseInRect(x, y, size.X / 2 - 256, 200 + i * 70, 512, 64)) {
+				OnButtonClick(but->id);
+			}
+		}
+	}
+}
+
 void AUModHUD::DrawIngameMenu()
 {
-	APlayerController *ctrl = GetOwningPlayerController();
-
 	FVector2D size = ScreenSize();
 
 	float msPosX;
 	float msPosY;
 
-	ctrl->GetMousePosition(msPosX, msPosY);
+	PlyCtrl->GetMousePosition(msPosX, msPosY);
 	
 	URender2D::SetColor(DarkGrey);
 	URender2D::SetFontScale(1, 1);
@@ -102,12 +116,6 @@ void AUModHUD::DrawIngameMenu()
 		const Button* but = Buttons[i];
 		if (but != NULL) {
 			if (IsMouseInRect(msPosX, msPosY, size.X / 2 - 256, 200 + i * 70, 512, 64)) {
-				if (ctrl->IsInputKeyDown(EKeys::LeftMouseButton)) {
-					clickDown = true;
-				} else if (!ctrl->IsInputKeyDown(EKeys::LeftMouseButton) && clickDown) {
-					clickDown = false;
-					OnButtonClick(but->id);
-				}
 				URender2D::SetColor(FColor(200, 200, 200, 200));
 				URender2D::DrawRect(size.X / 2 - 256, 200 + i * 70, 512, 64);
 			} else {
@@ -120,13 +128,13 @@ void AUModHUD::DrawIngameMenu()
 	}
 }
 
-void AUModHUD::DrawPlayerStats(AUModCharacter *localPlyCL)
+void AUModHUD::DrawPlayerStats()
 {
 	FVector2D size = ScreenSize();
 
 	//Variables
-	uint32 Health = localPlyCL->GetHealth();
-	uint32 MaxHealth = localPlyCL->GetMaxHealth();
+	uint32 Health = PlyCtrl->Player->GetHealth();
+	uint32 MaxHealth = PlyCtrl->Player->GetMaxHealth();
 	int Armor = 45; //Why !? There is no armor feature planned, if you want armor feature tell me.
 
 	URender2D::SetColor(Back);
@@ -169,16 +177,16 @@ void AUModHUD::DrawPlayerStats(AUModCharacter *localPlyCL)
 	}
 }
 
-void AUModHUD::DrawWeaponStats(AUModCharacter *localPlyCL)
+void AUModHUD::DrawWeaponStats()
 {
 	FVector2D size = ScreenSize();
 
 	//Ammo and Weapon HUD
-	AWeaponBase *base = localPlyCL->GetActiveWeapon();
+	AWeaponBase *base = PlyCtrl->Player->GetActiveWeapon();
 	if (base != NULL) {
 		int Ammo = base->GetPrimaryAmmo();
 		int MaxAmmo = base->GetPrimaryClipSize();
-		int ReloadAmmo = localPlyCL->GetRemainingAmmo(base->GetPrimaryAmmoType());
+		int ReloadAmmo = PlyCtrl->Player->GetRemainingAmmo(base->GetPrimaryAmmoType());
 		FString WeaponName = base->GetNiceName();
 		float AmmoSizeX = size.X / 4.5;
 		float AmmoSizeY = size.Y / 9;
@@ -199,13 +207,13 @@ void AUModHUD::DrawWeaponStats(AUModCharacter *localPlyCL)
 	}
 }
 
-void AUModHUD::DrawWeaponSwitch(AUModCharacter *localPlyCL)
+void AUModHUD::DrawWeaponSwitch()
 {
 	FVector2D size = ScreenSize();
 
 	//Weapon switch
 	for (int i = 0; i < 16; i++) {
-		AWeaponBase *b = localPlyCL->GetWeapons()[i];
+		AWeaponBase *b = PlyCtrl->Player->GetWeapons()[i];
 		if (b != NULL) {
 			URender2D::SetColor(FColor(0, 0, 0, 200));
 			URender2D::DrawRect(size.X / 2 - (64 * 8) + i * 64, 10, 64, 64);
@@ -232,61 +240,42 @@ void AUModHUD::MainHUDRender()
 
 	FVector2D size = ScreenSize();
 
-	AUModCharacter *localPlyCL = Cast<AUModCharacter>(GetOwningPawn());
-	APlayerController *ctrl = GetOwningPlayerController();
-
 	URender2D::SetColor(FColor::Red);
 	URender2D::SetFontScale(0.3, 0.3);
-	if (localPlyCL == NULL || localPlyCL->PlayerState == NULL || ctrl == NULL) {
+	/*if (PlyCtrl->Player == NULL || PlyCtrl->Player->PlayerState == NULL) {
 		URender2D::DrawText("THIS CLIENT IS ERRORED", 16, 16, TEXT_ALIGN_LEFT);
 	} else {
-		FString txt = localPlyCL->PlayerState->PlayerName;
+		FString txt = PlyCtrl->Player->PlayerState->PlayerName;
 		URender2D::DrawText("Playing as " + txt, 16, 16, TEXT_ALIGN_LEFT);
+	}*/
+	FConnectionStats stats = Game->GetConnectionInfo();
+	if (stats.ConnectionProblem) {
+		URender2D::SetColor(FColor(255, 0, 0, 128));
+		URender2D::DrawRect(0, 256, 256, 128);
+		URender2D::SetColor(FColor::Black);
+		URender2D::DrawText("WARNING : Connection problem !", 10, 266, TEXT_ALIGN_LEFT);
+		URender2D::DrawText("Disconnect in " + FString::SanitizeFloat(stats.SecsBeforeDisconnect), 10, 286, TEXT_ALIGN_LEFT);
 	}
 
 	//Health and Armor Box
 	//Yeah localPlyCL is sometimes null thanks to buggy engine !!
-	if (localPlyCL != NULL) {
-		DrawPlayerStats(localPlyCL);
-		DrawWeaponStats(localPlyCL);
-		DrawWeaponSwitch(localPlyCL);
+	if (PlyCtrl->Player != NULL) {
+		DrawPlayerStats();
+		DrawWeaponStats();
+		DrawWeaponSwitch();
 	}
 
-	//This code must rest at the end of this function !	
-	if (ctrl->IsInputKeyDown(EKeys::Escape)) {
-		escapeDown = true;
-	} else if (escapeDown && !ctrl->IsInputKeyDown(EKeys::Escape)) {
-		IngameMenu = !IngameMenu;
-		ctrl->SetIgnoreLookInput(IngameMenu);
-		ctrl->SetIgnoreMoveInput(IngameMenu);
-		ctrl->bShowMouseCursor = IngameMenu;
-		if (IngameMenu) {
-			ctrl->SetInputMode(FInputModeGameAndUI());
-		} else {
-			ctrl->SetInputMode(FInputModeGameOnly());
-		}
-		escapeDown = false;
-	}
-	if (IngameMenu) {
+	if (PlyCtrl->IsOnIngameMenu()) {
 		DrawIngameMenu();
 	}
 }
 void AUModHUD::DrawHUD()
 {
+	if (Game == NULL || PlyCtrl == NULL) { return; }
 	Super::DrawHUD();
 	URender2D::SetContext(Canvas);
-	
-	//Call Lua
-	if (Game == NULL) { //Game is null !!!! What the fuck is that engine !?
-		UE_LOG(UMod_Lua, Error, TEXT("GameInstance is null ! This is a terrible engine issue !"));
-		Game = Cast<UUModGameInstance>(GetGameInstance());
-		return;
-	}
-	if (Game->Lua == NULL) {
-		UE_LOG(UMod_Lua, Error, TEXT("LuaEngine is null : GameInstance Init function not called ! This is a terrible engine issue !"));
-		return;
-	}
-	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "DrawHUD");
+		
+	//Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "DrawHUD");
 
 	URender2D::SetFont(HUDFont);
 	MainHUDRender();

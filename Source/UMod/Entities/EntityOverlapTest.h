@@ -5,8 +5,9 @@
 UCLASS()
 class AEntityOverlapTest : public AEntityBase {
 	GENERATED_BODY()
-public:
+
 	AEntityOverlapTest();
+public:	
 	virtual void OnInit();
 	virtual void OnBeginOverlap(AEntityBase *other);
 	virtual void OnEndOverlap(AEntityBase *other);

@@ -15,17 +15,23 @@
 
 #include "UModGameEngine.h"
 
+#include "Renderer/Render2D.h"
+
+#include "IpNetDriver.h"
+#include "IpConnection.h"
+
 const FString GVersion = FString("0.4 - Alpha");
 FString LuaVersion;
 const FString LuaEngineVersion = FString("NULL");
-static bool DedicatedStatic;
+
+bool UUModGameInstance::DedicatedStatic = false;
+bool UUModGameInstance::ShouldRunCMD = false;
+FString UUModGameInstance::RunCMD = "";
 
 UUModGameInstance::UUModGameInstance(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	OnCreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &UUModGameInstance::OnCreateSessionComplete);
-	OnStartSessionCompleteDelegate = FOnStartSessionCompleteDelegate::CreateUObject(this, &UUModGameInstance::OnStartOnlineGameComplete);
-
-	AssetsManager = NewObject<UUModAssetsManager>();
+	OnStartSessionCompleteDelegate = FOnStartSessionCompleteDelegate::CreateUObject(this, &UUModGameInstance::OnStartOnlineGameComplete);		
 }
 
 //Network hack
@@ -126,7 +132,7 @@ void UUModGameInstance::OnNetworkFailure(UWorld *world, UNetDriver *driver, ENet
 		UUModGameEngine::IsPollingServer = false;
 		return;
 	}
-	if (!UUModGameEngine::IsPollingServer && !UUModGameEngine::IsDedicated) {
+	if (!UUModGameEngine::IsPollingServer && !DelayedServerConnect && !UUModGameEngine::IsDedicated) {
 		UE_LOG(UMod_Game, Error, TEXT("Network error occured !"));
 
 		FString err = ErrorMessage;
@@ -147,9 +153,17 @@ void UUModGameInstance::InitializeStandalone()
 }
 
 void UUModGameInstance::Init()
-{
+{	
+	if (IsEditor()) {		
+		UE_LOG(UMod_Game, Error, TEXT("Aborting game load : PIE detected !"));
+		return;
+	}
+	//Retrieve the AssetsManager from UModGameEngine
+	AssetsManager = GetGameEngine()->AssetsManager;
+
 	//Console log retriever hack
 	ConsoleManager = NewObject<UUModConsoleManager>();
+	ConsoleManager->Game = this;
 	GLog->AddOutputDevice(ConsoleManager);
 	GLog->SerializeBacklog(ConsoleManager);
 	GLog->EnableBacklog(true);
@@ -166,40 +180,43 @@ void UUModGameInstance::Init()
 	/*Hack NET vars*/
 	//Found a way to set port !
 	int32 ServerPort = 0;
-	GConfig->GetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	GConfig->GetInt(TEXT("Common"), TEXT("Port"), ServerPort, ServerCFG);
 	if (ServerPort == 0) {
 		ServerPort = 25565;
-		GConfig->SetInt(TEXT("Common"), TEXT("Port"), ServerPort, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		GConfig->SetInt(TEXT("Common"), TEXT("Port"), ServerPort, ServerCFG);
 	}
 	GConfig->SetInt(TEXT("URL"), TEXT("Port"), ServerPort, GEngineIni);
-	//Found a hacky way to set the timeout and the connection timeout
-	float ConnectTimeout = 0;
-	float Timeout = 0;
-	GConfig->GetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
-	GConfig->GetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	//Timeout variables
+	ConnectTimeout = 0;
+	Timeout = 0;
+	ServerTimeout = 0;
+	GConfig->GetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, ServerCFG);
+	GConfig->GetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, ServerCFG);
+	GConfig->GetFloat(TEXT("Common"), TEXT("ServerTimeout"), ServerTimeout, ServerCFG);
 	if (ConnectTimeout == 0) {
 		ConnectTimeout = 5;
-		GConfig->SetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		GConfig->SetFloat(TEXT("Common"), TEXT("ConnectTimeout"), ConnectTimeout, ServerCFG);
 	}
 	if (Timeout == 0) {
 		Timeout = 45;
-		GConfig->SetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		GConfig->SetFloat(TEXT("Common"), TEXT("Timeout"), Timeout, ServerCFG);
 	}
-	GConfig->SetFloat(TEXT("/Script/OnlineSubsystemUtils.OnlineBeacon"), TEXT("BeaconConnectionInitialTimeout"), ConnectTimeout, GEngineIni);
-	GConfig->SetFloat(TEXT("/Script/OnlineSubsystemUtils.OnlineBeacon"), TEXT("BeaconConnectionTimeout"), Timeout, GEngineIni);
-	GConfig->SetFloat(TEXT("/Script/Lobby.LobbyBeaconClient"), TEXT("BeaconConnectionInitialTimeout"), ConnectTimeout, GEngineIni);
-	GConfig->SetFloat(TEXT("/Script/Lobby.LobbyBeaconClient"), TEXT("BeaconConnectionTimeout"), Timeout, GEngineIni);
+	if (ServerTimeout == 0) {
+		ServerTimeout = 10;
+		GConfig->SetFloat(TEXT("Common"), TEXT("ServerTimeout"), Timeout, ServerCFG);
+	}
+	//End
 	//Retrieve host name
-	GConfig->GetString(TEXT("Common"), TEXT("HostName"), HostName, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	GConfig->GetString(TEXT("Common"), TEXT("HostName"), HostName, ServerCFG);
 	if (HostName.IsEmpty()) {
-		HostName = "A UMod Server";
-		GConfig->SetString(TEXT("Common"), TEXT("HostName"), *HostName, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		HostName = "An UMod Server";
+		GConfig->SetString(TEXT("Common"), TEXT("HostName"), *HostName, ServerCFG);
 	}
 	//Retrieve lua GameMode
-	GConfig->GetString(TEXT("Common"), TEXT("GameMode"), GameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+	GConfig->GetString(TEXT("Common"), TEXT("GameMode"), GameMode, ServerCFG);
 	if (GameMode.IsEmpty()) {
 		GameMode = FString("Sandbox");
-		GConfig->SetString(TEXT("Common"), TEXT("GameMode"), *GameMode, FPaths::GameConfigDir() + FString("UMod.Server.cfg"));
+		GConfig->SetString(TEXT("Common"), TEXT("GameMode"), *GameMode, ServerCFG);
 	}
 	/*End*/
 	
@@ -212,6 +229,18 @@ void UUModGameInstance::Init()
 
 		Lua->RunScript(FPaths::GameDir() + FString("UMod.lua"));
 		//Lua->RunScriptFunctionTwoParam<int, FString>(ETableType::GAMEMODE, 0, "Initialize", FLuaParam<int>(25), FLuaParam<FString>(lua));
+	}
+	
+	if (!IsDedicatedServer()) {
+		//Sending precache request for all surface types
+		EUModSurfaceTypes::FRegisterSurfaceTypes();
+		for (TPair<FString, FSurfaceType*> Elem : UModSurfaceTypes) {
+			UE_LOG(UMod_Game, Log, TEXT("Precaching SurfaceType : %s"), *Elem.Key);
+			Elem.Value->Precache();
+		}		
+
+		//Sending global precache request
+		UUModAssetsManager::PrecacheAssets.Broadcast();
 	}
 }
 
@@ -412,6 +441,20 @@ void UUModGameInstance::ShowFatalMessage(FString content)
 	FGenericPlatformMisc::RequestExit(true);
 }
 
+void UUModGameInstance::ShowMessage(FString content)
+{
+	FString title;
+	if (DedicatedStatic) {
+		title = "UMod Server";
+	}
+	else {
+		title = "UMod Client";
+	}
+	const FText* text = new FText(FText::FromString(title));
+	FMessageDialog::Open(EAppMsgType::Type::Ok, FText::FromString(content), text);
+	delete text;
+}
+
 void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, FString::Printf(TEXT("OnCreateSessionComplete %s, %d"), *SessionName.ToString(), bWasSuccessful));
@@ -420,11 +463,9 @@ void UUModGameInstance::OnCreateSessionComplete(FName SessionName, bool bWasSucc
 	if (OnlineSub != NULL) {
 		IOnlineSessionPtr Sessions = OnlineSub->GetSessionInterface();
 
-		if (Sessions.IsValid())
-		{
+		if (Sessions.IsValid()) {
 			Sessions->ClearOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegateHandle);
-			if (bWasSuccessful)
-			{
+			if (bWasSuccessful) {
 				OnStartSessionCompleteDelegateHandle = Sessions->AddOnStartSessionCompleteDelegate_Handle(OnStartSessionCompleteDelegate);
 
 				Sessions->StartSession(SessionName);
@@ -440,17 +481,14 @@ void UUModGameInstance::OnStartOnlineGameComplete(FName SessionName, bool bWasSu
 	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, FString::Printf(TEXT("OnStartSessionComplete %s, %d"), *SessionName.ToString(), bWasSuccessful));
 
 	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get();
-	if (OnlineSub)
-	{
+	if (OnlineSub) {
 		IOnlineSessionPtr Sessions = OnlineSub->GetSessionInterface();
-		if (Sessions.IsValid())
-		{
+		if (Sessions.IsValid()) {
 			Sessions->ClearOnStartSessionCompleteDelegate_Handle(OnStartSessionCompleteDelegateHandle);
 		}
 	}
 	
-	if (bWasSuccessful)
-	{
+	if (bWasSuccessful) {
 		DelayedRunMap = true;
 	} else {
 		Disconnect("Unable to start session : OnStartOnlineGameComplete.bWasSuccessful is false !");
@@ -477,27 +515,6 @@ uint32 ticks = 0;
 bool BrokeDedicatedServer = false;
 void UUModGameInstance::Tick(float DeltaTime)
 {
-	//Redirect FNetworkNorify to this instance
-	/*if (UUModGameEngine::IsListen && !BrokeListenServer) { //We are a listen server
-		UWorld *World = GetWorld();
-		if (World != NULL && World->GetNetDriver() != NULL) {
-			Notify = World->GetNetDriver()->Notify;
-			World->GetNetDriver()->Notify = this;
-			UE_LOG(UMod_Game, Error, TEXT("HAVE FUN UWORLD ! I DISCONNECTED YOU FROM THE NETWORK !"));
-			BrokeListenServer = true;
-		}
-	}
-	if (UUModGameEngine::IsDedicated && !BrokeDedicatedServer) { //We are a dedicated server
-		UWorld *World = GetWorld();
-		if (World != NULL && World->GetNetDriver() != NULL) {
-			Notify = World->GetNetDriver()->Notify;
-			World->GetNetDriver()->Notify = this;
-			UE_LOG(UMod_Game, Error, TEXT("HAVE FUN UWORLD ! I DISCONNECTED YOU FROM THE NETWORK !"));
-			BrokeDedicatedServer = true;
-		}
-	}*/
-	//End
-
 	if (DelayedRunMap) {
 		ticks++;
 		if (ticks >= 5) {
@@ -537,6 +554,30 @@ void UUModGameInstance::Tick(float DeltaTime)
 		}
 	}
 
+	if (DedicatedStatic && ShouldRunCMD && ConsoleManager != NULL) {
+		ConsoleManager->RunConsoleCommand(RunCMD);
+		ShouldRunCMD = false;
+		RunCMD = "";
+	}
+
+	if (!DedicatedStatic && !IsEditor() && !CurConnectedIP.IsEmpty()) {
+		//Check if any connection issues		
+		if (GetWorld() != NULL) {
+			UNetDriver *Net = GetWorld()->GetNetDriver();
+			if (Net != NULL) {
+				if ((Net->Time - Net->ServerConnection->LastReceiveTime) > 2) { //Over 2 seconds no packets received
+					Net->InitialConnectTimeout = Timeout;
+					Net->ConnectionTimeout = Timeout;
+					IsConnectionHealthy = false;
+					InTimeOut = Net->InitialConnectTimeout - (Net->Time - Net->ServerConnection->LastReceiveTime);
+				} else {
+					IsConnectionHealthy = true;
+					InTimeOut = 0;
+				}
+			}
+		}
+	}
+
 	AssetsManager->UpdateTick();
 }
 
@@ -551,17 +592,10 @@ TStatId UUModGameInstance::GetStatId() const
 }
 
 FString netError;
-int32 cur;
-int32 total;
-int32 status;
 void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix the fucking dedicated server CRASHING OVER AND OVER by calling this function !
 {
-	if (!ConnectIP.IsEmpty()) {		
+	if (!ConnectIP.IsEmpty()) {
 		ConnectIP = "";
-
-		netError = error;
-		ULocalPlayer* const Player = GetFirstGamePlayer();
-		Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);		
 	}
 
 	if (UUModGameEngine::IsListen) {
@@ -578,7 +612,7 @@ void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix
 		}
 		UUModGameEngine::IsListen = false;
 	}
-
+	
 	GetGameEngine()->NetworkCleanUp();
 
 	AssetsManager->HandleServerDisconnect();
@@ -590,29 +624,11 @@ void UUModGameInstance::Disconnect(FString error) //TODO : Make something to fix
 
 	netError = error;
 	ULocalPlayer* const Player = GetFirstGamePlayer();	
-	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
-}
-void UUModGameInstance::SetLoadData(int32 total1, int32 cur1, int32 status1)
-{
-	total = total1;
-	cur = cur1;
-	status = status1;
+	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);	
 }
 FString UUModGameInstance::GetNetErrorMessage()
 {
 	return netError;
-}
-int32 UUModGameInstance::GetNumObjectToLoad()
-{
-	return total;
-}
-int32 UUModGameInstance::GetCurLoadedObjectNum()
-{
-	return cur;
-}
-int32 UUModGameInstance::GetNetLoadStatus()
-{
-	return status;
 }
 
 void UUModGameInstance::ReturnToMainMenu()
@@ -638,6 +654,8 @@ FConnectionStats UUModGameInstance::GetConnectionInfo()
 	stats.HostIP = CurConnectedIP;
 	stats.HostAddress = CurConnectedAddress;
 	stats.HostName = ConsoleManager->GetConsoleVar<FString>("HostName");
+	stats.ConnectionProblem = !IsConnectionHealthy;
+	stats.SecsBeforeDisconnect = InTimeOut;
 	return stats;
 }
 

@@ -5,6 +5,15 @@
 #include "NetCore/ServerHandler.h"
 #include "NetCore/ClientHandler.h"
 
+#include "UModAssetsManager.h"
+
+/* Console system (Platform Dependent) */
+//EDIT 18/08/2016 : Restructured UMod OS specific functions
+/*#if PLATFORM_WINDOWS
+#include "Console/Win32ConsoleHandler.h"
+#endif*/
+/* End */
+
 //Custom control channel messages
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
@@ -16,6 +25,7 @@ IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEnd);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModChangeMap);
 //The poll control channel message
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModPoll);
 
@@ -30,12 +40,19 @@ bool SendPollPacket;
 
 EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL URL, FString& Error)
 {
+	UE_LOG(UMod_Game, Log, TEXT("[DEBUG]New travel URL : %s"), *URL.ToString())
 	if (URL.IsInternal() && GIsClient && !URL.IsLocalInternal()) {
 		//Init network
 		EBrowseReturnVal::Type t = Super::Browse(WorldContext, URL, Error);
 		//Hack network now (yeah fuck you UE4)
 		if (t == EBrowseReturnVal::Type::Success || t == EBrowseReturnVal::Type::Pending) {
 			UNetDriver *NetDriver = GEngine->FindNamedNetDriver(WorldContext.PendingNetGame, NAME_PendingNetDriver);
+			NetDriver->InitialConnectTimeout = GetGame()->ConnectTimeout;
+			NetDriver->ConnectionTimeout = GetGame()->ConnectTimeout;
+			if (NetHandleCL != NULL) { //FIX : delete causing weird access violation when switching map
+				UE_LOG(UMod_Game, Log, TEXT("Network Handler Client removal..."));
+				delete NetHandleCL;
+			}
 			//HEHEHEHHE ! You did not saw that, you are so stupid UE4 !
 			NetHandleCL = new UClientHandler();
 			NetHandleCL->InitHandler(this, NetDriver->Notify, SendPollPacket);
@@ -52,6 +69,8 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 		NetHandleSV = new UServerHandler();
 		NetHandleSV->InitHandler(this, NetDriver->Notify);
 		NetDriver->Notify = NetHandleSV;
+		NetDriver->InitialConnectTimeout = GetGame()->ServerTimeout;
+		NetDriver->ConnectionTimeout = GetGame()->ServerTimeout;
 		UE_LOG(UMod_Game, Error, TEXT("Disconnected UWorld from network notify system !"));
 		return t;
 	}
@@ -59,14 +78,26 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 	return Super::Browse(WorldContext, URL, Error);
 }
 
+bool UUModGameEngine::LoadMap(FWorldContext & WorldContext, FURL URL, class UPendingNetGame * Pending, FString & Error)
+{
+	bool b = Super::LoadMap(WorldContext, URL, Pending, Error);
+	if (NetHandleCL != NULL) { //We are on a client that is connected to a server : deconstruct notify system		
+		UNetDriver *NetDriver = GEngine->FindNamedNetDriver(WorldContext.World(), NAME_GameNetDriver);
+		if (NetDriver == NULL) {
+			UE_LOG(UMod_Game, Error, TEXT("Unable to retrieve GameNetDriver, client may be unstable..."));
+		} else {
+			NetHandleCL->InitHandler(this, NetDriver->Notify, false);
+			NetDriver->Notify = NetHandleCL;
+		}		
+	}
+	return b;
+}
+
 void UUModGameEngine::NetworkCleanUp()
 {
 	if (GetGameWorld()->GetNetDriver() != NULL) {
 		GetGameWorld()->GetNetDriver()->Shutdown();
-	}
-	if (NetHandleCL != NULL) {
-		delete NetHandleCL;
-	}
+	}	
 	if (NetHandleSV != NULL) {
 		delete NetHandleSV;
 	}
@@ -79,6 +110,9 @@ UUModGameInstance *UUModGameEngine::GetGame()
 
 void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 {
+	AssetsManager = new UUModAssetsManager();
+	UUModAssetsManager::Instance = AssetsManager;
+
 	//YOUHOU ! It's overWRITE now not override !
 #if UE_BUILD_SERVER
 	FString MapToLoad;
@@ -88,14 +122,26 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 		GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, ServerCFG);
 	}
 
+	//Check if we want logging
+	bool Log;
+	GConfig->GetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
+	GConfig->SetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
+
+	FString mapPath;
+	EResolverResult res = AssetsManager->ResolveAsset(MapToLoad, EUModAssetType::MAP, mapPath);
+	if (res != EResolverResult::SUCCESS) {
+		UUModGameInstance::ShowMessage("AssetsManager->ResolveAsset returned " + AssetsManager->GetErrorMessage(res));
+		UE_LOG(UMod_Maps, Error, TEXT("Aborting engine load : %s"), *AssetsManager->GetErrorMessage(res));
+		return;
+	}
 	const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-	GameMapsSettings->SetGameDefaultMap("/Game/Maps/" + MapToLoad);
+	GameMapsSettings->SetGameDefaultMap(mapPath);
 	GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
 
 	GLogConsole->Show(true);
 	GLogConsole->SetSuppressEventTag(false);
 
-	FString str = "/Game/Maps/" + MapToLoad + " -log";
+	FString str = mapPath + " -log";
 	FCommandLine::Set(*str);
 
 	IsDedicated = true;
@@ -104,53 +150,108 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 	FString str = FCommandLine::Get();
 	TArray<FString> cmds;
 	str.ParseIntoArray(cmds, TEXT(" "));
-	if (cmds.Contains("-server")) {
+	if (cmds.Contains("-server")) {		
+		IsDedicated = true;
+		UUModGameInstance::DedicatedStatic = true;
+
 		//Retrieve map name from config
 		FString MapToLoad;
 		GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, ServerCFG);
 		if (MapToLoad.IsEmpty()) {
-			MapToLoad = FString("FirstPersonExampleMap");
+			MapToLoad = FString("UMod:FirstPersonExampleMap");
 			GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, ServerCFG);
 		}
 
+		//Check if we want logging
+		bool Log;
+		GConfig->GetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
+		GConfig->SetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
+				
+		FString mapPath;
+		EResolverResult res = AssetsManager->ResolveAsset(MapToLoad, EUModAssetType::MAP, mapPath);
+		if (res != EResolverResult::SUCCESS) {
+			UUModGameInstance::ShowMessage("AssetsManager->ResolveAsset returned " + AssetsManager->GetErrorMessage(res));
+			UE_LOG(UMod_Maps, Error, TEXT("Aborting engine load : %s"), *AssetsManager->GetErrorMessage(res));
+			return;
+		}
 		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-		GameMapsSettings->SetGameDefaultMap("/Game/Maps/" + MapToLoad);
-		GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
+		GameMapsSettings->SetGameDefaultMap(mapPath);
+		GameMapsSettings->SetGlobalDefaultGameMode("Game/UModGameMode.h");
 
 		GLogConsole->Show(true);
 		GLogConsole->SetSuppressEventTag(false);
-
-		FString str = "/Game/Maps/" + MapToLoad + " -server -log";
+		
+		FString str = mapPath + " -server";
+		if (Log) {
+			str.Append(" -log");
+		}
 		FCommandLine::Set(*str);
-
-		IsDedicated = true;
-	}
-	else {
-		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-		GameMapsSettings->SetGameDefaultMap("/Game/Internal/Maps/MainMenu");
-
+	} else {
 		IsDedicated = false;
+		UUModGameInstance::DedicatedStatic = false;
+
+		bool Log;
+		GConfig->GetBool(TEXT("Common"), TEXT("DoLogging"), Log, ClientCFG);
+		GConfig->SetBool(TEXT("Common"), TEXT("DoLogging"), Log, ClientCFG);
+		FString str = "/Game/Internal/Maps/MainMenu -game";
+		if (Log) {
+			str.Append(" -log");
+		}
+		FCommandLine::Set(*str);
 	}
 #endif
 
+	FUModPlatformUtils Platform = FUModPlatformUtils();
+	FString path = FPaths::GameDir() + "/UMod.ico";
+	void* icon = Platform.LoadIconFromFile(path, 32, 32);
 	if (!IsDedicated) {
-		//Obviously dedicated server has no SWindow... Neither any viwports...
-		OnDisplayCreated();
-		UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
+		TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
+		WindowPtr->SetSizingRule(ESizingRule::FixedSize);
+		WindowPtr->SetTitle(FText::FromString("UMod Client"));
+		Platform.SetWindowIcon(WindowPtr->GetNativeWindow()->GetOSWindowHandle(), icon);
+		Platform.DisableWindowResize(WindowPtr->GetNativeWindow()->GetOSWindowHandle());		
+		WindowPtr->HideWindow();
 		Super::Init(InEngineLoop);
 		OnDisplayCreated();
-		UE_LOG(UMod_Game, Log, TEXT("Display data has been re-overwritten."));
-	}
-	else {
-		UE_LOG(UMod_Game, Log, TEXT("Running UMod as server application..."));
+		UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
+		UE_LOG(UMod_Game, Log, TEXT("Running UMod as client application..."));
+	} else {
+		UE_LOG(UMod_Game, Log, TEXT("Running UMod as server application..."));		
+		/* Console system (Platform Dependent) */		
+		void* hdl = Platform.GetConsoleHandle();		
+		Platform.SetConsoleIcon(hdl, icon);
+		Platform.SetConsoleTitleString(hdl, "UMod Dedicated Server");
+		Platform.BindStdIO(hdl);
+		FSTDInputThread::StartThread();
+		/* End */
 		Super::Init(InEngineLoop);
 	}
 }
+
+/*void UUModGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
+{
+	Super::Tick(DeltaSeconds, bIdleMode);
+	//Super hacky code I know but UE4 decided that it was great to ReshapeWindow in tick I had to fuck it up...
+	//In other words we were not in aggreement...
+	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
+	if (WindowPtr.IsValid()) {
+		FVector2D vec = WindowPtr->GetSizeInScreen();
+		if (vec.X != CurrentGameResolution.GameWidth || vec.Y != CurrentGameResolution.GameHeight) {
+			OnDisplayCreated();
+		}
+	}
+}*/
 
 void UUModGameEngine::OnDisplayCreated()
 {
 	int32 width = MinResX;
 	int32 height = MinResY;
+
+	FDisplayMetrics metrics;
+	FDisplayMetrics::GetDisplayMetrics(metrics);
+	int32 PW = metrics.PrimaryDisplayWidth;
+	int32 PH = metrics.PrimaryDisplayHeight;
+
 	bool full;
 	GConfig->GetInt(TEXT("Viewport"), TEXT("Width"), width, ClientCFG);
 	GConfig->GetInt(TEXT("Viewport"), TEXT("Height"), height, ClientCFG);
@@ -159,18 +260,21 @@ void UUModGameEngine::OnDisplayCreated()
 	GSystemResolution.ResY = height;
 	if (full) {
 		GSystemResolution.WindowMode = EWindowMode::Fullscreen;
-	}
-	else {
+	} else {
 		GSystemResolution.WindowMode = EWindowMode::Windowed;
 	}
-	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
-	WindowPtr->ReshapeWindow(FVector2D(0, 0), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
+	//UGameUserSettings::RequestResolutionChange(GSystemResolution.ResX, GSystemResolution.ResY, GSystemResolution.WindowMode, false);
+	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();	
+	WindowPtr->ReshapeWindow(FVector2D(PW / 2 - width / 2, PH / 2 - height / 2), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
 	WindowPtr->SetWindowMode(GSystemResolution.WindowMode);
-	WindowPtr->SetTitle(FText::FromString("UMod - GMod Replacement Project [Client]"));
+	WindowPtr->ShowWindow();
+	WindowPtr->ReshapeWindow(FVector2D(PW / 2 - width / 2, PH / 2 - height / 2), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
+	CurrentGameResolution = FUModGameResolution(GSystemResolution.ResX, GSystemResolution.ResY, full);
 }
 
 bool UUModGameEngine::ChangeGameResolution(FUModGameResolution res)
 {
+	//Use ReshapeWindow is SWindow in order to change game resolution (it works better)
 	if (GetGameResolution() == res) {
 		return false;
 	}
@@ -186,58 +290,55 @@ bool UUModGameEngine::ChangeGameResolution(FUModGameResolution res)
 	if (res.GameWidth > width || res.GameHeight > height) {
 		return false;
 	}
-	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
-	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	EWindowMode::Type type;
-	if (res.FullScreen) {
-		type = EWindowMode::Fullscreen;
-	}
-	else {
-		type = EWindowMode::Windowed;
-	}
-	Settings->SetScreenResolution(FIntPoint(res.GameWidth, res.GameHeight));
-	Settings->SetFullscreenMode(type);
-	Settings->RequestResolutionChange(res.GameWidth, res.GameHeight, type);
-	Settings->ConfirmVideoMode();
-	Settings->ApplyResolutionSettings(false);
 
 	GConfig->SetInt(TEXT("Viewport"), TEXT("Width"), res.GameWidth, ClientCFG);
 	GConfig->SetInt(TEXT("Viewport"), TEXT("Height"), res.GameHeight, ClientCFG);
 	GConfig->SetBool(TEXT("Viewport"), TEXT("FullScreen"), res.FullScreen, ClientCFG);
+
+	GSystemResolution.ResX = res.GameWidth;
+	GSystemResolution.ResY = res.GameHeight;
+	if (res.FullScreen) {
+		GSystemResolution.WindowMode = EWindowMode::Fullscreen;
+	}
+	else {
+		GSystemResolution.WindowMode = EWindowMode::Windowed;
+	}
+	//UGameUserSettings::RequestResolutionChange(GSystemResolution.ResX, GSystemResolution.ResY, GSystemResolution.WindowMode, false);
+	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();	
+	WindowPtr->ReshapeWindow(WindowPtr->GetPositionInScreen(), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
+	WindowPtr->SetWindowMode(GSystemResolution.WindowMode);
+	CurrentGameResolution = res;
 	return true;
 }
 
 FUModGameResolution UUModGameEngine::GetGameResolution()
 {
-	const UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
-	if (Viewport == NULL) {
-		return FUModGameResolution();
-	}
-	FVector2D vec;
-	Viewport->GetViewportSize(vec);
-	return FUModGameResolution(vec.X, vec.Y, Viewport->IsFullScreenViewport());
+	return CurrentGameResolution;
 }
 
 TArray<FUModGameResolution> UUModGameEngine::GetAvailableGameResolutions()
 {
-	FScreenResolutionArray Resolutions;
-	if (RHIGetAvailableResolutions(Resolutions, false)) {
-		TArray<FUModGameResolution> list;
-		for (const FScreenResolutionRHI& EachResolution : Resolutions) {
-			if (EachResolution.Width >= MinResX && EachResolution.Height >= MinResY) {
-				list.Add(FUModGameResolution(EachResolution.Width, EachResolution.Height, false));
-			}
-		}
-		return list;
+	FDisplayMetrics metrics;
+	FDisplayMetrics::GetDisplayMetrics(metrics);
+	int32 width = metrics.PrimaryDisplayWidth;
+	int32 height = metrics.PrimaryDisplayHeight;
+	TArray<FUModGameResolution> AvailableRes;
+	AvailableRes.Add(FUModGameResolution(1200, 650, false));
+	if (width >= 1600 && height >= 900) {
+		AvailableRes.Add(FUModGameResolution(1600, 900, false));
 	}
-	else {
-		UE_LOG(UMod_Game, Error, TEXT("Screen Resolutions could not be obtained"));
-		return TArray<FUModGameResolution>();
-	}
+	AvailableRes.Add(FUModGameResolution(width, height, true));
+	return AvailableRes;
 }
 
 void UUModGameEngine::RunPollServer(FString ip, ULocalPlayer* const Player)
 {
 	Player->PlayerController->ClientTravel(ip, ETravelType::TRAVEL_Absolute);
 	SendPollPacket = true;
+}
+
+void UUModGameEngine::SetLoadData(int32 totalObjs, int32 curObjs, FString loadText)
+{
+	FLoadData data = FLoadData(loadText, totalObjs, curObjs);
+	LoadDataChangeDelegate.Broadcast(data);
 }

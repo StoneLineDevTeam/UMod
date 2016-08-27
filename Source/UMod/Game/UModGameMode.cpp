@@ -63,8 +63,7 @@ void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
 }
 
 void AUModGameMode::OnPlayerInitialSpawn(AUModCharacter *player)
-{
-	player->GiveWeapon(AWeaponPhysgun::StaticClass());
+{	
 }
 
 void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
@@ -75,12 +74,17 @@ void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
 //TODO : Bind to Lua
 void AUModGameMode::OnPlayerSpawn(AUModCharacter *player)
 {
-
+	if (player->PlayerState != NULL) {
+		UE_LOG(UMod_Game, Log, TEXT("Player %s requested spawn."), *player->PlayerState->PlayerName);
+	} else {
+		UE_LOG(UMod_Game, Log, TEXT("Player NULL requested spawn."));
+	}
+	player->GiveWeapon(AWeaponPhysgun::StaticClass());
 }
 
 bool AUModGameMode::CanPlayerRespawn(AUModController *ctrl)
 {
-	return true;
+	return false;
 }
 
 //Loggs in the player

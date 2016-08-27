@@ -1,0 +1,5 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Metals/Copper"
+	"$surfaceprop" "metal"
+}

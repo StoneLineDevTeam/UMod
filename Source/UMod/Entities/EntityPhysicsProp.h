@@ -6,7 +6,7 @@
 #include "EntityPhysicsProp.generated.h"
 
 UCLASS()
-class UMOD_API AEntityPhysicsProp : public AEntityBase
+class AEntityPhysicsProp : public AEntityBase
 {
 	GENERATED_BODY()
 

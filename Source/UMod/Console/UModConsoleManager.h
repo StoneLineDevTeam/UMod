@@ -46,15 +46,20 @@ struct FUModConsoleVar {
 };
 
 struct FUModConsoleCommand {
-	FUModConsoleCommand(FString name, FString help, bool(*exec)(class AUModCharacter* player, TArray<FString> params)) {
+	FUModConsoleCommand(FString name, FString help, bool ply, bool(*exec)(class AUModCharacter* player, class UUModGameInstance* Game, TArray<FString> params)) {
 		CommandName = name;
 		CommandHelp = help;
-		ExecFunc = exec;
+		NeedPlayer = ply;
+		ExecFunc = exec;		
+	}
+
+	FUModConsoleCommand() {
 	}
 	
 	FString CommandName;
 	FString CommandHelp;
-	bool(*ExecFunc)(class AUModCharacter* player, TArray<FString> params);
+	bool NeedPlayer;
+	bool(*ExecFunc)(class AUModCharacter* player, class UUModGameInstance* Game, TArray<FString> params);
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLogAddedDelegate, FLogLine, LogLine);
@@ -63,7 +68,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLogAddedDelegate, FLogLine, LogLine
  * 
  */
 UCLASS()
-class UMOD_API UUModConsoleManager : public UObject, public FOutputDevice
+class UUModConsoleManager : public UObject, public FOutputDevice
 {
 	GENERATED_BODY()
 
@@ -167,25 +172,28 @@ public:
 
 	void DefineConsoleInt(FUModConsoleVar<int> var);
 	void DefineConsoleString(FUModConsoleVar<FString> var);
-	void DefineConsoleBool(FUModConsoleVar<bool> var);
-	void RegisterCommand(FUModConsoleCommand cmd);
+	void DefineConsoleBool(FUModConsoleVar<bool> var);	
 	
 	void AddLogLine(FString log, FColor col);
 
-	void RunConsoleCommand(FString cmd, AUModCharacter* player = NULL);
+	void RunConsoleCommand(FString cmdline, AUModCharacter* player = NULL);
 	//PUBLIC API END
 
 	//Those are public for replication using my own var sender/reader
 	TArray<FUModConsoleVar<int>> ConsoleIntegers;
 	TArray<FUModConsoleVar<bool>> ConsoleBooleans;
+
+	//Commands (Definatly I realy hate UE4 command system !)
+	static FUModConsoleCommand** ConsoleCommands;
+	static int ConsoleCommandNumber;
+	//End
+
+	UUModGameInstance *Game;
 private:
 	//If we are still allowing vars registration (this way we have a fix number of vars to upload)
-	bool RegisteringVars;
+	bool RegisteringVars;	
 
 	TArray<FLogLine> Logs;
-	
-	//Commands (Definatly I realy hate UE4 command system !)
-	TArray<FUModConsoleCommand> ConsoleCommands;
 
 	//Allowing only 3 different type of console variables
 	TArray<FUModConsoleVar<FString>> ConsoleStrings;

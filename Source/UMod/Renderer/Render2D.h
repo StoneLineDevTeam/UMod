@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "Object.h"
-#include "Render2D.generated.h"
-
 struct FVertex {
 	int X;
 	int Y;
@@ -24,10 +21,16 @@ struct FRuntimeCachedFont {
 	uint32 FontSize;
 	FName TypeName;
 
+	FSlateFontInfo SlateFont;
+
+	FCharacterList *CharList;
+
 	FRuntimeCachedFont(UFont *fnt, uint32 size, FName type) {
 		FontObject = fnt;
 		FontSize = size;
 		TypeName = type;
+
+		SlateFont = FSlateFontInfo(fnt, size, type);			
 	}
 };
 
@@ -35,14 +38,8 @@ struct FRuntimeCachedFont {
 #define TEXT_ALIGN_LEFT 0
 #define TEXT_ALIGN_RIGHT 2
 
-/**
- * 
- */
-UCLASS()
-class UMOD_API URender2D : public UObject
+class URender2D
 {
-	GENERATED_BODY()
-	
 public:
 	static void PushMatrix(FMatrix mat);
 	static void PopMatrix();

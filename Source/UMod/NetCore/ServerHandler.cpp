@@ -171,7 +171,7 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 	}
 
 	//This runs if we have a zero param message
-	if (MessageType == 21 || MessageType == 23 || MessageType == 30 || MessageType == 31) {
+	if (MessageType == NMT_UModStartVars || MessageType == NMT_UModEndVars || MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd) {
 		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
 	}

@@ -4,14 +4,19 @@
 #include "EntityBase.h"
 #include "UModGameInstance.h"
 #include "Game/UModGameMode.h"
+#include "AssertionMacros.h"
 
 /*AActor base integration*/
-AEntityBase::AEntityBase()
+AEntityBase::AEntityBase() : Super()
 {
 	Initializing = true;
 	PrimaryActorTick.bCanEverTick = true;
-
+	PrimaryActorTick.bStartWithTickEnabled = true;
+	PrimaryActorTick.bAllowTickOnDedicatedServer = true;
+	SetActorTickEnabled(true);
+	
 	bReplicates = true;
+	bAlwaysRelevant = true;
 
 	EntityModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EntityModel"));
 
@@ -21,12 +26,19 @@ void AEntityBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	EntityModel->OnComponentBeginOverlap.AddDynamic(this, &AEntityBase::ActorBeginOverlap);
-	EntityModel->OnComponentEndOverlap.AddDynamic(this, &AEntityBase::ActorEndOverlap);
+	Game = Cast<UUModGameInstance>(GetGameInstance());
 	
 	this->OnInit();
+
+	EntityModel->SetMobility(EComponentMobility::Movable);
+	SetRootComponent(EntityModel);
 	
-	if (PhysEnabled) {
+	if (Role == ROLE_Authority) {
+		EntityModel->bGenerateOverlapEvents = true;
+		EntityModel->SetNotifyRigidBodyCollision(true);
+	}
+
+	if (PhysObj != NULL) {
 		if (Role == ROLE_Authority) {
 			EntityModel->WakeRigidBody();
 			EntityModel->SetSimulatePhysics(true);
@@ -34,43 +46,45 @@ void AEntityBase::BeginPlay()
 			DisableComponentsSimulatePhysics();
 			EntityModel->SetSimulatePhysics(false);
 		}
-	}
-
-	Game = Cast<UUModGameInstance>(GetGameInstance());
+	}	
 
 	if (Role == ROLE_Authority) {
+		EntityModel->OnComponentBeginOverlap.AddDynamic(this, &AEntityBase::ActorBeginOverlap);
+		EntityModel->OnComponentEndOverlap.AddDynamic(this, &AEntityBase::ActorEndOverlap);
 		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
 		gm->OnEntitySpawn(this);
+	}
+
+	Initializing = false;
+}
+void FPhysObj::UpdateObj()
+{
+	if (GravityScale < 1 && GravityScale > 0) {
+		APhysicsVolume *v = PhysComp->GetPhysicsVolume();
+		float grav = -v->GetGravityZ() * PhysComp->GetMass() * (1 - GravityScale);
+		FVector GravityVec = FVector(0, 0, grav);
+		PhysComp->AddForce(GravityVec);
 	}
 }
 void AEntityBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	
 	if (Role == ROLE_Authority) {
-		if (PhysEnabled) {
-			//TODO : Physics hack (gravity scale/maybe direction in future)
-			if (GravityScale < 1 && GravityScale > 0) {
-				APhysicsVolume *v = EntityModel->GetPhysicsVolume();
-				float grav = -v->GetGravityZ() * EntityModel->GetMass() * (1 - GravityScale);
-				FVector GravityVec = FVector(0, 0, grav);
-				EntityModel->AddForce(GravityVec);
-			}
+		if (PhysObj != NULL) {
+			PhysObj->UpdateObj();
 		}
 
-		//Send physx simulation data		
+		//Send physx simulation data	
 		DesiredPos = GetActorLocation();
 		DesiredRot = GetActorRotation();
 	} else {
 		//Interpolate between cur pos and new pos received from server
 		FVector a = GetActorLocation();
 		FVector b = DesiredPos;
-		FVector newPos = FMath::Lerp(a, b, 0.5F);
+		FVector newPos = FMath::Lerp(a, b, 0.5F);		
 		SetActorLocation(newPos);
 
-		FVector a1 = GetActorRotation().Vector();
-		FVector b1 = DesiredRot.Vector();
-		FVector lerped = FMath::Lerp(a1, b1, 0.5F);
 		SetActorRotation(DesiredRot);
 	}
 	this->OnTick();
@@ -88,13 +102,20 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 void AEntityBase::UpdateClientMDL()
 {
 	if (Role == ROLE_Authority) { return; }
-	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/" + ServerMDLSync));
+	FString realPath;
+	EResolverResult res = UUModAssetsManager::Instance->ResolveAsset(ServerMDLSync, EUModAssetType::MODEL, realPath);
+	if (res != EResolverResult::SUCCESS) {
+		return;
+	}
+	UE_LOG(UMod_Game, Log, TEXT("[DEBUG]EntityBase->ServerMDLSync : %s"), *realPath);
+	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*realPath);
 	EntityModel->SetStaticMesh(model);
 	CurMdl = ServerMDLSync;
 	ServerMATSync = new FString[GetSubMaterialsNum()];
 }
 void AEntityBase::UpdateClientMAT()
 {
+	if (Role == ROLE_Authority) { return; }
 	for (int i = 0; i < GetSubMaterialsNum(); i++) {
 		FString path = ServerMATSync[i];
 		UMaterialInterface *mat = LoadObjFromPath<UMaterialInterface>(*FString("/Game/" + path));
@@ -118,26 +139,7 @@ void AEntityBase::UpdateCollisionStatus()
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 }
-void AEntityBase::Construct()
-{
-	EntityModel->SetMobility(EComponentMobility::Movable);
-	SetRootComponent(EntityModel);
-
-	if (PhysEnabled) {
-		EntityModel->bGenerateOverlapEvents = true;
-		EntityModel->SetNotifyRigidBodyCollision(true);
-		if (Role == ROLE_Authority) {
-			EntityModel->SetSimulatePhysics(true);
-			EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		} else {
-			DisableComponentsSimulatePhysics();
-			EntityModel->SetSimulatePhysics(false);
-			EntityModel->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		}
-	}
-	Initializing = false;
-}
-void AEntityBase::ActorBeginOverlap(AActor* OtherActor, UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result)
+void AEntityBase::ActorBeginOverlap(UPrimitiveComponent* comp, AActor* OtherActor, UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result)
 {
 	UE_LOG(UMod_Game, Warning, TEXT("Start overlap !"));
 	if (OtherActor->IsA(AEntityBase::StaticClass())) {
@@ -145,7 +147,7 @@ void AEntityBase::ActorBeginOverlap(AActor* OtherActor, UPrimitiveComponent *C, 
 		OnBeginOverlap(Ent);
 	}
 }
-void AEntityBase::ActorEndOverlap(AActor* OtherActor, UPrimitiveComponent *C, int32 i)
+void AEntityBase::ActorEndOverlap(UPrimitiveComponent* comp, AActor* OtherActor, UPrimitiveComponent *C, int32 i)
 {
 	UE_LOG(UMod_Game, Warning, TEXT("End overlap !"));
 	if (OtherActor->IsA(AEntityBase::StaticClass())) {
@@ -161,15 +163,26 @@ void AEntityBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	LuaUnRef();
 }
-#if WITH_EDITOR
 //FIX : Editor not updating model
+#if WITH_EDITOR
 void AEntityBase::PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e)
 {
 	FString EditorNewMdl;
 	bool b = GetInitProperty<FString>("Model", EditorNewMdl);
 	if (EditorCurMdl != EditorNewMdl && b) {
 		EditorCurMdl = EditorNewMdl;
+		if (Game == NULL) {
+			if (GetGameInstance() != NULL) {
+				Game = Cast<UUModGameInstance>(GetGameInstance());
+			} else {
+				Game = NewObject<UUModGameInstance>();
+			}
+		}
+		if (Game->AssetsManager == NULL) {
+			Game->AssetsManager = new UUModAssetsManager();
+		}
 		SetModel(EditorCurMdl);
+		MarkComponentsRenderStateDirty();
 		UE_LOG(UMod_Maps, Warning, TEXT("Test"));
 	}
 }
@@ -177,47 +190,53 @@ void AEntityBase::PostEditChangeChainProperty(struct FPropertyChangedChainEvent 
 /*End*/
 
 
-void AEntityBase::SetPhysicsEnabled(bool b)
+void AEntityBase::AddPhysicsObject()
 {
 	if (Role != ROLE_Authority) { return; }
-	PhysEnabled = b;
+	PhysObj = new FPhysObj(EntityModel);
 }
 
-void AEntityBase::SetGravityScale(float f)
+FPhysObj *AEntityBase::GetPhysicsObject()
 {
-	if (Role != ROLE_Authority) { return; }
+	return PhysObj;
+}
+
+void FPhysObj::SetGravityScale(float f)
+{
 	GravityScale = f;
 	if (GravityScale == 0) {
-		EntityModel->SetEnableGravity(false);
+		PhysComp->SetEnableGravity(false);
 	} else if (GravityScale == 1) {
-		EntityModel->SetEnableGravity(true);
+		PhysComp->SetEnableGravity(true);
 	}
 }
 
-float AEntityBase::GetGravityScale()
+float FPhysObj::GetGravityScale()
 {
-	if (Role != ROLE_Authority) { return 0.0F; }
 	return GravityScale;
 }
 
-void AEntityBase::SetMassScale(float f)
-{
-	if (Role != ROLE_Authority) { return; }
-	EntityModel->SetMassScale(NAME_None, f);
+void FPhysObj::SetMassScale(float f)
+{	
+	PhysComp->SetMassScale(NAME_None, f);
 }
 
-float AEntityBase::GetMassScale()
-{
-	if (Role != ROLE_Authority) { return 0.0F; }
-	return EntityModel->GetMassScale(NAME_None);
+float FPhysObj::GetMassScale()
+{	
+	return PhysComp->GetMassScale(NAME_None);
 }
 
 void AEntityBase::SetModel(FString path)
-{
+{	
+	FString realPath;
+	EResolverResult res = Game->AssetsManager->ResolveAsset(path, EUModAssetType::MODEL, realPath);
+	if (res != EResolverResult::SUCCESS) {
+		return;
+	}
 	if (Role == ROLE_Authority && !Initializing) {
 		ServerMDLSync = path;
 	}
-	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*FString("/Game/" + path));
+	UStaticMesh *model = LoadObjFromPath<UStaticMesh>(*realPath);
 	EntityModel->SetStaticMesh(model);
 	CurMdl = path;
 
@@ -226,7 +245,11 @@ void AEntityBase::SetModel(FString path)
 
 FString AEntityBase::GetModel()
 {
-	return CurMdl;
+	if (Role == ROLE_Authority) {
+		return CurMdl;
+	} else {
+		return ServerMDLSync;
+	}
 }
 
 void AEntityBase::SetCollisionModel(ECollisionType collision)
@@ -262,11 +285,16 @@ ECollisionType AEntityBase::GetCollisionModel()
 
 void AEntityBase::SetMaterial(FString path)
 {
-	UMaterialInterface *mat = LoadObjFromPath<UMaterialInterface>(*FString("/Game/" + path));
+	FString realPath;
+	EResolverResult res = Game->AssetsManager->ResolveAsset(realPath, EUModAssetType::MATERIAL, path);
+	if (res != EResolverResult::SUCCESS) {
+		return;
+	}
+	UMaterialInterface *mat = LoadObjFromPath<UMaterialInterface>(*realPath);
 	for (int i = 0; i < GetSubMaterialsNum(); i++) {
 		EntityModel->SetMaterial(i, mat);
 		if (Role == ROLE_Authority) {
-			ServerMATSync[i] = path;
+			ServerMATSync[i] = realPath;
 		}
 	}
 }
@@ -274,9 +302,15 @@ void AEntityBase::SetMaterial(FString path)
 void AEntityBase::SetSubMaterial(int32 index, FString path)
 {
 	if (GetSubMaterialsNum() < index) { return; }
-	EntityModel->SetMaterial(index, LoadObjFromPath<UMaterialInterface>(*FString("/Game/" + path)));
+	FString realPath;
+	EResolverResult res = Game->AssetsManager->ResolveAsset(realPath, EUModAssetType::MATERIAL, path);
+	if (res != EResolverResult::SUCCESS) {
+		return;
+	}
+	UMaterialInterface *mat = LoadObjFromPath<UMaterialInterface>(*realPath);
+	EntityModel->SetMaterial(index, mat);
 	if (Role == ROLE_Authority) {
-		ServerMATSync[index] = path;
+		ServerMATSync[index] = realPath;
 	}
 }
 
@@ -296,18 +330,14 @@ int32 AEntityBase::GetSubMaterialsNum()
 	return EntityModel->GetNumMaterials();
 }
 
-void AEntityBase::Freeze()
-{
-	if (Role != ROLE_Authority) { return; }
-	EntityModel->SetSimulatePhysics(false);
-	PhysEnabled = false;
+void FPhysObj::Freeze()
+{	
+	PhysComp->SetSimulatePhysics(false);	
 }
 
-void AEntityBase::Unfreeze()
+void FPhysObj::UnFreeze()
 {
-	if (Role != ROLE_Authority) { return; }
-	EntityModel->SetSimulatePhysics(true);
-	PhysEnabled = true;
+	PhysComp->SetSimulatePhysics(true);
 }
 
 int AEntityBase::GetLuaRef()
@@ -338,6 +368,7 @@ FString AEntityBase::GetClass()
 	}
 	return "NULL";
 }
+
 void AEntityBase::OnTick()
 {
 
@@ -355,10 +386,6 @@ void AEntityBase::OnBeginOverlap(AEntityBase *other)
 
 }
 void AEntityBase::OnEndOverlap(AEntityBase *other)
-{
-
-}
-void AEntityBase::OnClientInit()
 {
 
 }

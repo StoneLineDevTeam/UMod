@@ -9,7 +9,7 @@
  * 
  */
 UCLASS(Meta = (DisplayName = "UModComboBox (String)"))
-class UMOD_API UUModComboBox : public UComboBoxString
+class UUModComboBox : public UComboBoxString
 {
 	GENERATED_BODY()
 		

@@ -11,6 +11,7 @@ public class UMod : ModuleRules
         PublicDependencyModuleNames.AddRange(new string[] {"Core", "CoreUObject", "Engine", "InputCore", "OnlineSubsystem", "OnlineSubsystemUtils", "UMG", "Slate", "SlateCore", "Networking", "Sockets", "PakFile", "RHI", "RenderCore", "ShaderCore", "EngineSettings", "Messaging", "EngineMessages"});
 
         DynamicallyLoadedModuleNames.Add("OnlineSubsystemNull");
+        DynamicallyLoadedModuleNames.Add("AssetRegistry");
 
         Console.WriteLine(ThirdPartyPath);
 
@@ -27,7 +28,7 @@ public class UMod : ModuleRules
 
     private string ModulePath
     {
-        get { return Path.GetDirectoryName(RulesCompiler.GetModuleFilename(this.GetType().Name)); }
+        get { return ModuleDirectory; }
     }
  
     private string ThirdPartyPath

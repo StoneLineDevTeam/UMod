@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Metals/Gold"
+	"$normalmap" "Metals/Gold_N"
+	"$surfaceprop" "metal"
+}

@@ -29,5 +29,5 @@ void LuaLibLog::RegisterLogLib(LuaEngine *Lua)
 	Lua->AddLibFunction("Info", LogInfo);
 	Lua->AddLibFunction("Warning", LogWarn);
 	Lua->AddLibFunction("Error", LogErr);
-	Lua->CreateLibrary();
+	Lua->CreateLibrary();	
 }

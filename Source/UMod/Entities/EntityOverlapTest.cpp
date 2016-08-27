@@ -3,26 +3,25 @@
 
 AEntityOverlapTest::AEntityOverlapTest()
 {
-	SetModel("RoundedCube");
+	//SetModel("UMod:RoundedCube");
 }
 
 void AEntityOverlapTest::OnInit()
-{
-	SetPhysicsEnabled(false);
+{	
 	SetCollisionModel(ECollisionType::COLLISION_NONE);
-	Construct();
+	SetModel("UMod:RoundedCube");
 }
 
 void AEntityOverlapTest::OnBeginOverlap(AEntityBase *other)
 {
 	UE_LOG(UMod_Game, Warning, TEXT("An entity started to overlap"));
-	SetModel("CubeMesh");
+	SetModel("UMod:CubeMesh");
 }
 
 void AEntityOverlapTest::OnEndOverlap(AEntityBase *other)
 {
 	UE_LOG(UMod_Game, Warning, TEXT("An entity ended to overlap"));
-	SetModel("RoundedCube");
+	SetModel("UMod:RoundedCube");
 }
 
 FString AEntityOverlapTest::GetClass()

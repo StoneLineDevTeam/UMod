@@ -9,12 +9,11 @@
  * 
  */
 UCLASS()
-class UMOD_API AUModPlayerState : public APlayerState
+class AUModPlayerState : public APlayerState
 {
 	GENERATED_BODY()
 		
-public:
-	virtual void Tick(float f);
+public:	
 	virtual void BeginPlay();
 
 private:

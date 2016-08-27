@@ -4,6 +4,7 @@
 #include "UModController.h"
 #include "Game/UModGameMode.h"
 #include "Game/MenuGameMode.h"
+#include "Game/UModGameState.h"
 #include "Player/UModCharacter.h"
 
 void SetKeyInConfig(FString category, FString name, FKey key)
@@ -52,30 +53,45 @@ void AUModController::SendToConsole(const FString& Command) //Be sure nobody fin
  * End
  */
 
-bool NeedInitialSpawn = false;
-
 void AUModController::Tick(float f)
 {
+	Super::Tick(f);
+	
 	if (GetWorld() != NULL && GetWorld()->GetAuthGameMode() != NULL && GetWorld()->GetAuthGameMode()->IsA(AMenuGameMode::StaticClass())) { return; }
-
+	
 	if (Role == ROLE_Authority) {
-		if (GetCharacter() != NULL && NeedInitialSpawn) {
+		if (NeedInitialSpawn && GetCharacter() != NULL) {
+			Player = Cast<AUModCharacter>(GetCharacter());
 			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-			UE_LOG(UMod_Game, Log, TEXT("[DEBUG]Sending spawn notification"));
-			AUModCharacter *ply = Cast<AUModCharacter>(GetCharacter());
-			gm->OnPlayerInitialSpawn(ply);
+			UE_LOG(UMod_Game, Log, TEXT("[DEBUG]Sending initial spawn notification for %s"), *Player->PlayerState->PlayerName);			
+			gm->OnPlayerInitialSpawn(Player);
 
-			NeedInitialSpawn = false;
+			NeedInitialSpawn = false;			
 		}
 
-		if (GetCharacter() == NULL) {
-			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+		if (Player != NULL && GetCharacter() == NULL) { //Needed as UE4 seam to work realy weird with variables
+			Player = NULL;
+			UE_LOG(UMod_Game, Log, TEXT("Player death detected !"));
+			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());			
 			if (gm->CanPlayerRespawn(this)) {
-				AUModCharacter *ply = GetWorld()->SpawnActor<AUModCharacter>();
-				ply->SetActorLocation(GetSpawnLocation());
-				ply->SetActorRotation(FRotator::ZeroRotator);
-				Possess(ply);
+				UE_LOG(UMod_Game, Log, TEXT("Player respawn requested !"));
+				if (gm->GameState != NULL) {
+					AUModGameState *State = Cast<AUModGameState>(gm->GameState);
+					Player = GetWorld()->SpawnActor<AUModCharacter>(gm->DefaultPawnClass, State->SpawnPos, State->SpawnRot);
+					Possess(Player);
+				}
 			}
+		}
+	} else {
+		if (NeedInitialSpawn) {
+			Player = Cast<AUModCharacter>(GetCharacter());
+			if (Player != NULL) {
+				NeedInitialSpawn = false;
+			}
+		}
+
+		if (GetCharacter() != Player) { //Needed as UE4 seam to work realy weird with variables
+			Player = GetCharacter();
 		}
 	}
 }
@@ -84,12 +100,15 @@ void AUModController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (GetWorld()->GetAuthGameMode()->IsA(AMenuGameMode::StaticClass())) { return; }
-
+	if (GetWorld() != NULL && GetWorld()->GetAuthGameMode() != NULL && GetWorld()->GetAuthGameMode()->IsA(AMenuGameMode::StaticClass())) { return; }
 	if (GIsEditor) { return; }
+
 	if (Role == ROLE_Authority) {
-		UE_LOG(UMod_Game, Log, TEXT("[DEBUG]PlayerController has spawned !"))
+		UE_LOG(UMod_Game, Log, TEXT("[DEBUG]PlayerController has spawned !"));
 		NeedInitialSpawn = true;
+	} else {
+		UE_LOG(UMod_Game, Log, TEXT("[DEBUG]PlayerController has spawned !"));
+		NeedInitialSpawn = true;		
 	}
 }
 
@@ -141,6 +160,19 @@ void AUModController::InitInputSystem()
 	secondaryFire = FInputActionKeyMapping("SecondaryFire", secondaryFireKey);
 	reload = FInputActionKeyMapping("Reload", reloadKey);
 
+	//Engine hack intended to clear every single bound key
+	PlayerInput->ActionMappings.Empty();
+	PlayerInput->AxisMappings.Empty();
+	PlayerInput->DebugExecBindings.Empty();
+	PlayerInput->InvertedAxis.Empty();
+	//End
+
+	//Re-Inject mouse motion
+	FInputAxisKeyMapping msX = FInputAxisKeyMapping("Turn", EKeys::MouseX, 1.0F);
+	FInputAxisKeyMapping msY = FInputAxisKeyMapping("LookUp", EKeys::MouseY, -1.0F);
+	PlayerInput->AddAxisMapping(msX);
+	PlayerInput->AddAxisMapping(msY);
+
 	PlayerInput->AddAxisMapping(moveForward);
 	PlayerInput->AddAxisMapping(moveBackward);
 	PlayerInput->AddAxisMapping(moveLeft);
@@ -155,6 +187,45 @@ void AUModController::InitInputSystem()
 	PlayerInput->AddActionMapping(primaryFire);
 	PlayerInput->AddActionMapping(secondaryFire);
 	PlayerInput->AddActionMapping(reload);
+}
+
+bool AUModController::InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad)
+{
+	if (EventType == IE_Pressed && Key == EKeys::Escape) {
+		ShouldDrawIngameMenu = !ShouldDrawIngameMenu;
+		if (ShouldDrawIngameMenu) {
+			EnterIngameMenu();
+		} else {
+			ExitIngameMenu();
+		}
+	}
+	if (EventType == IE_Pressed && Key == EKeys::LeftMouseButton) {
+		float x = 0;
+		float y = 0;
+		GetMousePosition(x, y);
+		OnMouseClick.Broadcast(x, y);
+	}
+	if (InMenu) {
+		return true;
+	}
+	return Super::InputKey(Key, EventType, AmountDepressed, bGamepad);
+}
+
+bool AUModController::IsOnIngameMenu()
+{
+	return InMenu && ShouldDrawIngameMenu;
+}
+
+void AUModController::EnterIngameMenu()
+{
+	EnterMenu();
+	ShouldDrawIngameMenu = true;
+}
+
+void AUModController::ExitIngameMenu()
+{
+	ExitMenu();
+	ShouldDrawIngameMenu = false;
 }
 
 void AUModController::SetKeyBinding(EKeyBindings in, FKey newKey)
@@ -294,4 +365,22 @@ FKey AUModController::LookupKeyBinding(EKeyBindings in)
 	}
 
 	return FKey();
+}
+
+void AUModController::EnterMenu()
+{	
+	SetIgnoreLookInput(true);
+	SetIgnoreMoveInput(true);
+	bShowMouseCursor = true;
+	SetInputMode(FInputModeGameAndUI().SetHideCursorDuringCapture(false));
+	InMenu = true;
+}
+
+void AUModController::ExitMenu()
+{	
+	SetIgnoreLookInput(false);
+	SetIgnoreMoveInput(false);
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());	
+	InMenu = false;
 }

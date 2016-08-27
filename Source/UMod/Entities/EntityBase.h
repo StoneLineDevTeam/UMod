@@ -39,15 +39,40 @@ struct FInitProperty {
 	}
 };
 
+//ServerSide only structure
+struct FPhysObj {
+	UPrimitiveComponent *PhysComp;
+	float GravityScale;
+
+	FPhysObj(UPrimitiveComponent *Phys) {
+		PhysComp = Phys;
+	}
+
+	//Call that yourself to update that physics object
+	void UpdateObj();
+	//Sets the velocity of that object
+	void SetVelocity(FVector NewVel);
+	//Sets the angle velocity of that object
+	void SetAngleVelocity(FRotator NewAngleVel);
+	void AddForceOffset(FVector Offset, FVector Force);
+	void AddForceCenter(FVector Force);
+	void SetGravityScale(float f);
+	void SetMassScale(float f);
+	float GetGravityScale();
+	float GetMassScale();
+	void Freeze();
+	void UnFreeze();
+	bool IsFrozen();
+};
+
 class UUModGameInstance;
 
 UCLASS()
-class UMOD_API AEntityBase : public AActor
+class AEntityBase : public AActor
 {
 	GENERATED_BODY()
 	
 	class UStaticMeshComponent *EntityModel;
-
 private:
 	//Network stuff
 	UPROPERTY(Replicated)
@@ -70,7 +95,7 @@ private:
 	//End
 
 	//Does this entity manages physics
-	bool PhysEnabled = false;
+	//bool PhysEnabled = false; //Removal 17/08/2014 : Physics implementation restructuration for easier usage (all physics methods are inside FPhysObj now
 
 	bool Initializing = false;
 
@@ -83,25 +108,24 @@ private:
 	UPROPERTY(EditAnywhere)
 	TArray<FInitProperty> InitProperties;
 
-	float GravityScale = 1;
-
 	int LuaReference; //Yes starting LuaEntityBase !
 	FString LuaClassName; //The lua class name
 protected:
 	UUModGameInstance *Game;
 
+	FPhysObj *PhysObj;
 public:	
 	AEntityBase();
 
 	/*Begin AActor interface*/
 	virtual void BeginPlay() override;	
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;	
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 	UFUNCTION()
-	void ActorBeginOverlap(AActor* OtherActor, class UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result);
+	void ActorBeginOverlap(UPrimitiveComponent* comp, AActor* OtherActor, class UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result);
 	UFUNCTION()
-	void ActorEndOverlap(AActor* OtherActor, class UPrimitiveComponent *C, int32 i);
+	void ActorEndOverlap(UPrimitiveComponent* comp, AActor* OtherActor, class UPrimitiveComponent *C, int32 i);
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent &e);
@@ -116,19 +140,12 @@ public:
 	/*End*/
 
 	/* Begin entity base lib */
-	void SetPhysicsEnabled(bool b); //Works only in OnInit(), used to remove the synced physics system, ServerSide
+	void AddPhysicsObject(); //Works only in OnInit(), used to remove the synced physics system, ServerSide
+	FPhysObj *GetPhysicsObject();
 	void SetCollisionModel(ECollisionType collision); //ServerSide
 	ECollisionType GetCollisionModel();
 	void SetModel(FString path);
-	void SetGravityScale(float f); //ServerSide
-	float GetGravityScale(); //ServerSide
-	void SetMassScale(float f); //ServerSide
-	float GetMassScale(); //ServerSide
-	void AddForceCenter(FVector Force); //ServerSide
-	void AddForceOffset(FVector Offset, FVector Force); //ServerSide
-	void SetVelocity(FVector NewVel);
-	FString GetModel();
-	void Construct();
+	FString GetModel();	
 	void SetMaterial(FString path); //No sync possible : UE4 does not allow c array replication
 	void SetSubMaterial(int32 index, FString path); //No sync possible : UE4 does not allow c array replication
 	FString GetMaterial();
@@ -169,8 +186,6 @@ public:
 		}
 		return false;
 	}
-	void Freeze(); //ServerSide
-	void Unfreeze(); //ServerSide
 	//NW Vars (Future)
 	void SetNWInt(FString id, int i);
 	void SetNWString(FString id, FString str);
@@ -185,10 +200,8 @@ public:
 
 	virtual FString GetClass(); //Shared
 	virtual void OnTick(); //Shared
-	virtual void OnInit(); //Server
-	virtual void OnClientInit(); //Client
+	virtual void OnInit(); //Shared	
 	virtual void OnPhysicsCollide(AEntityBase *other); //ServerSide
 	virtual void OnBeginOverlap(AEntityBase *other); //ServerSide
 	virtual void OnEndOverlap(AEntityBase *other); //ServerSide
-
 };

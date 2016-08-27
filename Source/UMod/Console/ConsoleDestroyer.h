@@ -9,7 +9,7 @@
  * 
  */
 UCLASS()
-class UMOD_API UConsoleDestroyer : public UConsole //Console = TRASH
+class UConsoleDestroyer : public UConsole //Console = TRASH
 {
 	GENERATED_BODY()
 	

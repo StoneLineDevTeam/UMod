@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerController.h"
 #include "UModController.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FControllerOnMouseClick, float, x, float, y);
 
 UENUM(BlueprintType)
 enum class EKeyBindings {
@@ -28,7 +29,7 @@ enum class EKeyBindings {
  * 
  */
 UCLASS()
-class UMOD_API AUModController : public APlayerController
+class AUModController : public APlayerController
 {
 	GENERATED_BODY()
 		
@@ -37,18 +38,35 @@ public:
 	virtual void BeginPlay();
 	
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set KeyBinding", Keywords = "key binding set"), Category = "UMod_Specific|Player")
-		void SetKeyBinding(EKeyBindings in, FKey newKey);
+	void SetKeyBinding(EKeyBindings in, FKey newKey);
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get KeyBinding", Keywords = "key binding get"), Category = "UMod_Specific|Player")
-		FKey LookupKeyBinding(EKeyBindings in);
+	FKey LookupKeyBinding(EKeyBindings in);
 
 	//Console destroy
 	virtual FString ConsoleCommand(const FString& Cmd, bool bWriteToLog);
 	virtual void ConsoleKey(FKey Key);
 	virtual void SendToConsole(const FString& Command);
+	//End
+
+	virtual bool InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad);
 
 	virtual void Tick(float f);
+
+	void EnterIngameMenu();
+	void ExitIngameMenu();
+
+	bool IsOnIngameMenu();
+
+	void EnterMenu();
+	void ExitMenu();
+
+	AUModCharacter *Player;
+
+	FControllerOnMouseClick OnMouseClick;
 private:
+	bool NeedInitialSpawn;
+	
 	FInputAxisKeyMapping moveForward;
 	FInputAxisKeyMapping moveBackward;
 	FInputAxisKeyMapping moveRight;
@@ -63,4 +81,9 @@ private:
 	FInputActionKeyMapping primaryFire;
 	FInputActionKeyMapping secondaryFire;
 	FInputActionKeyMapping reload;
+	
+	bool InMenu;
+	bool ShouldDrawIngameMenu = false;
+
+	bool IsIngameMenuUnavailable = false; //FUTURE : Implementation of lua custom ingame menu
 };

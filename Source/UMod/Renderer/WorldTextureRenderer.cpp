@@ -26,7 +26,7 @@ public:
 		}		
 	}
 
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View)
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const
 	{
 		FPrimitiveViewRelevance Relevance;
 		Relevance.bDrawRelevance = IsShown(View);

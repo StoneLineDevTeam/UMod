@@ -7,7 +7,7 @@
 ALaserBeamRenderer::ALaserBeamRenderer()
 {
 	bReplicates = true;
-	BeamEffect = LoadObjFromPath<UParticleSystem>("/Game/Particles/LaserBeam");
+	BeamEffect = LoadObjFromPath<UParticleSystem>("/Game/UMod/Particles/LaserBeam");
 	comp = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("ParticleEmitter"));
 	comp->bAutoDestroy = true;
 	comp->SetTemplate(BeamEffect);

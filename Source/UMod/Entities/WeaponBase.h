@@ -9,7 +9,7 @@
 class AUModCharacter;
 
 UCLASS()
-class UMOD_API AWeaponBase : public AActor
+class AWeaponBase : public AActor
 {
 	GENERATED_BODY()
 	
@@ -58,7 +58,8 @@ public:
 	};
 
 	/* Weapon interface */
-	AUModCharacter *player;
+	AUModCharacter *Player;
+	UUModGameInstance *Game;
 	virtual void OnPrimaryFire(EFireState state, bool traceHit, FHitResult traceResult);
 	virtual void OnSecondaryFire(EFireState state, bool traceHit, FHitResult traceResult);
 	virtual void OnReload(bool traceHit, FHitResult traceResult);
@@ -69,7 +70,8 @@ public:
 	virtual FVector GetGunOffset();
 	virtual FString GetClass();
 	virtual FString GetNiceName();
-	virtual FString GetModel();
+	virtual FString GetWorldModel();
+	virtual FString GetViewModel();
 	virtual EFireType GetPrimaryFireType();
 	virtual EFireType GetSecondaryFireType();
 	virtual FString GetPrimaryAmmoType();

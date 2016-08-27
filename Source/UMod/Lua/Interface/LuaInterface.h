@@ -39,7 +39,7 @@ enum ELuaType {
  * ----------------------------------------------------------------------------------------------------------------------------------------
  * Needs the lua dlls to be inside the bin dir
  */
-class UMOD_API LuaInterface
+class LuaInterface
 {
 public:
 	static LuaInterface* New();

@@ -1,0 +1,7 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Rock_M"
+	"$normalmap" "Rock_N"
+	"$surfaceprop" "rock"
+	"$model" "1"
+}

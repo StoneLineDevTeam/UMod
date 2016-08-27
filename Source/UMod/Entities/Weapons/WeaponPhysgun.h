@@ -11,7 +11,7 @@ class AEntityBase;
  * 
  */
 UCLASS()
-class UMOD_API AWeaponPhysgun : public AWeaponBase
+class AWeaponPhysgun : public AWeaponBase
 {
 	GENERATED_BODY()
 	
@@ -22,11 +22,11 @@ public:
 	virtual void OnReload(bool traceHit, FHitResult traceResult);
 	virtual void OnWeaponPrev();
 	virtual void OnWeaponNext();
-	virtual void OnTick();
 	virtual void OnInit();
 	virtual FString GetClass();
 	virtual FString GetNiceName();
-	virtual FString GetModel();	
+	virtual FString GetWorldModel();
+	virtual FString GetViewModel();
 	virtual EFireType GetPrimaryFireType();
 	virtual EFireType GetSecondaryFireType();
 

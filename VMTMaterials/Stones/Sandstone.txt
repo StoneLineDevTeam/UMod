@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Stones/Sandstone"
+	"$normalmap" "Stones/Sandstone_N"
+	"$surfaceprop" "rock"
+}

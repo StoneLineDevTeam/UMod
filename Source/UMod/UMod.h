@@ -21,6 +21,9 @@
 
 #include "ParticleDefinitions.h"
 
+#include "OS/UModPlatformUtils.h"
+#include "Game/SurfaceTypes.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Game, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Input, Log, All);
@@ -40,9 +43,19 @@ struct Initializer##ClassName { \
 }; \
 Initializer##ClassName Init##ClassName; \
 
-static const FString InputCFG = FPaths::GameConfigDir() + FString("UMod.Input.cfg");
-static const FString ClientCFG = FPaths::GameConfigDir() + FString("UMod.Client.cfg");
-static const FString ServerCFG = FPaths::GameConfigDir() + FString("UMod.Server.cfg");
+#define DECLARE_UMOD_COMMAND(id, name, help, needcxt, fnc) \
+struct InitializerCMD##id { \
+	InitializerCMD##id() \
+	{ \
+		UUModConsoleManager::ConsoleCommands[##id] = new FUModConsoleCommand(##name, ##help, ##needcxt, ##fnc); \
+		UUModConsoleManager::ConsoleCommandNumber = UUModConsoleManager::ConsoleCommandNumber + 1; \
+	} \
+}; \
+InitializerCMD##id InitCMD##id; \
+
+static const FString InputCFG = FPaths::GameSavedDir() + FString("Config/UMod.Input.cfg");
+static const FString ClientCFG = FPaths::GameSavedDir() + FString("Config/UMod.Client.cfg");
+static const FString ServerCFG = FPaths::GameSavedDir() + FString("Config/UMod.Server.cfg");
 
 template <typename ObjClass>
 static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)

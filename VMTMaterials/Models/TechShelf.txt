@@ -1,0 +1,7 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "TechShelf_M"
+	"$normalmap" "TechShelf_N"
+	"$surfaceprop" "metal"
+	"$model" "1"
+}

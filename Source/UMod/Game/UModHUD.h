@@ -21,7 +21,11 @@ public:
 
 	FVector2D ScreenSize();
 
-	//virtual void BeginDestroy();
+	UFUNCTION()
+	void Precache();
+
+	UFUNCTION()
+	void HandleMouseClick(float x, float y);
 
 private:
 	/** Textures */
@@ -31,14 +35,14 @@ private:
 
 	void MainHUDRender();
 	void DrawIngameMenu();
-	void DrawPlayerStats(AUModCharacter *localPlyCL);
-	void DrawWeaponStats(AUModCharacter *localPlyCL);
-	void DrawWeaponSwitch(AUModCharacter *localPlyCL);
+	void DrawPlayerStats();
+	void DrawWeaponStats();
+	void DrawWeaponSwitch();
 	void DrawUnderwaterHUD();
 
 	void OnButtonClick(uint8 id);
 
 	UUModGameInstance *Game;
-	
+	AUModController *PlyCtrl;
 };
 

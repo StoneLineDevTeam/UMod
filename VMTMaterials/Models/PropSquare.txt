@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "PropSquare"
+	"$surfaceprop" "metal"
+	"$model" "1"
+}

@@ -5,11 +5,13 @@
 #include "DataChannel.h"
 #include "UModGameEngine.generated.h"
 
+class UUModAssetsManager;
+
 USTRUCT(BlueprintType)
 struct FServerPollResult {
 	GENERATED_USTRUCT_BODY()
 
-		FServerPollResult() {
+	FServerPollResult() {
 	}
 
 	FServerPollResult(FString s, int32 i, int32 j) {
@@ -28,7 +30,31 @@ struct FServerPollResult {
 		int32 CurPlayers;
 };
 
+USTRUCT(BlueprintType)
+struct FLoadData {
+	GENERATED_USTRUCT_BODY()
+
+	FLoadData() {
+	}
+
+	FLoadData(FString s, int32 t, int32 c) {
+		Text = s;
+		TotalObjects = t;
+		CurObjects = c;
+	}
+
+	UPROPERTY(BlueprintReadOnly)
+		FString Text;
+
+	UPROPERTY(BlueprintReadOnly)
+		int32 TotalObjects;
+
+	UPROPERTY(BlueprintReadOnly)
+		int32 CurObjects;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FServerPollEndDelegate, FServerPollResult, ServerPollResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLoadDataChangedDelegate, FLoadData, LoadData);
 
 USTRUCT(BlueprintType)
 struct FUModGameResolution {
@@ -65,47 +91,52 @@ struct FPlatformStats {
 };
 
 //Custom control channel messages
-DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 20, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 21); //Start sending bools and different variables like warnings, etc
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsInt, 22, FString, int32); //Send a variable
+DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 21, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 22); //Start sending bools and different variables like warnings, etc
+DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsInt, 23, FString, int32); //Send a variable
 DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsBool, 33, FString, bool); //Send a variable
 DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsString, 34, FString, FString); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 23); //Done sending variables
-DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 24, FString); //Start sending a lua file
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendLua, 29, FString, uint8); //Send a line of the file (content, mode)
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 30); //Indicates client to close the file as the upload is done
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 31); //End UMod data
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 24); //Done sending variables
+DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 29, FString); //Start sending a lua file
+DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendLua, 30, FString, uint8); //Send a line of the file (content, mode)
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 31); //Indicates client to close the file as the upload is done
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 32); //End UMod data
+DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModChangeMap, 36);
 //The poll control channel message
-DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 32, FString, uint32, uint32); //Server poll (server name, cur players, max players)
+DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 35, FString, uint32, uint32); //Server poll (server name, cur players, max players)
 
 class UServerHandler;
 class UClientHandler;
 
 UCLASS()
-class UUModGameEngine : public UGameEngine{
+class UUModGameEngine : public UGameEngine {
 	GENERATED_BODY()
 public:
 	//Changes game's resolution returns true if success, false otherwise
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Change Game Resolution", Keywords = "game resolution set change"), Category = UMod_Specific)
-		bool ChangeGameResolution(FUModGameResolution res);
+	bool ChangeGameResolution(FUModGameResolution res);
 
 	//Get's the current game resolution
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Game Resolution", Keywords = "game resolution get"), Category = UMod_Specific)
-		FUModGameResolution GetGameResolution();
+	FUModGameResolution GetGameResolution();
 
 	//Get's the current game resolution
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Available Game Resolutions", Keywords = "game available resolutions get"), Category = UMod_Specific)
-		TArray<FUModGameResolution> GetAvailableGameResolutions();
+	TArray<FUModGameResolution> GetAvailableGameResolutions();
 
 	void RunPollServer(FString ip, ULocalPlayer* const Player);
-
+		
 	UPROPERTY(BlueprintAssignable)
 	FServerPollEndDelegate PollEndDelegate;
+	UPROPERTY(BlueprintAssignable)
+	FLoadDataChangedDelegate LoadDataChangeDelegate;
 
 	virtual EBrowseReturnVal::Type Browse(FWorldContext& WorldContext, FURL URL, FString& Error);
+	virtual bool LoadMap(FWorldContext & WorldContext, FURL URL, class UPendingNetGame * Pending, FString & Error);
 
 	//Yeah let's start again with hacking ! This time UE4 didn't want to set the window title I decided, so I'm obligated to fuck it up !
 	virtual void Init(class IEngineLoop* InEngineLoop) override;
+	//virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 
 	UUModGameInstance *GetGame();
 
@@ -115,10 +146,17 @@ public:
 	static bool IsDedicated;
 	static bool IsListen;
 	static bool IsPollingServer;
+
+	UUModAssetsManager *AssetsManager;
+	
+	void SetLoadData(int32 totalObjs, int32 curObjs, FString loadText);
 private:
 	//Function called by GameInstance itself by a trickky method...
+	//EDIT : No longer called by trick instead done through Init
 	void OnDisplayCreated();
 
 	UServerHandler *NetHandleSV;
 	UClientHandler *NetHandleCL;
+
+	FUModGameResolution CurrentGameResolution;
 };

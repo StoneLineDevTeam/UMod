@@ -14,7 +14,7 @@ void UUModVoiceChannel::ReceivedBunch(FInBunch& Bunch)
 
 void UUModVoiceChannel::Tick()
 {
-	Super::Tick();
+	Super::Tick();	
 }
 
 void UUModVoiceChannel::SendVoicePacket(FOutVoicePacket Pack)

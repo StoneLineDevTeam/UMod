@@ -15,7 +15,7 @@ function EntitySpawned(ent)
 	if (not(flag)) then
 		GlobalTest = ents.Create("PhysicsProp")
 		GlobalTest:SetPos(Vector(0, 0, 1500))
-		GlobalTest:SetModel("Cup")
+		--GlobalTest:SetModel("Cup")
 		print(GlobalTest:EntIndex())
 		flag = true
 	end

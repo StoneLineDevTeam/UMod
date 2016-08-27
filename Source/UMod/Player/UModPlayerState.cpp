@@ -4,10 +4,6 @@
 #include "UModPlayerState.h"
 #include "UModGameInstance.h"
 
-void AUModPlayerState::Tick(float f)
-{
-}
-
 void AUModPlayerState::BeginPlay()
 {
 	Super::BeginPlay();

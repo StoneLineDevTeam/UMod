@@ -5,12 +5,9 @@
 
 AEntityPhysicsProp::AEntityPhysicsProp()
 {
-	FString InModel = "RoundedCube";
+	/*FString InModel = "UMod:RoundedCube";
 	GetInitProperty<FString>("Model", InModel);
-	SetModel(InModel);
-
-	SetPhysicsEnabled(true);
-	SetCollisionModel(ECollisionType::COLLISION_PHYSICS);
+	SetModel(InModel);*/
 }
 
 FString AEntityPhysicsProp::GetClass()
@@ -20,13 +17,16 @@ FString AEntityPhysicsProp::GetClass()
 
 void AEntityPhysicsProp::OnInit()
 {
-	FString InModel = "RoundedCube";
+	AddPhysicsObject();
+	FString InModel = "UMod:RoundedCube";
 	float InGravityScale = 1.0F;
-	GetInitProperty<FString>("Model", InModel);
-	GetInitProperty<float>("GravityScale", InGravityScale);
+	GetInitProperty<FString>("Model", InModel);	
 	SetModel(InModel);
-	SetGravityScale(InGravityScale);
-	Construct();
+	SetCollisionModel(ECollisionType::COLLISION_PHYSICS);
+	if (Role == ROLE_Authority) {
+		GetInitProperty<float>("GravityScale", InGravityScale);
+		PhysObj->SetGravityScale(InGravityScale);
+	}
 }
 
 DEFINE_ENTITY(PhysicsProp, AEntityPhysicsProp::StaticClass())

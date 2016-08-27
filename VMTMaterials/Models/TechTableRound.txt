@@ -1,0 +1,7 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "TechTableRound_M"
+	"$normalmap" "TechTableRound_N"
+	"$surfaceprop" "metal"
+	"$model" "1"
+}

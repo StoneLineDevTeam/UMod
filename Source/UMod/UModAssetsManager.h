@@ -4,11 +4,17 @@
 
 #include "UModAssetsManager.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPrecacheAssets);
+
 UENUM(BlueprintType)
 enum EUModAssetType {
 	MATERIAL,
 	TEXTURE,
-	MODEL
+	MODEL,
+	SOUND,
+	FONT,
+	OTHER,
+	MAP
 };
 
 USTRUCT(BlueprintType)
@@ -62,6 +68,14 @@ enum EUModContentChannel {
 	CHANNEL_ERROR
 };
 
+enum EResolverResult {
+	SYNTAX_ERROR,
+	INVALID_MOUNT_POINT,
+	INVALID_ASSET,
+	ASSET_SYSTEM_NOT_READY,
+	SUCCESS
+};
+
 //Represents a content pack
 struct FUModContentPack {
 	FString RealPath;
@@ -94,15 +108,22 @@ struct FUModLuaAsset {
 	}
 };
 
+//Add missing assets path
+static FString ErrorModel = "/Game/UMod/Models/Error";
+static FString InvalidMaterial = "/Game/UMod/Materials/Invalid";
+static FString InvalidFont = "/Game/UMod/Fonts/FederationClassic";
+static FString InvalidTexture = "/Game/UMod/Textures/Invalid";
+
 /**
  * UMod Assets Management structure
  */
-UCLASS()
-class UMOD_API UUModAssetsManager : public UObject
+//UCLASS()
+class UUModAssetsManager /*: public UObject*/
 {
-	GENERATED_UCLASS_BODY()
+	//GENERATED_UCLASS_BODY()
 
-	//UUModAssetsManager();
+public:
+	UUModAssetsManager();
 
 	/**
 	 * Injects a content pack into the game
@@ -123,7 +144,9 @@ class UMOD_API UUModAssetsManager : public UObject
 	/**
 	* Returns the UnrealEngine path for assets referenced by lua
 	*/
-	FString GetUnrealPath(FString VirtualPath);
+	EResolverResult ResolveAsset(FString VirtualPath, EUModAssetType t, FString &OutUEPath);
+
+	FString GetErrorMessage(EResolverResult res);
 
 	/**
 	* Returns the real path of a lua file by it's virtual path
@@ -147,20 +170,24 @@ class UMOD_API UUModAssetsManager : public UObject
 	 */
 	void HandleServerDisconnect();
 
-	void LoadAddonsContent();
+	void HandleServerConnect();
 
 	/**
 	 * Called by UModGameInstance to update this class
 	 */
 	void UpdateTick();
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Map List", Keywords = "map list get"), Category = "UMod_Specific|AssetsManager")
-		TArray<FUModMap> GetMapList();
+	//UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Map List", Keywords = "map list get"), Category = "UMod_Specific|AssetsManager")
+	TArray<FUModMap> GetMapList();
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Asset List", Keywords = "asset list get"), Category = "UMod_Specific|AssetsManager")
-		TArray<FUModAsset> GetAssetList(EUModAssetType type);
+	//UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Asset List", Keywords = "asset list get"), Category = "UMod_Specific|AssetsManager")
+	TArray<FUModAsset> GetAssetList(FString MountPoint, EUModAssetType type);
 
+	static UUModAssetsManager *Instance;
+
+	static FPrecacheAssets PrecacheAssets;
 private:
 	TArray<FUModContentPack> InjectedContentPacks;
 	TArray<FUModLuaAsset> LuaAssetFiles;
+	TArray<FString> MountPoints;
 };

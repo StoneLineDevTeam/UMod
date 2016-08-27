@@ -6,10 +6,13 @@
 #include "UModGameState.generated.h"
 
 UCLASS()
-class UMOD_API AUModGameState : public AGameState
+class AUModGameState : public AGameState
 {
 	GENERATED_BODY()
 	
 public:
 	virtual void HandleMatchIsWaitingToStart();
+
+	FVector SpawnPos;
+	FRotator SpawnRot;
 };

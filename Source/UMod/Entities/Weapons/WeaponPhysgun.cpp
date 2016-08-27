@@ -53,7 +53,7 @@ void AWeaponPhysgun::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit,
 		BeamEmitter->Destroy();
 
 		UE_LOG(UMod_Game, Warning, TEXT("You stopped to fire with the physics gun !"));
-		PickedUp->Unfreeze();
+		PickedUp->GetPhysicsObject()->UnFreeze();
 		PickedUp = NULL;
 		OffsetPos = FVector(0, 0, 0);
 		ObjectDistance = 100;
@@ -62,29 +62,29 @@ void AWeaponPhysgun::OnPrimaryFire(AWeaponBase::EFireState state, bool traceHit,
 
 	if (state == AWeaponBase::EFireState::STARTED && traceHit) {		
 		UE_LOG(UMod_Game, Warning, TEXT("You started to fire with the physics gun !"));
-		AActor *act = traceResult.GetActor();
+		AActor *act = traceResult.GetActor();		
 		if (!act->GetClass()->IsChildOf(AEntityBase::StaticClass())) {
 			return;
 		}
 		PickedUp = Cast<AEntityBase>(act);
-		PickedUp->Freeze();
+		PickedUp->GetPhysicsObject()->Freeze();
 		OffsetPos = act->GetActorLocation() - traceResult.ImpactPoint;
-		ObjectDistance = FVector::Dist(player->GetEyeLocation(), traceResult.ImpactPoint);
+		ObjectDistance = FVector::Dist(Player->GetEyeLocation(), traceResult.ImpactPoint);
 		ObjectRotation = act->GetActorRotation();
 
 		BeamEmitter = ALaserBeamRenderer::CreateBeamRenderer(GetWorld(), this->GetActorLocation(), PickedUp->GetActorLocation());
 	}
 
 	if (state == AWeaponBase::EFireState::FIRING && PickedUp != NULL) {
-		FVector pos = (player->GetEyeLocation() + OffsetPos) + (player->GetEyeAngles().Vector() * ObjectDistance);
-		PickedUp->SetActorLocation(pos);		
+		FVector pos = (Player->GetEyeLocation() + OffsetPos) + (Player->GetEyeAngles().Vector() * ObjectDistance);
+		PickedUp->SetActorLocation(pos);
 		PickedUp->SetActorRotation(ObjectRotation);
 		
 		if (BeamEmitter != NULL) {
-			BeamEmitter->UpdateVectors(player->GetRightHandLocation(), pos);
+			BeamEmitter->UpdateVectors(Player->GetRightHandLocation(), pos);
 		}
-		if (player->IsUseKeyDown()) {
-			ObjectRotation = player->GetEyeAngles();
+		if (Player->IsUseKeyDown()) {
+			ObjectRotation = Player->GetEyeAngles();
 		}
 	}
 }
@@ -95,7 +95,7 @@ void AWeaponPhysgun::OnSecondaryFire(AWeaponBase::EFireState state, bool traceHi
 		AActor* act = traceResult.GetActor();
 		if (act->GetClass()->IsChildOf(AEntityBase::StaticClass())) {
 			AEntityBase *b = Cast<AEntityBase>(act);
-			b->Freeze();
+			b->GetPhysicsObject()->Freeze();
 		}
 	}	
 }
@@ -119,11 +119,6 @@ void AWeaponPhysgun::OnReload(bool traceHit, FHitResult traceResult)
 
 }
 
-void AWeaponPhysgun::OnTick()
-{
-
-}
-
 void AWeaponPhysgun::OnInit()
 {
 
@@ -139,9 +134,14 @@ FString AWeaponPhysgun::GetNiceName()
 	return TEXT("PHYSICS GUN");
 }
 
-FString AWeaponPhysgun::GetModel()
+FString AWeaponPhysgun::GetWorldModel()
 {
-	return TEXT("PhysicsGun");
+	return TEXT("UMod:Weapons/W_PhysicsGun");
+}
+
+FString AWeaponPhysgun::GetViewModel()
+{
+	return TEXT("UMod:Weapons/V_PhysicsGun");
 }
 
 AWeaponBase::EFireType AWeaponPhysgun::GetPrimaryFireType()

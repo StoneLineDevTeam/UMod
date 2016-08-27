@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Grounds/Moss"
+	"$normalmap" "Grounds/Moss_N"
+	"$surfaceprop" "wood"
+}

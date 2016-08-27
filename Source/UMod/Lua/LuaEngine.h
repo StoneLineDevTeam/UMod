@@ -171,19 +171,59 @@ struct FLuaParam<AUModCharacter> {
 	}
 };
 
-
 enum ETableType {
 	GLOBAL,
 	GAMEMODE,
 	LOCAL //Will believe the table in which to call the function is already on top of the stack at index -1
 };
 
+//Macros
+#define DECLARE_LUA_FUNC(Name) \
+static int LUA_##Name(lua_State *L) { \
+	LuaInterface Lua = LuaInterface::Get(L); \
+
+#define DECLARE_LUA_FUNC_OneParam(Name, Interface, TypeName, VarName) \
+static int LUA_##Name(lua_State *L) { \
+	LuaInterface Lua = LuaInterface::Get(L); \
+	##TypeName ##VarName = Lua.Check##Interface(); \
+
+#define DECLARE_LUA_FUNC_TwoParam(Name, Interface, TypeName, VarName, Interface1, TypeName1, VarName1) \
+static int LUA_##Name(lua_State *L) { \
+	LuaInterface Lua = LuaInterface::Get(L); \
+	##TypeName ##VarName = Lua.Check##Interface(); \
+	##TypeName1 ##VarName1 = Lua.Check##Interface1(); \
+
+#define DECLARE_LUA_FUNC_ThreeParam(Name, Interface, TypeName, VarName, Interface1, TypeName1, VarName1, Interface2, TypeName2, VarName2) \
+static int LUA_##Name(lua_State *L) { \
+	LuaInterface Lua = LuaInterface::Get(L); \
+	##TypeName ##VarName = Lua.Check##Interface(); \
+	##TypeName1 ##VarName1 = Lua.Check##Interface1(); \
+	##TypeName2 ##VarName2 = Lua.Check##Interface2(); \
+
+#define LUA_TYPEDEF_BEGIN(Name) \
+Lua->PushString(#Name); \
+Lua->NewMetaTable(#Name) \
+
+#define LUA_TYPEDEF_FUNC(Name, CFunc) \
+Lua->PushString(#Name); \
+Lua->PushCFunction(LUA_##CFunc); \
+Lua->SetTable(-3) \
+
+//Set Entity.__index = Entity (saw in doc, means nothing for me)
+//Add Entity metatable to the registry
+#define LUA_TYPEDEF_END() \
+Lua->PushString("__index"); \
+Lua->PushValue(-2); \
+Lua->SetTable(-3); \
+Lua->SetTable(LUA_REGISTRYINDEX) \
+//End
+
 class UUModGameInstance;
 
 /*
 The main LuaEngine class for the game
 */
-class UMOD_API LuaEngine
+class LuaEngine
 {
 public:
 	LuaEngine(UUModGameInstance *g);

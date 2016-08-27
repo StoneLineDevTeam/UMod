@@ -5,29 +5,36 @@
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"
 #include "Game/UModGameMode.h"
+#include "UModController.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AUModCharacter
 
-AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer)	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(ACharacter::MeshComponentName))
+AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer.DoNotCreateDefaultSubobject(ACharacter::MeshComponentName))
 {
 	// Set size for collision capsule
+	PrimaryActorTick.bCanEverTick = true;
+	SetActorTickEnabled(true);
+	bAlwaysRelevant = true;
+	bReplicates = true;
+	bReplicateMovement = true;
+
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	// Create a CameraComponent	
 	PlayerCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	PlayerCamera->AttachParent = GetCapsuleComponent();
+	PlayerCamera->SetupAttachment(GetCapsuleComponent());
 	PlayerCamera->RelativeLocation = FVector(0, 0, 64.f);
 	PlayerCamera->bUsePawnControlRotation = true;
 
 	SpotLight = CreateDefaultSubobject<USpotLightComponent>("FlashLight");
 	SpotLight->RelativeLocation = FVector(0, 0, 60);
-	SpotLight->AttachParent = PlayerCamera;
+	SpotLight->SetupAttachment(PlayerCamera);
 
 	//Create a mesh component that will be used as world model
 	PlayerModel = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PlayerModel"));
 	PlayerModel->SetOwnerNoSee(true);
-	PlayerModel->AttachParent = PlayerCamera;
+	PlayerModel->SetupAttachment(PlayerCamera);
 	PlayerModel->RelativeLocation = FVector(0.f, 0.f, -150.f);
 	PlayerModel->bCastDynamicShadow = false;
 	PlayerModel->CastShadow = false;
@@ -42,9 +49,34 @@ void AUModCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	AUModController *ctrl = Cast<AUModController>(GetController());
+	if (ctrl != NULL) {
+		ctrl->Player = this;
+	}
+
 	if (Role == ROLE_Authority) {
 		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
 		gm->OnPlayerSpawn(this);
+	} else {
+		//Little post process test (MotionBlur) : DON'T EVER TRY 100.9F and 200.9F Screen Gets COMPLETELY ENTIRELY distorded
+		//PlayerCamera->PostProcessSettings.bOverride_MotionBlurAmount = true;
+		//PlayerCamera->PostProcessSettings.bOverride_MotionBlurMax = true;
+		//PlayerCamera->PostProcessSettings.MotionBlurAmount = 100.9F;
+		//PlayerCamera->PostProcessSettings.MotionBlurMax = 200.9F;
+		//PlayerCamera->PostProcessSettings.bOverride_AutoExposureMaxBrightness = true;
+		//PlayerCamera->PostProcessSettings.bOverride_AutoExposureMinBrightness = true;
+		//PlayerCamera->PostProcessSettings.AutoExposureMaxBrightness = 9.0F;
+		//PlayerCamera->PostProcessSettings.AutoExposureMinBrightness = -9.0F;
+		//PlayerCamera->PostProcessSettings.bOverride_SceneColorTint = true;
+		//PlayerCamera->PostProcessSettings.SceneColorTint = FLinearColor(FColor(255, 192, 203));
+	}
+}
+
+void AUModCharacter::EndPlay(EEndPlayReason::Type reason)
+{
+	if (Role == ROLE_Authority) {
+		AUModGameMode *GameMode = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+		GameMode->OnPlayerDeath(this);
 	}
 }
 
@@ -84,6 +116,7 @@ void AUModCharacter::SetupPlayerInputComponent(class UInputComponent* InputCompo
 
 void AUModCharacter::Tick(float DeltaSeconds)
 {
+	Super::Tick(DeltaSeconds);
 	if (Role == ROLE_Authority && weapons[curWeapon] != NULL) {
 		if (InFire1) {
 			AWeaponBase *base = weapons[curWeapon];
@@ -189,7 +222,7 @@ void AUModCharacter::HandleReload()
 	}
 }
 void AUModCharacter::MoveForward(float Value)
-{
+{	
 	if (Value != 0.0f)
 	{
 		AddMovementInput(GetActorForwardVector(), Value);
@@ -203,7 +236,7 @@ void AUModCharacter::MoveRight(float Value)
 	}
 }
 void AUModCharacter::HandleUseStart()
-{
+{	
 	if (Role != ROLE_Authority) {
 		OnPlayerSpecialKey(0, true);
 	} else {
@@ -211,7 +244,7 @@ void AUModCharacter::HandleUseStart()
 	}
 }
 void AUModCharacter::HandleUseEnd()
-{
+{	
 	if (Role != ROLE_Authority) {
 		OnPlayerSpecialKey(0, false);
 	}
@@ -230,6 +263,7 @@ void AUModCharacter::HandleFlashLight()
 void AUModCharacter::HandleWeaponPrev()
 {
 	if (Role != ROLE_Authority) {
+		UE_LOG(UMod_Input, Log, TEXT("[DEBUG]OnPlayerSpecialKey->PrevWeapon"));
 		OnPlayerSpecialKey(2, false);
 	} else {
 		OnPlayerSpecialKey_Implementation(2, false);
@@ -238,6 +272,7 @@ void AUModCharacter::HandleWeaponPrev()
 void AUModCharacter::HandleWeaponNext()
 {
 	if (Role != ROLE_Authority) {
+		UE_LOG(UMod_Input, Log, TEXT("[DEBUG]OnPlayerSpecialKey->NextWeapon"));
 		OnPlayerSpecialKey(3, false);
 	} else {
 		OnPlayerSpecialKey_Implementation(3, false);
@@ -352,7 +387,7 @@ void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefau
 	DOREPLIFETIME(AUModCharacter, weapons);
 	DOREPLIFETIME(AUModCharacter, curWeapon);
 	DOREPLIFETIME(AUModCharacter, playerHealth);
-	//DOREPLIFETIME(AUModCharacter, PlayerAmmo);
+	DOREPLIFETIME(AUModCharacter, PlayerAmmo);
 }
 
 void AUModCharacter::UpdateClientSideData()
@@ -438,11 +473,13 @@ void AUModCharacter::OnPlayerSpecialKey_Implementation(uint8 bind, bool pressed)
 			}
 		}
 	} else if (bind == 2) { //IN_WEAPON_PREV
+		UE_LOG(UMod_Input, Log, TEXT("[DEBUG]OnPlayerSpecialKey->PrevWeapon"));
 		AWeaponBase *base = weapons[curWeapon];
 		if (base != NULL) {
 			base->OnWeaponPrev();
 		}
 	} else if (bind == 3) { //IN_WEAPON_NEXT
+		UE_LOG(UMod_Input, Log, TEXT("[DEBUG]OnPlayerSpecialKey->NextWeapon"));
 		AWeaponBase *base = weapons[curWeapon];
 		if (base != NULL) {
 			base->OnWeaponNext();
@@ -515,10 +552,7 @@ void AUModCharacter::KillPlayer()
 	}
 
 	playerHealth = 0;
-	AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-	gm->OnPlayerDeath(this);
-	
-	PlayerModel->SetSimulatePhysics(true);	
+	Destroy();
 }
 
 uint32 AUModCharacter::GetHealth()

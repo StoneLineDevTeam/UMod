@@ -12,6 +12,8 @@ struct FConnectionStats {
 	FString HostIP; //Resolved IP
 	FString HostAddress; //Entered IP in main menu
 	FString HostName; //Retrieved by console vars
+	bool ConnectionProblem;
+	float SecsBeforeDisconnect;
 };
 
 USTRUCT(BlueprintType)
@@ -52,7 +54,7 @@ class UUModGameEngine;
  * 
  */
 UCLASS()
-class UMOD_API UUModGameInstance : public UGameInstance, public FTickableGameObject
+class UUModGameInstance : public UGameInstance, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -70,18 +72,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Net Error Message", Keywords = "get net error"), Category = UMod_Specific)
 	FString GetNetErrorMessage();
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Num Objects To Load", Keywords = "get num objects"), Category = UMod_Specific)
-	int32 GetNumObjectToLoad();
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Current Objects Loaded Num", Keywords = "get cur num objects"), Category = UMod_Specific)
-	int32 GetCurLoadedObjectNum();
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Net Load Status", Keywords = "get net load status"), Category = UMod_Specific)
-	int32 GetNetLoadStatus();
 	
-	void SetLoadData(int32 total, int32 cur, int32 status);
-
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Disconnect Client", Keywords = "disconnect client"), Category = UMod_Specific)
 	void Disconnect(FString error);
 
@@ -140,13 +131,15 @@ public:
 	LuaEngine *Lua;
 
 	//Assets manager
-	UPROPERTY(BlueprintReadOnly)
+	//UPROPERTY(BlueprintReadOnly)
 	UUModAssetsManager *AssetsManager;
 	UPROPERTY(BlueprintReadOnly)
 	class UUModConsoleManager *ConsoleManager;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Show Fatal Message", Keywords = "fatal message"), Category = UMod_Specific)
 	static void ShowFatalMessage(FString content);
+
+	static void ShowMessage(FString content);
 
 	AUModCharacter* GetLocalPlayer();
 
@@ -156,11 +149,27 @@ public:
 
 	//Network hack
 	void OnNetworkConnectionCreation(ULocalPlayer* Player);
+
+	static bool DedicatedStatic;
+	//Command to run set directly by STDInputThread
+	static FString RunCMD;
+	static bool ShouldRunCMD;
+	//End
+
+	//Client Timeout vars
+	float ConnectTimeout;
+	float Timeout;
+	//End
+	//Server Timeout var
+	float ServerTimeout;
+	//End
 private:
 	//Global connected host vars
 	FString CurConnectedIP;
-	FString CurConnectedAddress;	
-	//End
+	FString CurConnectedAddress;
+	bool IsConnectionHealthy;
+	float InTimeOut;
+	//End	
 
 	//Server vars
 	FString HostName;

@@ -1,0 +1,5 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Stones/SmoothGranite"
+	"$surfaceprop" "rock"
+}

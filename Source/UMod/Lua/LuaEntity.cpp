@@ -5,39 +5,34 @@
 
 static TMap<FString, int> LuaEntityClasses;
 
-static int SetPos(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua);	
+DECLARE_LUA_FUNC(SetPos)
+	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua);
 	FVector pos = Lua.CheckVector(-1);
 	ent->SetActorLocation(pos);
 	return 0;
 }
 
-static int SetModel(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua);	
+DECLARE_LUA_FUNC(SetModel)
+	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua);
 	FString str = Lua.CheckString(-1);
-	ent->SetModel(str);	
+	ent->SetModel(str);
 	return 0;
 }
 
-static int GetPos(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GetPos)
 	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua); //Get the self entity
 	FVector pos = ent->GetActorLocation();
 	Lua.PushVector(pos);
 	return 1;
 }
 
-static int EntIndex(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(EntIndex)
 	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua); //Get the self entity	
 	Lua.PushInt(ent->GetUniqueID());
 	return 1;
 }
 
-static int GetClass(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GetClass)
 	AEntityBase *ent = LuaEntity::CheckEntity(1, &Lua); //Get the self entity
 	FString s = ent->GetClass();
 	Lua.PushString(s);
@@ -46,30 +41,13 @@ static int GetClass(lua_State *L) {
 
 void LuaEntity::RegisterEntityMetaTable(LuaInterface* Lua)
 {
-	Lua->PushString("Entity");
-	Lua->NewMetaTable("Entity");
-	Lua->PushString("SetPos");
-	Lua->PushCFunction(SetPos);
-	Lua->SetTable(-3);
-	Lua->PushString("GetPos");
-	Lua->PushCFunction(GetPos);
-	Lua->SetTable(-3);
-	Lua->PushString("GetClass");
-	Lua->PushCFunction(GetClass);
-	Lua->SetTable(-3);
-	Lua->PushString("SetModel");
-	Lua->PushCFunction(SetModel);
-	Lua->SetTable(-3);
-	Lua->PushString("EntIndex");
-	Lua->PushCFunction(EntIndex);
-	Lua->SetTable(-3);
-
-	//Set Entity.__index = Entity (saw in doc, means nothing for me)
-	Lua->PushString("__index");
-	Lua->PushValue(-2);
-	Lua->SetTable(-3);
-
-	Lua->SetTable(LUA_REGISTRYINDEX); //Add Entity metatable to the registry
+	LUA_TYPEDEF_BEGIN(Entity);
+	LUA_TYPEDEF_FUNC(SetPos, SetPos);
+	LUA_TYPEDEF_FUNC(GetPos, GetPos);
+	LUA_TYPEDEF_FUNC(GetClass, GetClass);
+	LUA_TYPEDEF_FUNC(SetModel, SetModel);
+	LUA_TYPEDEF_FUNC(EntIndex, EntIndex);
+	LUA_TYPEDEF_END();	
 }
 
 void LuaEntity::RegisterPlayerMetaTable(LuaInterface* Lua)

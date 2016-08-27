@@ -1,0 +1,6 @@
+"UNIQUE_UMOD"
+{
+	"$basetexture" "Metals/Rust"
+	"$normalmap" "Metals/Rust_N"
+	"$surfaceprop" "metal"
+}

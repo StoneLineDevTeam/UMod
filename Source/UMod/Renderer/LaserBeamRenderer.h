@@ -6,7 +6,7 @@
 #include "LaserBeamRenderer.generated.h"
 
 UCLASS()
-class UMOD_API ALaserBeamRenderer : public AActor
+class ALaserBeamRenderer : public AActor
 {
 	GENERATED_BODY()
 	

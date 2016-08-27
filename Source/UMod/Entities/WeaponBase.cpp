@@ -10,7 +10,7 @@
 const FString AWeaponBase::NULLAmmoType = FString();
 
 // Sets default values
-AWeaponBase::AWeaponBase()
+AWeaponBase::AWeaponBase() : Super()
 {
  	PrimaryActorTick.bCanEverTick = true;
 
@@ -30,19 +30,20 @@ AWeaponBase::AWeaponBase()
 	bReplicates = true;
 
 	if (GetFireSoundName() != "null") {
-		FString assetPath = "/Game/Sounds/Weapons/" + GetFireSoundName();
-		FireSound = LoadObjFromPath<USoundWave>(*assetPath);
 		AudioComp = CreateDefaultSubobject<UAudioComponent>(TEXT("AudioComp"));
-		AudioComp->SetSound(FireSound);
 	}
 }
 
 void AWeaponBase::ClientInit(AUModCharacter *ply)
 {
+	Game = Cast<UUModGameInstance>(GetGameInstance());
+
 	if (!Initialized) {
-		if (!this->GetModel().IsEmpty() && !this->GetModel().Equals("null")) {
-			FString vMdlPath = FString("/Game/Models/Weapons/V_") + this->GetModel();
-			FString wMdlPath = FString("/Game/Models/Weapons/W_") + this->GetModel();
+		if (!GetWorldModel().Equals("null") && !GetViewModel().Equals("null")) {
+			FString vMdlPath;
+			FString wMdlPath;
+			Game->AssetsManager->ResolveAsset(GetViewModel(), EUModAssetType::MODEL, vMdlPath);
+			Game->AssetsManager->ResolveAsset(GetWorldModel(), EUModAssetType::MODEL, wMdlPath);
 			UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
 			UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
 
@@ -53,11 +54,10 @@ void AWeaponBase::ClientInit(AUModCharacter *ply)
 			WorldModel->SetOwnerNoSee(true);
 		}
 
-		player = ply;
-		SetActorLocation(ply->GetRightHandLocation() + GetGunOffset());
+		Player = ply;
+		SetActorLocation(ply->GetRightHandLocation() + GetGunOffset());		
 		AttachRootComponentToActor(ply);
-
-		WorldModel->AttachTo(ply->PlayerModel, "RHand_AttachPoint", EAttachLocation::SnapToTarget);
+		WorldModel->AttachToComponent(ply->PlayerModel, FAttachmentTransformRules::SnapToTargetIncludingScale, "RHand_AttachPoint");
 
 		Initialized = true;
 	}
@@ -67,6 +67,18 @@ void AWeaponBase::ClientInit(AUModCharacter *ply)
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	Game = Cast<UUModGameInstance>(GetGameInstance());
+
+	if (GetFireSoundName() != "null") {
+		FString assetPath;
+		EResolverResult res = Game->AssetsManager->ResolveAsset(GetFireSoundName(), EUModAssetType::SOUND, assetPath);
+		if (res != EResolverResult::SUCCESS) {
+			return;
+		}
+		FireSound = LoadObjFromPath<USoundWave>(*assetPath);		
+		AudioComp->SetSound(FireSound);
+	}
 }	
 
 // Called every frame
@@ -79,9 +91,11 @@ void AWeaponBase::Tick(float DeltaTime)
 
 void AWeaponBase::DoInit(AUModCharacter *ply)
 {
-	if (!this->GetModel().IsEmpty() && !this->GetModel().Equals("null")) {
-		FString vMdlPath = FString("/Game/Models/Weapons/V_") + this->GetModel();
-		FString wMdlPath = FString("/Game/Models/Weapons/W_") + this->GetModel();
+	if (!GetWorldModel().Equals("null") && !GetViewModel().Equals("null")) {
+		FString vMdlPath;
+		FString wMdlPath;
+		Game->AssetsManager->ResolveAsset(GetViewModel(), EUModAssetType::MODEL, vMdlPath);
+		Game->AssetsManager->ResolveAsset(GetWorldModel(), EUModAssetType::MODEL, wMdlPath);
 		UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
 		UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
 
@@ -92,11 +106,11 @@ void AWeaponBase::DoInit(AUModCharacter *ply)
 		WorldModel->SetOwnerNoSee(true);
 	}
 
-	player = ply;
+	Player = ply;
 	SetActorLocation(ply->GetRightHandLocation() + GetGunOffset());
 	AttachRootComponentToActor(ply);
 
-	WorldModel->AttachTo(ply->PlayerModel, "RHand_AttachPoint", EAttachLocation::SnapToTarget);
+	WorldModel->AttachToComponent(ply->PlayerModel, FAttachmentTransformRules::SnapToTargetIncludingScale, "RHand_AttachPoint");
 
 	this->OnInit();
 }
@@ -128,19 +142,19 @@ void AWeaponBase::UnEquip()
 
 void AWeaponBase::OnPlayerFire(uint8 but, AWeaponBase::EFireState state)
 {
-	if (player == NULL) {
+	if (Player == NULL) {
 		return;
 	}
 
 	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, this);
-	RV_TraceParams.AddIgnoredActor(player);
+	RV_TraceParams.AddIgnoredActor(Player);
 	RV_TraceParams.bTraceComplex = true;
 	RV_TraceParams.bTraceAsyncScene = true;
 	RV_TraceParams.bReturnPhysicalMaterial = false;
 
 	FHitResult result(ForceInit);
-	FVector p = player->GetEyeLocation();
-	FVector rot = player->GetEyeAngles().Vector();
+	FVector p = Player->GetEyeLocation();
+	FVector rot = Player->GetEyeAngles().Vector();
 	bool hit = GetWorld()->LineTraceSingleByChannel(result,	p, p + (rot * 2000), ECC_Pawn, RV_TraceParams);
 	
 	//Using this wrapping function in case we want to add code before / after fire (like animation)
@@ -213,7 +227,12 @@ FString AWeaponBase::GetClass()
 	return "weapon_null";
 }
 
-FString AWeaponBase::GetModel()
+FString AWeaponBase::GetWorldModel()
+{
+	return "null";
+}
+
+FString AWeaponBase::GetViewModel()
 {
 	return "null";
 }
@@ -268,13 +287,13 @@ void AWeaponBase::SetAttachLocation(EWeaponAttachPos newPos)
 	switch (newPos)
 	{
 	case EWeaponAttachPos::LEFT_HAND:
-		WorldModel->AttachTo(player->PlayerModel, "LHand_AttachPoint", EAttachLocation::SnapToTarget);
+		WorldModel->AttachToComponent(Player->PlayerModel, FAttachmentTransformRules::SnapToTargetIncludingScale, "LHand_AttachPoint");
 		break;
 	case EWeaponAttachPos::RIGHT_HAND:
-		WorldModel->AttachTo(player->PlayerModel, "RHand_AttachPoint", EAttachLocation::SnapToTarget);
+		WorldModel->AttachToComponent(Player->PlayerModel, FAttachmentTransformRules::SnapToTargetIncludingScale, "RHand_AttachPoint");
 		break;
 	case EWeaponAttachPos::BODY_BACK:
-		WorldModel->AttachTo(player->PlayerModel, "BBack_AttachPoint", EAttachLocation::SnapToTarget);
+		WorldModel->AttachToComponent(Player->PlayerModel, FAttachmentTransformRules::SnapToTargetIncludingScale, "BBack_AttachPoint");
 		break;
 	case EWeaponAttachPos::BOTH_HANDS:
 		//TODO: Implement this case
@@ -306,28 +325,28 @@ bool AWeaponBase::ReloadClip(EClipType clip)
 
 	switch (clip) {
 	case EClipType::PRIMARY:
-		if (player->GetRemainingAmmo(GetPrimaryAmmoType()) > 0) {
-			if (player->GetRemainingAmmo(GetPrimaryAmmoType()) < GetPrimaryClipSize()) {
-				uint32 toReload = player->GetRemainingAmmo(GetPrimaryAmmoType());
-				player->RemoveAmmo(GetPrimaryAmmoType(), toReload);
+		if (Player->GetRemainingAmmo(GetPrimaryAmmoType()) > 0) {
+			if (Player->GetRemainingAmmo(GetPrimaryAmmoType()) < GetPrimaryClipSize()) {
+				uint32 toReload = Player->GetRemainingAmmo(GetPrimaryAmmoType());
+				Player->RemoveAmmo(GetPrimaryAmmoType(), toReload);
 				CurPrimaryClipSize = toReload;
 			} else {
 				CurPrimaryClipSize = GetPrimaryClipSize();
-				player->RemoveAmmo(GetPrimaryAmmoType(), CurPrimaryClipSize);
+				Player->RemoveAmmo(GetPrimaryAmmoType(), CurPrimaryClipSize);
 			}
 		} else {
 			return false;
 		}
 		break;
 	case EClipType::SECONDARY:
-		if (player->GetRemainingAmmo(GetSecondaryAmmoType()) > 0) {
-			if (player->GetRemainingAmmo(GetSecondaryAmmoType()) < GetSecondaryClipSize()) {
-				uint32 toReload = player->GetRemainingAmmo(GetSecondaryAmmoType());
-				player->RemoveAmmo(GetSecondaryAmmoType(), toReload);
+		if (Player->GetRemainingAmmo(GetSecondaryAmmoType()) > 0) {
+			if (Player->GetRemainingAmmo(GetSecondaryAmmoType()) < GetSecondaryClipSize()) {
+				uint32 toReload = Player->GetRemainingAmmo(GetSecondaryAmmoType());
+				Player->RemoveAmmo(GetSecondaryAmmoType(), toReload);
 				CurSecondaryClipSize = toReload;
 			} else {
 				CurSecondaryClipSize = GetSecondaryClipSize();
-				player->RemoveAmmo(GetSecondaryAmmoType(), CurSecondaryClipSize);
+				Player->RemoveAmmo(GetSecondaryAmmoType(), CurSecondaryClipSize);
 			}
 		} else {
 			return false;

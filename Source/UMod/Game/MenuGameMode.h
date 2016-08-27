@@ -9,10 +9,12 @@
  * 
  */
 UCLASS()
-class UMOD_API AMenuGameMode : public AGameMode
+class AMenuGameMode : public AGameMode
 {
 	GENERATED_BODY()
 
 public:
 	AMenuGameMode(const FObjectInitializer& ObjectInitializer);
+
+	virtual void BeginPlay();
 };

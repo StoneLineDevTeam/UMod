@@ -9,7 +9,7 @@
  * 
  */
 UCLASS()
-class UMOD_API UFrame : public UWidget
+class UFrame : public UWidget
 {
 	GENERATED_BODY()
 
