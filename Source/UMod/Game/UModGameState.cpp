@@ -65,5 +65,38 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 			FGenericPlatformMisc::RequestExit(true);
 		}
 	}
+
+	//Lua initialization system
+	LuaInitShared();
+	//End
+
 	Super::HandleMatchIsWaitingToStart();
+}
+
+void AUModGameState::LuaInitShared()
+{
+	//Lua change : start implementing call to GM functions
+
+	//Init Lua GameMode (only loads init.lua gamemode file currently)
+	Game = Cast<UUModGameInstance>(GetGameInstance());
+	FString LuaGameMode = Game->GetGameMode();
+	if (Game == NULL) {
+		UE_LOG(UMod_Game, Error, TEXT("UModGameInstance failed to retrieve in UModGameMode. Lua may be disfunctional..."));
+		return;
+	}
+	if (Role == ROLE_Authority) {
+		if (FPaths::FileExists(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/init.lua")) {
+			Game->Lua->RunScript(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/init.lua");
+		} else {
+			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Aborting Lua GameMode load."), *FString("GameModes/" + LuaGameMode + "/init.lua"));
+		}
+	} else {
+		FString file = UUModAssetsManager::Instance->GetLuaFile("GameModes/" + LuaGameMode + "/cl_init.lua");
+		if (FPaths::FileExists(file)) {
+			Game->Lua->RunScript(file);
+		} else {
+			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Aborting Lua GameMode load."), *FString("GameModes/" + LuaGameMode + "/cl_init.lua"));
+		}
+	}
+	Game->Lua->InitGameMode();
 }

@@ -21,23 +21,26 @@ AUModCharacter::AUModCharacter(const FObjectInitializer& ObjectInitializer) : Su
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// Create a CameraComponent	
-	PlayerCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	PlayerCamera->SetupAttachment(GetCapsuleComponent());
-	PlayerCamera->RelativeLocation = FVector(0, 0, 64.f);
-	PlayerCamera->bUsePawnControlRotation = true;
-
-	SpotLight = CreateDefaultSubobject<USpotLightComponent>("FlashLight");
-	SpotLight->RelativeLocation = FVector(0, 0, 60);
-	SpotLight->SetupAttachment(PlayerCamera);
-
 	//Create a mesh component that will be used as world model
 	PlayerModel = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PlayerModel"));
-	PlayerModel->SetOwnerNoSee(true);
-	PlayerModel->SetupAttachment(PlayerCamera);
+	PlayerModel->SetOwnerNoSee(false);
+	PlayerModel->SetupAttachment(GetCapsuleComponent());
 	PlayerModel->RelativeLocation = FVector(0.f, 0.f, -150.f);
 	PlayerModel->bCastDynamicShadow = false;
 	PlayerModel->CastShadow = false;
+
+	CameraHack = CreateDefaultSubobject<USceneComponent>(TEXT("CameraHack"));
+	CameraHack->SetupAttachment(PlayerModel);
+	CameraHack->RelativeLocation = FVector(0, 0, 64.f);
+
+	// Create a CameraComponent	
+	PlayerCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));	
+	PlayerCamera->bUsePawnControlRotation = true;
+	PlayerCamera->SetupAttachment(CameraHack);
+
+	SpotLight = CreateDefaultSubobject<USpotLightComponent>("FlashLight");
+	SpotLight->RelativeLocation = FVector(0, 0, 50);
+	SpotLight->SetupAttachment(PlayerCamera);
 
 	if (Role == ROLE_Authority) {
 		playerHealth = 100;
@@ -51,13 +54,14 @@ void AUModCharacter::BeginPlay()
 
 	AUModController *ctrl = Cast<AUModController>(GetController());
 	if (ctrl != NULL) {
-		ctrl->Player = this;
+		ctrl->NativePlayer = this;
 	}
 
 	if (Role == ROLE_Authority) {
 		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
 		gm->OnPlayerSpawn(this);
 	} else {
+		//ctrl->PlayerCameraManager->CameraCache.POV.Location = FVector(-5, -5, -5);
 		//Little post process test (MotionBlur) : DON'T EVER TRY 100.9F and 200.9F Screen Gets COMPLETELY ENTIRELY distorded
 		//PlayerCamera->PostProcessSettings.bOverride_MotionBlurAmount = true;
 		//PlayerCamera->PostProcessSettings.bOverride_MotionBlurMax = true;
@@ -387,7 +391,9 @@ void AUModCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefau
 	DOREPLIFETIME(AUModCharacter, weapons);
 	DOREPLIFETIME(AUModCharacter, curWeapon);
 	DOREPLIFETIME(AUModCharacter, playerHealth);
-	DOREPLIFETIME(AUModCharacter, PlayerAmmo);
+	DOREPLIFETIME(AUModCharacter, PlayerAmmo);	
+
+	AUTO_NWVARS_REP_CODE(AUModCharacter);
 }
 
 void AUModCharacter::UpdateClientSideData()
@@ -491,18 +497,6 @@ bool AUModCharacter::OnPlayerSpecialKey_Validate(uint8 bind, bool pressed)
 	return SpotLight != NULL;
 }
 
-
-void AUModCharacter::SetModel(FString path)
-{
-	if (Role != ROLE_Authority){
-		return;
-	}
-
-	FString realPath = FString("/Game/") + path;
-	USkeletalMesh *m = LoadObjFromPath<USkeletalMesh>(*realPath);
-	PlayerModel->SetSkeletalMesh(m);
-}
-
 void AUModCharacter::SetHealth(int32 var)
 {
 	if (Role != ROLE_Authority){
@@ -587,7 +581,13 @@ FVector AUModCharacter::GetEyeLocation()
 
 FRotator AUModCharacter::GetEyeAngles()
 {
-	return PlayerCamera->GetComponentRotation();
+	return Controller->GetControlRotation();	
+}
+
+void AUModCharacter::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
+{
+	OutResult.Location = GetEyeLocation();
+	OutResult.Rotation = GetEyeAngles();
 }
 
 FVector AUModCharacter::GetRightHandLocation()
@@ -626,3 +626,137 @@ bool AUModCharacter::IsUseKeyDown()
 {
 	return UseKey;
 }
+
+void AUModCharacter::AddPhysicsObject() //UModCharacter doesn't use regular physics
+{
+	UE_LOG(UMod_Game, Error, TEXT("Attempted to use physics on UModCharacter !"));
+}
+
+FPhysObj *AUModCharacter::GetPhysicsObject()
+{
+	return NULL;
+}
+
+void AUModCharacter::SetModel(FString path)
+{
+
+}
+
+FString AUModCharacter::GetModel()
+{
+	return "";
+}
+
+void AUModCharacter::SetCollisionModel(ECollisionType collision) //UModCharacter doesn't use regular physics
+{
+	UE_LOG(UMod_Game, Error, TEXT("Attempted to use physics on UModCharacter !"));
+}
+
+ECollisionType AUModCharacter::GetCollisionModel()
+{
+	return ECollisionType::COLLISION_PHYSICS;
+}
+
+void AUModCharacter::SetMaterial(FString path)
+{
+	//Not supported right now
+}
+
+void AUModCharacter::SetSubMaterial(int32 index, FString path)
+{
+	//Not supported right now
+}
+
+FString AUModCharacter::GetMaterial()
+{
+	return "";
+}
+
+FString AUModCharacter::GetSubMaterial(int32 index)
+{	
+	return "";
+}
+
+int32 AUModCharacter::GetSubMaterialsNum()
+{
+	return 0;
+}
+
+int AUModCharacter::GetLuaRef()
+{
+	return LuaReference;
+}
+
+void AUModCharacter::SetLuaRef(int r)
+{
+	LuaReference = r;
+}
+
+void AUModCharacter::SetLuaClass(FString s)
+{
+	LuaClassName = s;
+}
+
+void AUModCharacter::LuaUnRef()
+{
+	UUModGameInstance *Game = Cast<UUModGameInstance>(GetGameInstance());
+	Game->Lua->Lua->UnRef(LuaReference);
+	LuaReference = LUA_NOREF;
+}
+
+FString AUModCharacter::GetClass()
+{
+	if (!LuaClassName.IsEmpty()) {
+		return "LuaPlayer_" + LuaClassName;
+	}
+	return "Player";
+}
+
+void AUModCharacter::Remove()
+{
+	KillPlayer();
+}
+
+void AUModCharacter::SetPos(FVector vec)
+{
+	SetActorLocation(vec);
+}
+
+void AUModCharacter::SetAngles(FRotator ang)
+{
+	SetActorRotation(ang);
+}
+
+FVector AUModCharacter::GetPos()
+{
+	return GetActorLocation();
+}
+
+FRotator AUModCharacter::GetAngles()
+{
+	return GetActorRotation();
+}
+
+void AUModCharacter::SetColor(FColor col)
+{
+	//I need my material utilities for that
+}
+
+FColor AUModCharacter::GetColor()
+{
+	return FColor(0, 0, 0); //I need my material utilities for that
+}
+
+AUTO_NWVARS_BODY(AUModCharacter)
+
+EWaterLevel AUModCharacter::GetWaterLevel()
+{
+	return EWaterLevel::NULL_SUMBERGED;
+}
+
+int AUModCharacter::EntIndex()
+{
+	return GetUniqueID();
+}
+
+DEFINE_ENTITY(Player, AUModCharacter)

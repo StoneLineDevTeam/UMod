@@ -111,7 +111,7 @@ void AUModHUD::DrawIngameMenu()
 	
 	URender2D::SetColor(DarkGrey);
 	URender2D::SetFontScale(1, 1);
-	URender2D::DrawText("UMod - IngameMenu", size.X / 2, 100, TEXT_ALIGN_CENTER);
+	URender2D::DrawText("UMod - " + Game->GetGameMode(), size.X / 2, 100, TEXT_ALIGN_CENTER);
 	for (int i = 0; i < 16; i++) {
 		const Button* but = Buttons[i];
 		if (but != NULL) {
@@ -133,8 +133,8 @@ void AUModHUD::DrawPlayerStats()
 	FVector2D size = ScreenSize();
 
 	//Variables
-	uint32 Health = PlyCtrl->Player->GetHealth();
-	uint32 MaxHealth = PlyCtrl->Player->GetMaxHealth();
+	uint32 Health = PlyCtrl->NativePlayer->GetHealth();
+	uint32 MaxHealth = PlyCtrl->NativePlayer->GetMaxHealth();
 	int Armor = 45; //Why !? There is no armor feature planned, if you want armor feature tell me.
 
 	URender2D::SetColor(Back);
@@ -182,11 +182,11 @@ void AUModHUD::DrawWeaponStats()
 	FVector2D size = ScreenSize();
 
 	//Ammo and Weapon HUD
-	AWeaponBase *base = PlyCtrl->Player->GetActiveWeapon();
+	AWeaponBase *base = PlyCtrl->NativePlayer->GetActiveWeapon();
 	if (base != NULL) {
 		int Ammo = base->GetPrimaryAmmo();
 		int MaxAmmo = base->GetPrimaryClipSize();
-		int ReloadAmmo = PlyCtrl->Player->GetRemainingAmmo(base->GetPrimaryAmmoType());
+		int ReloadAmmo = PlyCtrl->NativePlayer->GetRemainingAmmo(base->GetPrimaryAmmoType());
 		FString WeaponName = base->GetNiceName();
 		float AmmoSizeX = size.X / 4.5;
 		float AmmoSizeY = size.Y / 9;
@@ -213,7 +213,7 @@ void AUModHUD::DrawWeaponSwitch()
 
 	//Weapon switch
 	for (int i = 0; i < 16; i++) {
-		AWeaponBase *b = PlyCtrl->Player->GetWeapons()[i];
+		AWeaponBase *b = PlyCtrl->NativePlayer->GetWeapons()[i];
 		if (b != NULL) {
 			URender2D::SetColor(FColor(0, 0, 0, 200));
 			URender2D::DrawRect(size.X / 2 - (64 * 8) + i * 64, 10, 64, 64);
@@ -259,7 +259,7 @@ void AUModHUD::MainHUDRender()
 
 	//Health and Armor Box
 	//Yeah localPlyCL is sometimes null thanks to buggy engine !!
-	if (PlyCtrl->Player != NULL) {
+	if (PlyCtrl->NativePlayer != NULL) {
 		DrawPlayerStats();
 		DrawWeaponStats();
 		DrawWeaponSwitch();
@@ -271,11 +271,13 @@ void AUModHUD::MainHUDRender()
 }
 void AUModHUD::DrawHUD()
 {
+	UMOD_STAT(RENDERHUD);
+
 	if (Game == NULL || PlyCtrl == NULL) { return; }
 	Super::DrawHUD();
 	URender2D::SetContext(Canvas);
 		
-	//Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "DrawHUD");
+	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "DrawHUD");
 
 	URender2D::SetFont(HUDFont);
 	MainHUDRender();

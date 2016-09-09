@@ -1,9 +1,11 @@
 #pragma once
 #include "UMod.h"
+#include "Lib.h"
 
-class LuaEngine;
-
-class LuaLibLog {
+class LuaLibLog : public LuaLib {
 public:
-	static void RegisterLogLib(LuaEngine *Lua);
+	virtual void RegisterLib(LuaEngine *Lua);
+	virtual bool IsClientOnly();
 };
+
+LUA_REG_APICLASS(LuaLibLog)

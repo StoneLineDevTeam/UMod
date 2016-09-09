@@ -9,9 +9,7 @@ class AEntityOverlapTest : public AEntityBase {
 	AEntityOverlapTest();
 public:	
 	virtual void OnInit();
-	virtual void OnBeginOverlap(AEntityBase *other);
-	virtual void OnEndOverlap(AEntityBase *other);
+	virtual void OnBeginOverlap(Entity *other);
+	virtual void OnEndOverlap(Entity *other);
 	virtual FString GetClass();
 };
-
-//DEFINE_ENTITY("OverlapTest", AEntityOverlapTest::StaticClass())

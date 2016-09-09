@@ -94,8 +94,8 @@ void AWeaponBase::DoInit(AUModCharacter *ply)
 	if (!GetWorldModel().Equals("null") && !GetViewModel().Equals("null")) {
 		FString vMdlPath;
 		FString wMdlPath;
-		Game->AssetsManager->ResolveAsset(GetViewModel(), EUModAssetType::MODEL, vMdlPath);
-		Game->AssetsManager->ResolveAsset(GetWorldModel(), EUModAssetType::MODEL, wMdlPath);
+		UUModAssetsManager::Instance->ResolveAsset(GetViewModel(), EUModAssetType::MODEL, vMdlPath);
+		UUModAssetsManager::Instance->ResolveAsset(GetWorldModel(), EUModAssetType::MODEL, wMdlPath);
 		UStaticMesh *vMesh = LoadObjFromPath<UStaticMesh>(*vMdlPath);
 		UStaticMesh *wMesh = LoadObjFromPath<UStaticMesh>(*wMdlPath);
 

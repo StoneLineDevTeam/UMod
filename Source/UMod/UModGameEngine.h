@@ -5,6 +5,10 @@
 #include "DataChannel.h"
 #include "UModGameEngine.generated.h"
 
+//https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/GameFramework/UGameUserSettings/index.html
+//Here take a look at GEngine->GameUserSettings to change render quality
+//UAnimNotify to get anim notifies in pure C++
+
 class UUModAssetsManager;
 
 USTRUCT(BlueprintType)
@@ -90,20 +94,22 @@ struct FPlatformStats {
 	float CpuUsedOneCore;
 };
 
-//Custom control channel messages
+//Pre-connect packets
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStart, 21, uint8); //Start UMod data (Client = {0 = Connect, 1 = ServerPoll}, Server = 2)
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 22); //Start sending bools and different variables like warnings, etc
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsInt, 23, FString, int32); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsBool, 33, FString, bool); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsString, 34, FString, FString); //Send a variable
-DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 24); //Done sending variables
+//DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModStartVars, 22); //Start sending bools and different variables like warnings, etc
+//DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsInt, 23, FString, int32); //Send a variable
+//DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsBool, 33, FString, bool); //Send a variable
+//DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendVarsString, 34, FString, FString); //Send a variable
+//DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndVars, 24); //Done sending variables
+DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModConnectVars, 22, FString, FString, uint8); //GameMode, HostName, flags (unused for the moment)
 DEFINE_CONTROL_CHANNEL_MESSAGE_ONEPARAM(UModStartLua, 29, FString); //Start sending a lua file
 DEFINE_CONTROL_CHANNEL_MESSAGE_TWOPARAM(UModSendLua, 30, FString, uint8); //Send a line of the file (content, mode)
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEndLua, 31); //Indicates client to close the file as the upload is done
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModEnd, 32); //End UMod data
+//Gameplay packet
 DEFINE_CONTROL_CHANNEL_MESSAGE_ZEROPARAM(UModChangeMap, 36);
-//The poll control channel message
-DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 35, FString, uint32, uint32); //Server poll (server name, cur players, max players)
+//Poll packet (MC-like)
+DEFINE_CONTROL_CHANNEL_MESSAGE_THREEPARAM(UModPoll, 35, FString, uint32, uint32); //Server poll (host name, cur players, max players)
 
 class UServerHandler;
 class UClientHandler;
@@ -111,7 +117,7 @@ class UClientHandler;
 UCLASS()
 class UUModGameEngine : public UGameEngine {
 	GENERATED_BODY()
-public:
+public:	
 	//Changes game's resolution returns true if success, false otherwise
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Change Game Resolution", Keywords = "game resolution set change"), Category = UMod_Specific)
 	bool ChangeGameResolution(FUModGameResolution res);
@@ -135,8 +141,7 @@ public:
 	virtual bool LoadMap(FWorldContext & WorldContext, FURL URL, class UPendingNetGame * Pending, FString & Error);
 
 	//Yeah let's start again with hacking ! This time UE4 didn't want to set the window title I decided, so I'm obligated to fuck it up !
-	virtual void Init(class IEngineLoop* InEngineLoop) override;
-	//virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
+	virtual void Init(class IEngineLoop* InEngineLoop) override;	
 
 	UUModGameInstance *GetGame();
 
@@ -150,10 +155,12 @@ public:
 	UUModAssetsManager *AssetsManager;
 	
 	void SetLoadData(int32 totalObjs, int32 curObjs, FString loadText);
+
+	static void GetDisplayProperties(int &Width, int &Height, bool &FullScreen);
 private:
 	//Function called by GameInstance itself by a trickky method...
 	//EDIT : No longer called by trick instead done through Init
-	void OnDisplayCreated();
+	void OnDisplayCreated(void* Icon);
 
 	UServerHandler *NetHandleSV;
 	UClientHandler *NetHandleCL;

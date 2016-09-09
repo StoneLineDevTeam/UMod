@@ -1,15 +1,13 @@
 #include "UMod.h"
 #include "LuaLibGame.h"
-#include "LuaEngine.h"
 #include "UModGameInstance.h"
 
-static UUModGameInstance *Game1;
+#define LUA_AUTOREPLICATE
 
 /*Base game.* library*/
-static int GameGetMaps(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GameGetMaps)	
 	Lua.NewTable();
-	TArray<FUModMap> Maps = Game1->AssetsManager->GetMapList();
+	TArray<FUModMap> Maps = LuaLib::Game->AssetsManager->GetMapList();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Available maps : %i"), Maps.Num());
 	for (int i = 0; i < Maps.Num(); i++) {
 		FUModMap Map = Maps[i];
@@ -31,14 +29,13 @@ static int GameGetMaps(lua_State *L) {
 	}
 	return 1;
 }
-static int GameGetAssets(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GameGetAssets)
 	FString mnt = Lua.CheckString(1);
 	int i = Lua.CheckInt(2);
 	Lua.NewTable();
 	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
 	EUModAssetType t = EUModAssetType(i);
-	TArray<FUModAsset> Assets = Game1->AssetsManager->GetAssetList(mnt, t);
+	TArray<FUModAsset> Assets = LuaLib::Game->AssetsManager->GetAssetList(mnt, t);
 	for (int i = 0; i < Assets.Num(); i++) {
 		FUModAsset Asset = Assets[i];
 		//Reverse the index so now lua can easely do #tbl or for k, v in pairs(tbl)
@@ -56,46 +53,71 @@ static int GameGetAssets(lua_State *L) {
 	}
 	return 1;
 }
-static int GameIsDedicated(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.PushBool(Game1->IsDedicatedServer());
+DECLARE_LUA_FUNC(GameGetConnectionInfo)
+	FConnectionStats stats = LuaLib::Game->GetConnectionInfo();
+	Lua.NewTable();
+	LUA_SETTABLE("GameMode", String, stats.GameMode);
+	LUA_SETTABLE("HostName", String, stats.HostName);
+	LUA_SETTABLE("HostAddress", String, stats.HostAddress);
+	LUA_SETTABLE("HostIP", String, stats.HostIP);
+	LUA_SETTABLE("ConnectionProblem", Bool, stats.ConnectionProblem);
+	LUA_SETTABLE("SecsBeforeDisconnect", Float, stats.SecsBeforeDisconnect);
 	return 1;
 }
-static int GameIsListen(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	Lua.PushBool(Game1->IsListenServer());
+DECLARE_LUA_FUNC(GameGetGameMode)
+	Lua.PushString(LuaLib::Game->GetGameMode());
 	return 1;
 }
-static int GameDisconnect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GameGetHostName)
+	Lua.PushString(LuaLib::Game->GetHostName());
+	return 1;
+}
+DECLARE_LUA_FUNC(GameGetVersion)
+	Lua.PushString(LuaLib::Game->GetGameVersion());
+	return 1;
+}
+DECLARE_LUA_FUNC(GameIsDedicated)	
+	Lua.PushBool(LuaLib::Game->IsDedicatedServer());
+	return 1;
+}
+DECLARE_LUA_FUNC(GameIsListen)	
+	Lua.PushBool(LuaLib::Game->IsListenServer());
+	return 1;
+}
+DECLARE_LUA_FUNC(GameDisconnect)	
 	FString msg = Lua.CheckString(1);
-	Game1->Disconnect(msg);
+	LuaLib::Game->Disconnect(msg);
 	return 0;
 }
-static int GameShowFatalMessage(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GameShowFatalMessage)
 	FString msg = Lua.CheckString(1);
 	UUModGameInstance::ShowFatalMessage(msg);
 	return 0;
 }
-static int GameExit(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(GameExit)
 	UUModGameInstance::ExitGame();
 	return 0;
 }
 /*End*/
 
-void LuaLibGame::RegisterGameLib(LuaEngine *Lua, UUModGameInstance *Inst)
-{
-	Game1 = Inst;
+#undef LUA_AUTOREPLICATE
 
+void LuaLibGame::RegisterLib(LuaEngine *Lua)
+{
 	Lua->BeginLibReg("game");
-	Lua->AddLibFunction("GetMapList", GameGetMaps);
-	Lua->AddLibFunction("GetAssetList", GameGetAssets);
-	Lua->AddLibFunction("IsDedicated", GameIsDedicated);
-	Lua->AddLibFunction("IsListen", GameIsListen);
-	Lua->AddLibFunction("Disconnect", GameDisconnect);
-	Lua->AddLibFunction("ShowFatalMessage", GameShowFatalMessage);
+	Lua->AddLibFunction("GetMapList", LUA_GameGetMaps);
+	Lua->AddLibFunction("GetAssetList", LUA_GameGetAssets);
+	Lua->AddLibFunction("IsDedicated", LUA_GameIsDedicated);	
+	if (LuaLib::Game->IsDedicatedServer()) {
+		Lua->AddLibFunction("GetGameMode", LUA_GameGetGameMode);
+		Lua->AddLibFunction("GetHostName", LUA_GameGetHostName);
+	} else {
+		Lua->AddLibFunction("GetConnectionInfo", LUA_GameGetConnectionInfo);
+	}	
+	Lua->AddLibFunction("GetVersion", LUA_GameGetVersion);
+	Lua->AddLibFunction("IsListen", LUA_GameIsListen);
+	Lua->AddLibFunction("Disconnect", LUA_GameDisconnect);
+	Lua->AddLibFunction("ShowFatalMessage", LUA_GameShowFatalMessage);
 	Lua->CreateLibrary();
 
 	Lua->BeginLibReg("AssetType");
@@ -103,4 +125,9 @@ void LuaLibGame::RegisterGameLib(LuaEngine *Lua, UUModGameInstance *Inst)
 	Lua->AddLibConstant("TEXTURE", 1);
 	Lua->AddLibConstant("MODEL", 2);
 	Lua->CreateLibrary();
+}
+
+bool LuaLibGame::IsClientOnly()
+{
+	return false;
 }

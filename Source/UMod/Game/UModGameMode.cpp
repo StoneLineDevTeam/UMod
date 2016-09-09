@@ -34,7 +34,7 @@ void AUModGameMode::BeginPlay()
 
 	//Init Lua GameMode (only loads init.lua gamemode file currently)
 	Game = Cast<UUModGameInstance>(GetGameInstance());
-	FString LuaGameMode = Game->GetGameMode();
+	/*FString LuaGameMode = Game->GetGameMode();
 	if (Game == NULL) {
 		UE_LOG(UMod_Game, Error, TEXT("UModGameInstance failed to retrieve in UModGameMode. Lua may be disfunctional..."));
 		return;
@@ -51,8 +51,8 @@ void AUModGameMode::BeginPlay()
 		} else {
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/cl_init.lua"));
 		}*/
-	}
-	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "Initialize");
+	/*}
+	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "Initialize");*/
 }
 
 void AUModGameMode::OnPlayerDeath(AUModCharacter* player)
@@ -68,7 +68,7 @@ void AUModGameMode::OnPlayerInitialSpawn(AUModCharacter *player)
 
 void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
 {
-	Game->Lua->RunScriptFunctionOneParam(ETableType::GLOBAL, 0, "EntitySpawned", FLuaParam<AEntityBase>(ent));
+	Game->Lua->RunScriptFunctionOneParam(ETableType::GLOBAL, 0, "EntitySpawned", FLuaParam<Entity>(ent));
 }
 
 //TODO : Bind to Lua

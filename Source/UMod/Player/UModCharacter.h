@@ -3,13 +3,14 @@
 #include "GameFramework/Character.h"
 #include "Entities/WeaponBase.h"
 #include "Entities/EntityBase.h"
+#include "Entities/Entity.h"
 
 #include "UModCharacter.generated.h"
 
 class UInputComponent;
 
 UCLASS()
-class AUModCharacter : public ACharacter
+class AUModCharacter : public ACharacter, public Entity
 {
 	GENERATED_BODY()
 			
@@ -48,6 +49,19 @@ private:
 	bool InFire2;
 
 	bool UseKey;
+
+	int LuaReference;
+	FString LuaClassName;
+
+	/* Tried to do this in macros however it seam that UBT runs UHT before C++ preprocessor... */
+	UPROPERTY(Replicated)
+	TMap<FString, int> NWInts;
+	UPROPERTY(Replicated)
+	TMap<FString, FString> NWStrings;
+	UPROPERTY(Replicated)
+	TMap<FString, uint32> NWUInts;
+	UPROPERTY(Replicated)
+	TMap<FString, float> NWFloats;
 protected:
 	
 	/* Fire system */
@@ -84,6 +98,7 @@ public:
 	
 	virtual void Tick(float DeltaSeconds) override;
 
+	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult);
 
 	/* UMod Specific */
 
@@ -99,8 +114,6 @@ public:
 	AWeaponBase* GetActiveWeapon();
 	//@ServerSide Switchs to another weapon slot
 	void SwitchWeapon(uint8 id);
-	//@Shared Sets the world model for this player
-	void SetModel(FString path);
 	//@ServerSide gives ammo (does not reload weapon clip !)
 	void GiveAmmo(FString ammoType, uint32 amount);
 	void RemoveAmmo(FString ammoType, uint32 amount);
@@ -118,20 +131,54 @@ public:
 	uint32 GetMaxHealth();
 	//End
 
-	//Get the water level of the level
-	EWaterLevel GetWaterLevel();
-
 	void DamagePlayer(int32 force);
 	
 	void KillPlayer();
 
 	void HealPlayer(int32 amount);
 
+	/*Entity Inetrface start*/
+	//Lua
+	virtual int GetLuaRef();
+	virtual void SetLuaRef(int r);
+	virtual void LuaUnRef();
+	virtual void SetLuaClass(FString s);
+
+	virtual void Remove();
+	virtual int EntIndex();
+	virtual void SetPos(FVector vec);
+	virtual void SetAngles(FRotator ang);
+	virtual FVector GetPos();
+	virtual FRotator GetAngles();
+	virtual void SetColor(FColor col);
+	virtual FColor GetColor();
+
+	//lib
+	virtual void AddPhysicsObject(); //Works only in OnInit(), used to remove the synced physics system, ServerSide
+	virtual FPhysObj *GetPhysicsObject();
+	virtual void SetCollisionModel(ECollisionType collision); //ServerSide
+	virtual ECollisionType GetCollisionModel();
+	virtual void SetModel(FString path);
+	virtual FString GetModel();
+	virtual void SetMaterial(FString path); //No sync possible : UE4 does not allow c array replication
+	virtual void SetSubMaterial(int32 index, FString path); //No sync possible : UE4 does not allow c array replication
+	virtual FString GetMaterial();
+	virtual FString GetSubMaterial(int32 index);
+	virtual int32 GetSubMaterialsNum();
+	virtual FString GetClass();
+	//NW Vars (Future) (Using spacial macro)
+	AUTO_NWVARS_HEADER();
+	virtual EWaterLevel GetWaterLevel();
+	/* Entity Interface end */
+
 	UPROPERTY(VisibleDefaultsOnly, Category = UMod_Specific)
 	class USkeletalMeshComponent* PlayerModel;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UMod_Specific)
 	class UCameraComponent* PlayerCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = UMod_Specific)
+	class USceneComponent *CameraHack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UMod_Specific)
 	USpotLightComponent* SpotLight;

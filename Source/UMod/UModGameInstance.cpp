@@ -20,9 +20,8 @@
 #include "IpNetDriver.h"
 #include "IpConnection.h"
 
-const FString GVersion = FString("0.4 - Alpha");
+
 FString LuaVersion;
-const FString LuaEngineVersion = FString("NULL");
 
 bool UUModGameInstance::DedicatedStatic = false;
 bool UUModGameInstance::ShouldRunCMD = false;
@@ -41,6 +40,13 @@ void UUModGameInstance::OnNetworkConnectionCreation(ULocalPlayer *Player)
 	Player->PlayerController->ClientTravel(ConnectIP, ETravelType::TRAVEL_Absolute);
 }
 //End
+
+void UUModGameInstance::SetupClientConnection(FString GM, FString HN, uint8 Flags)
+{
+	GameMode = GM;
+	HostName = HN;
+	//TODO : maybe use flags...
+}
 
 void UUModGameInstance::LogMessage(FString msg, ELogLevel level, ELogCategory cat)
 {
@@ -107,9 +113,10 @@ FString UUModGameInstance::GetGameVersion()
 
 FString UUModGameInstance::GetEngineVersion()
 {
-	int32 vers = GEngine->GetLinkerUE4Version();
+	FEngineVersion vers = FEngineVersion::Current();
+	FString version = FString::FromInt(vers.GetMajor()) + "." + FString::FromInt(vers.GetMinor()) + "." + FString::FromInt(vers.GetPatch());	
 
-	return FString::FromInt(vers);
+	return version;
 }
 
 FLuaEngineVersion UUModGameInstance::GetLuaEngineVersion()
@@ -168,9 +175,8 @@ void UUModGameInstance::Init()
 	GLog->SerializeBacklog(ConsoleManager);
 	GLog->EnableBacklog(true);
 	//End
-
-	int32 vers = GEngine->GetLinkerUE4Version();
-	UE_LOG(UMod_Game, Log, TEXT("UMod - V.%s | Engine V.%s"), *GetGameVersion(), *FString::FromInt(vers));
+		
+	UE_LOG(UMod_Game, Log, TEXT("UMod - V.%s | Engine V.%s"), *GetGameVersion(), *GetEngineVersion());
 
 	GEngine->ConsoleClass = UConsoleDestroyer::StaticClass();
 
@@ -660,6 +666,7 @@ FConnectionStats UUModGameInstance::GetConnectionInfo()
 	stats.HostName = ConsoleManager->GetConsoleVar<FString>("HostName");
 	stats.ConnectionProblem = !IsConnectionHealthy;
 	stats.SecsBeforeDisconnect = InTimeOut;
+	stats.GameMode = GameMode;
 	return stats;
 }
 

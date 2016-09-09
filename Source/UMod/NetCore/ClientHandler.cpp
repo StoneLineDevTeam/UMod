@@ -56,40 +56,16 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		UUModGameEngine::IsPollingServer = false;
 		break;
 	}
-	case NMT_UModStartVars:
-		FNetControlMessage<NMT_UModStartVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	case NMT_UModSendVarsInt:
+	case NMT_UModConnectVars:
 	{
-		FString str;
-		int t;
-		FNetControlMessage<NMT_UModSendVarsInt>::Receive(Bunch, str, t);
-		GEngine->GetGame()->ConsoleManager->SetConsoleVar<int>(str, t);
+		//TODO : Read connect vars
+		FString GameMode;
+		FString HostName;
+		uint8 Flags;
+		FNetControlMessage<NMT_UModConnectVars>::Receive(Bunch, GameMode, HostName, Flags);
+		GEngine->GetGame()->SetupClientConnection(GameMode, HostName, Flags);
 
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModSendVarsBool:
-	{
-		FString str;
-		bool b;
-		FNetControlMessage<NMT_UModSendVarsBool>::Receive(Bunch, str, b);
-		GEngine->GetGame()->ConsoleManager->SetConsoleVar<bool>(str, b);
-
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModSendVarsString:
-	{
-		FString str;
-		FString s;
-		FNetControlMessage<NMT_UModSendVarsString>::Receive(Bunch, str, s);
-		GEngine->GetGame()->ConsoleManager->SetConsoleVar<FString>(str, s);
-
-		FNetControlMessage<NMT_UModEndVars>::Send(Connection);
+		FNetControlMessage<NMT_UModEnd>::Send(Connection);
 		Connection->FlushNet();
 		break;
 	}
@@ -126,11 +102,6 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		Connection->FlushNet();
 		break;
 	}
-	case NMT_UModEndVars:
-		//Server is done uploading console vars
-		FNetControlMessage<NMT_UModEnd>::Send(Connection);
-		Connection->FlushNet();
-		break;
 	case NMT_UModEndLua:
 	{
 		//Server is done uploading lua
@@ -159,7 +130,7 @@ void UClientHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 	}
 
 	//This runs if we have a zero param message
-	if (MessageType == NMT_UModStartVars || MessageType == NMT_UModEndVars || MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd || MessageType == NMT_UModChangeMap) {
+	if (MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd || MessageType == NMT_UModChangeMap) {
 		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !		
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
 	}

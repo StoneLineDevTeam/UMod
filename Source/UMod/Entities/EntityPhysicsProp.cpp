@@ -26,7 +26,7 @@ void AEntityPhysicsProp::OnInit()
 	if (Role == ROLE_Authority) {
 		GetInitProperty<float>("GravityScale", InGravityScale);
 		PhysObj->SetGravityScale(InGravityScale);
-	}
+	}	
 }
 
-DEFINE_ENTITY(PhysicsProp, AEntityPhysicsProp::StaticClass())
+DEFINE_ENTITY(PhysicsProp, AEntityPhysicsProp)

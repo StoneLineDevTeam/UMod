@@ -16,11 +16,12 @@
 
 //Custom control channel messages
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStart);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsBool);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsInt);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsString);
-IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
+//IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartVars);
+//IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsBool);
+//IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsInt);
+//IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendVarsString);
+//IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndVars);
+IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModConnectVars);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModStartLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModSendLua);
 IMPLEMENT_CONTROL_CHANNEL_MESSAGE(UModEndLua);
@@ -110,48 +111,21 @@ UUModGameInstance *UUModGameEngine::GetGame()
 
 void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 {
+	UMOD_STAT(LOADINGEngine);
+
 	AssetsManager = new UUModAssetsManager();
 	UUModAssetsManager::Instance = AssetsManager;
 
 	//YOUHOU ! It's overWRITE now not override !
 #if UE_BUILD_SERVER
-	FString MapToLoad;
-	GConfig->GetString(TEXT("Dedicated"), TEXT("Map"), MapToLoad, ServerCFG);
-	if (MapToLoad.IsEmpty()) {
-		MapToLoad = FString("FirstPersonExampleMap");
-		GConfig->SetString(TEXT("Dedicated"), TEXT("Map"), *MapToLoad, ServerCFG);
-	}
-
-	//Check if we want logging
-	bool Log;
-	GConfig->GetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
-	GConfig->SetBool(TEXT("Common"), TEXT("DoLogging"), Log, ServerCFG);
-
-	FString mapPath;
-	EResolverResult res = AssetsManager->ResolveAsset(MapToLoad, EUModAssetType::MAP, mapPath);
-	if (res != EResolverResult::SUCCESS) {
-		UUModGameInstance::ShowMessage("AssetsManager->ResolveAsset returned " + AssetsManager->GetErrorMessage(res));
-		UE_LOG(UMod_Maps, Error, TEXT("Aborting engine load : %s"), *AssetsManager->GetErrorMessage(res));
-		return;
-	}
-	const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
-	GameMapsSettings->SetGameDefaultMap(mapPath);
-	GameMapsSettings->SetGlobalDefaultGameMode("UModGameMode");
-
-	GLogConsole->Show(true);
-	GLogConsole->SetSuppressEventTag(false);
-
-	FString str = mapPath + " -log";
-	FCommandLine::Set(*str);
-
 	IsDedicated = true;
-	IsListen = false;
-#else
+#endif
 	FString str = FCommandLine::Get();
 	TArray<FString> cmds;
 	str.ParseIntoArray(cmds, TEXT(" "));
-	if (cmds.Contains("-server")) {		
+	if (cmds.Contains("-server") || IsDedicated) {		
 		IsDedicated = true;
+		IsListen = false;
 		UUModGameInstance::DedicatedStatic = true;
 
 		//Retrieve map name from config
@@ -176,7 +150,7 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 		}
 		const UGameMapsSettings* GameMapsSettings = GetDefault<UGameMapsSettings>();
 		GameMapsSettings->SetGameDefaultMap(mapPath);
-		GameMapsSettings->SetGlobalDefaultGameMode("Game/UModGameMode.h");
+		GameMapsSettings->SetGlobalDefaultGameMode("/Script/UMod.UModGameMode");
 
 		GLogConsole->Show(true);
 		GLogConsole->SetSuppressEventTag(false);
@@ -186,8 +160,11 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 			str.Append(" -log");
 		}
 		FCommandLine::Set(*str);
-	} else {
+	}
+#if !UE_BUILD_SERVER
+	else {
 		IsDedicated = false;
+		IsListen = false;
 		UUModGameInstance::DedicatedStatic = false;
 
 		bool Log;
@@ -205,14 +182,8 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 	FString path = FPaths::GameDir() + "/UMod.ico";
 	void* icon = Platform.LoadIconFromFile(path, 32, 32);
 	if (!IsDedicated) {
-		TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
-		WindowPtr->SetSizingRule(ESizingRule::FixedSize);
-		WindowPtr->SetTitle(FText::FromString("UMod Client"));
-		Platform.SetWindowIcon(WindowPtr->GetNativeWindow()->GetOSWindowHandle(), icon);
-		Platform.DisableWindowResize(WindowPtr->GetNativeWindow()->GetOSWindowHandle());		
-		WindowPtr->HideWindow();
 		Super::Init(InEngineLoop);
-		OnDisplayCreated();
+		OnDisplayCreated(icon);		
 		UE_LOG(UMod_Game, Log, TEXT("Display data has been overwritten."));
 		UE_LOG(UMod_Game, Log, TEXT("Running UMod as client application..."));
 	} else {
@@ -228,53 +199,39 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 	}
 }
 
-/*void UUModGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
+void UUModGameEngine::GetDisplayProperties(int &Width, int &Height, bool &FullScreen)
 {
-	Super::Tick(DeltaSeconds, bIdleMode);
-	//Super hacky code I know but UE4 decided that it was great to ReshapeWindow in tick I had to fuck it up...
-	//In other words we were not in aggreement...
-	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
-	if (WindowPtr.IsValid()) {
-		FVector2D vec = WindowPtr->GetSizeInScreen();
-		if (vec.X != CurrentGameResolution.GameWidth || vec.Y != CurrentGameResolution.GameHeight) {
-			OnDisplayCreated();
-		}
-	}
-}*/
-
-void UUModGameEngine::OnDisplayCreated()
-{
-	int32 width = MinResX;
-	int32 height = MinResY;
+	Width = MinResX;
+	Height = MinResY;
+	FullScreen = false;
 
 	FDisplayMetrics metrics;
 	FDisplayMetrics::GetDisplayMetrics(metrics);
 	int32 PW = metrics.PrimaryDisplayWidth;
 	int32 PH = metrics.PrimaryDisplayHeight;
 
-	bool full;
-	GConfig->GetInt(TEXT("Viewport"), TEXT("Width"), width, ClientCFG);
-	GConfig->GetInt(TEXT("Viewport"), TEXT("Height"), height, ClientCFG);
-	GConfig->GetBool(TEXT("Viewport"), TEXT("FullScreen"), full, ClientCFG);
-	GSystemResolution.ResX = width;
-	GSystemResolution.ResY = height;
-	if (full) {
-		GSystemResolution.WindowMode = EWindowMode::Fullscreen;
-	} else {
-		GSystemResolution.WindowMode = EWindowMode::Windowed;
-	}
-	//UGameUserSettings::RequestResolutionChange(GSystemResolution.ResX, GSystemResolution.ResY, GSystemResolution.WindowMode, false);
-	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();	
-	WindowPtr->ReshapeWindow(FVector2D(PW / 2 - width / 2, PH / 2 - height / 2), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
-	WindowPtr->SetWindowMode(GSystemResolution.WindowMode);
-	WindowPtr->ShowWindow();
-	WindowPtr->ReshapeWindow(FVector2D(PW / 2 - width / 2, PH / 2 - height / 2), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
-	CurrentGameResolution = FUModGameResolution(GSystemResolution.ResX, GSystemResolution.ResY, full);
+	GConfig->GetInt(TEXT("Viewport"), TEXT("Width"), Width, ClientCFG);
+	GConfig->GetInt(TEXT("Viewport"), TEXT("Height"), Height, ClientCFG);
+	GConfig->GetBool(TEXT("Viewport"), TEXT("FullScreen"), FullScreen, ClientCFG);
+	GConfig->SetInt(TEXT("Viewport"), TEXT("Width"), Width, ClientCFG);
+	GConfig->SetInt(TEXT("Viewport"), TEXT("Height"), Height, ClientCFG);
+	GConfig->SetBool(TEXT("Viewport"), TEXT("FullScreen"), FullScreen, ClientCFG);
+}
+
+void UUModGameEngine::OnDisplayCreated(void* Icon)
+{
+	bool b = GSystemResolution.WindowMode == EWindowMode::Fullscreen ? true : false;
+	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();
+	FUModPlatformUtils Platform = FUModPlatformUtils();
+	WindowPtr->SetSizingRule(ESizingRule::FixedSize);
+	WindowPtr->SetTitle(FText::FromString("UMod Client"));
+	Platform.SetWindowIcon(WindowPtr->GetNativeWindow()->GetOSWindowHandle(), Icon);
+	Platform.DisableWindowResize(WindowPtr->GetNativeWindow()->GetOSWindowHandle());
+	CurrentGameResolution = FUModGameResolution(GSystemResolution.ResX, GSystemResolution.ResY, b);
 }
 
 bool UUModGameEngine::ChangeGameResolution(FUModGameResolution res)
 {
-	//Use ReshapeWindow is SWindow in order to change game resolution (it works better)
 	if (GetGameResolution() == res) {
 		return false;
 	}
@@ -299,11 +256,9 @@ bool UUModGameEngine::ChangeGameResolution(FUModGameResolution res)
 	GSystemResolution.ResY = res.GameHeight;
 	if (res.FullScreen) {
 		GSystemResolution.WindowMode = EWindowMode::Fullscreen;
-	}
-	else {
+	} else {
 		GSystemResolution.WindowMode = EWindowMode::Windowed;
 	}
-	//UGameUserSettings::RequestResolutionChange(GSystemResolution.ResX, GSystemResolution.ResY, GSystemResolution.WindowMode, false);
 	TSharedPtr<SWindow> WindowPtr = GameViewportWindow.Pin();	
 	WindowPtr->ReshapeWindow(WindowPtr->GetPositionInScreen(), FVector2D(GSystemResolution.ResX, GSystemResolution.ResY));
 	WindowPtr->SetWindowMode(GSystemResolution.WindowMode);

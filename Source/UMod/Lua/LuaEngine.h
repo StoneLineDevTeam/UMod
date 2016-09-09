@@ -2,10 +2,12 @@
 #pragma once
 
 #include "Interface/LuaInterface.h"
-#include "LuaEntity.h"
+#include "TypesInclude.h"
+
+class LuaLib;
 
 class AUModCharacter;
-class AEntityBase;
+class Entity;
 template<typename T>
 struct FLuaParam {
 	T Value;
@@ -137,10 +139,10 @@ struct FLuaParam<FRotator> {
 	}
 };
 template<>
-struct FLuaParam<AEntityBase> {
-	AEntityBase* Value;
+struct FLuaParam<Entity> {
+	Entity* Value;
 
-	FLuaParam(AEntityBase* val) {
+	FLuaParam(Entity* val) {
 		Value = val;
 	}
 
@@ -178,28 +180,18 @@ enum ETableType {
 };
 
 //Macros
-#define DECLARE_LUA_FUNC(Name) \
+#define DECLARE_LUA_FUNC(Name, ...) \
 static int LUA_##Name(lua_State *L) { \
 	LuaInterface Lua = LuaInterface::Get(L); \
+	LUA_AUTOREPLICATE; \
 
-#define DECLARE_LUA_FUNC_OneParam(Name, Interface, TypeName, VarName) \
-static int LUA_##Name(lua_State *L) { \
-	LuaInterface Lua = LuaInterface::Get(L); \
-	##TypeName ##VarName = Lua.Check##Interface(); \
+//This macro assumes that the table is at index -1 in the stack
+#define LUA_SETTABLE(StrIndex, PushType, Var) \
+Lua.PushString(##StrIndex); \
+Lua.Push##PushType(##Var); \
+Lua.SetTable(-3) \
 
-#define DECLARE_LUA_FUNC_TwoParam(Name, Interface, TypeName, VarName, Interface1, TypeName1, VarName1) \
-static int LUA_##Name(lua_State *L) { \
-	LuaInterface Lua = LuaInterface::Get(L); \
-	##TypeName ##VarName = Lua.Check##Interface(); \
-	##TypeName1 ##VarName1 = Lua.Check##Interface1(); \
-
-#define DECLARE_LUA_FUNC_ThreeParam(Name, Interface, TypeName, VarName, Interface1, TypeName1, VarName1, Interface2, TypeName2, VarName2) \
-static int LUA_##Name(lua_State *L) { \
-	LuaInterface Lua = LuaInterface::Get(L); \
-	##TypeName ##VarName = Lua.Check##Interface(); \
-	##TypeName1 ##VarName1 = Lua.Check##Interface1(); \
-	##TypeName2 ##VarName2 = Lua.Check##Interface2(); \
-
+//Variadic macro only for arguments
 #define LUA_TYPEDEF_BEGIN(Name) \
 Lua->PushString(#Name); \
 Lua->NewMetaTable(#Name) \
@@ -216,9 +208,29 @@ Lua->PushString("__index"); \
 Lua->PushValue(-2); \
 Lua->SetTable(-3); \
 Lua->SetTable(LUA_REGISTRYINDEX) \
+
+#define LUA_REG_APICLASS(ClassName) \
+struct LUA_Initializer##ClassName { \
+	LUA_Initializer##ClassName() { \
+		LuaEngine::AddClassToRegistry(new ClassName()); \
+	} \
+}; \
+LUA_Initializer##ClassName LUA_Init##ClassName; \
+
+#define LUA_ASSERT_MSG(AssertCode, Msg) \
+if (!(##AssertCode)) { \
+	Lua.ThrowError(Msg); \
+} \
+
+#define LUA_ASSERT(AssertCode) \
+if (!(##AssertCode)) { \
+	Lua.ThrowError(#AssertCode); \
+} \
 //End
 
 class UUModGameInstance;
+
+static TArray<LuaLib*> LibRegistry;
 
 /*
 The main LuaEngine class for the game
@@ -229,6 +241,8 @@ public:
 	LuaEngine(UUModGameInstance *g);
 	~LuaEngine();
 
+	bool GameModeInitialized = false;
+
 	void RunScript(FString path);
 	FString GetLuaVersion();
 
@@ -237,15 +251,27 @@ public:
 	void AddLibFunction(FString name, lua_CFunction func);
 	void AddLibConstant(FString name, int i);
 	void CreateLibrary();
-	
-	void HandleLuaError(ELuaErrorType t, FString msg);
+
+	static void AddClassToRegistry(LuaLib *Lib);
+
+	//That is failure I tried EVERYTHING Lua seam to crash when calling GetTable inside GetType, Lua IRC refused to help me anyways so I decided to disband the idea of stack trace if anyone knows why it crashes and how to fix it feel free to post a pull request...
+	static void HandleLuaError(ELuaErrorType t, FString msg, TArray<FString> &trace);
+
+	void InitGameMode();
 
 	//Running script functions
-	void RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName);
+	bool RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName);
 	template<typename T>
-	void RunScriptFunctionOneParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0)
+	bool RunScriptFunctionOneParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0)
 	{
-		//Lua->TraceBack(-1);
+		UMOD_STAT(LUAFuncCall1);
+
+		if (!GameModeInitialized) {
+			return false;
+		}
+
+		Lua->GetGlobal("LUA_InternalErrorHandler");
+
 		int argNum = 1;
 
 		switch (Tbl) {
@@ -259,23 +285,30 @@ public:
 		}
 		Lua->PushString(FuncName);
 		Lua->GetTable(-2);
-
+		
 		if (Tbl == GAMEMODE) {
 			Lua->GetGlobal("GM");
 		}
 		
 		var0.Push(Lua);
 
-		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, -4);
 		if (t != ELuaErrorType::NONE) {
-			FString msg = Lua->ToString(-1);
-			HandleLuaError(t, msg);
-		}		
+			return false;
+		}
+		return true;
 	}
 	template<typename T, typename T1>
-	void RunScriptFunctionTwoParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1)
+	bool RunScriptFunctionTwoParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1)
 	{
-		//Lua->TraceBack(-1);
+		UMOD_STAT(LUAFuncCall2);
+
+		if (!GameModeInitialized) {
+			return false;
+		}
+
+		Lua->GetGlobal("LUA_InternalErrorHandler");
+		
 		int argNum = 2;
 
 		switch (Tbl) {
@@ -296,17 +329,24 @@ public:
 
 		var0.Push(Lua);
 		var1.Push(Lua);
-
-		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
+		
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, -5);
 		if (t != ELuaErrorType::NONE) {
-			FString msg = Lua->ToString(-1);
-			HandleLuaError(t, msg);
+			return false;
 		}
+		return true;
 	}
 	template<typename T, typename T1, typename T2>
-	void RunScriptFunctionThreeParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1, FLuaParam<T2> var2)
+	bool RunScriptFunctionThreeParam(ETableType Tbl, uint8 resultNumber, FString FuncName, FLuaParam<T> var0, FLuaParam<T1> var1, FLuaParam<T2> var2)
 	{
-		//Lua->TraceBack(-1);
+		UMOD_STAT(LUAFuncCall3);
+
+		if (!GameModeInitialized) {
+			return false;
+		}
+
+		Lua->GetGlobal("LUA_InternalErrorHandler");
+
 		int argNum = 3;
 
 		switch (Tbl) {
@@ -328,12 +368,12 @@ public:
 		var0.Push(Lua);
 		var1.Push(Lua);
 		var2.Push(Lua);
-
-		ELuaErrorType t = Lua->PCall(argNum, resultNumber, 0);
+		
+		ELuaErrorType t = Lua->PCall(argNum, resultNumber, -6);
 		if (t != ELuaErrorType::NONE) {
-			FString msg = Lua->ToString(-1);
-			HandleLuaError(t, msg);
+			return false;
 		}
+		return true;
 	}
 
 	//Get the results of functions
@@ -355,3 +395,18 @@ public:
 private:
 	FString CurLibName;
 };
+
+//Global ErrorHandling func
+static int LUA_InternalErrorHandler(lua_State *L)
+{
+	UMOD_STAT(LUAErrorHandler);
+
+	LuaInterface Lua = LuaInterface::Get(L);
+	Lua.TraceBack(1);
+	FString ErrorMsg = Lua.ToStringRaw(-5);
+	TArray<FString> StackTrace;
+	Lua.ToStringRaw(2).ParseIntoArray(StackTrace, TEXT("\n"));
+	LuaEngine::HandleLuaError(ELuaErrorType::RUNTIME, ErrorMsg, StackTrace);
+	return 0;
+}
+

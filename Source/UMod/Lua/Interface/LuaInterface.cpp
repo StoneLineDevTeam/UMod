@@ -109,7 +109,7 @@ FString LuaInterface::ToString(int id)
 	FString s;
 	switch (GetType(id)) {
 	case TABLE:
-		s = ToStringRaw(id);
+		s = ToStringRaw(id);		
 		break;
 	case STRING:
 		s = ANSI_TO_TCHAR(lua_tostring(luaVM, id));
@@ -212,8 +212,10 @@ ELuaErrorType LuaInterface::PCall(int argNum, int resultNum, int handler)
 
 ELuaType LuaInterface::GetType(int id)
 {
+	if (lua_iscfunction(luaVM, id)) {
+		return ELuaType::FUNCTION;
+	}
 	int i = lua_type(luaVM, id);	
-
 	switch (i) {
 	case LUA_TNUMBER:
 		return ELuaType::NUMBER;
@@ -225,8 +227,10 @@ ELuaType LuaInterface::GetType(int id)
 		if (id < 0) {
 			GetTable(id - 1);
 		} else {
-			GetTable(id + 1);
-		}		
+			UE_LOG(UMod_Lua, Log, TEXT("[DEBUG]GetTable->Start"));
+			GetTable(id/* + 1*/); //It seam to not crash without +1 but it's probably not correct index
+			UE_LOG(UMod_Lua, Log, TEXT("[DEBUG]GetTable->End"));
+		}
 		FString type = ANSI_TO_TCHAR(lua_tostring(luaVM, -1));
 		Pop(1);
 		if (type == "VECTOR") {
@@ -256,6 +260,11 @@ ELuaType LuaInterface::GetType(int id)
 		return ELuaType::UNKNOWN;	
 	}
 	return ELuaType::NIL;
+}
+
+void LuaInterface::Register(FString name, lua_CFunction func)
+{
+	lua_register(luaVM, TCHAR_TO_ANSI(*name), func);
 }
 
 void LuaInterface::OpenLibs()
@@ -511,6 +520,6 @@ FString LuaInterface::ToStringRaw(int id)
 	PushValue(id);
 	lua_call(luaVM, 1, 1);
 	FString s = ANSI_TO_TCHAR(lua_tostring(luaVM, -1));
-	Pop(2);
+	Pop(1);
 	return s;
 }

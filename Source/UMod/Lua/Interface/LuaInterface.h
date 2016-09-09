@@ -110,6 +110,8 @@ public:
 	void UnRef(int ref);
 	/*End*/
 
+	void Register(FString name, lua_CFunction func);
+
 	void StackDump(int start, int end); //Warning : inputs must be in negative order (ex : dump from level -1 to level -10)
 
 	FString GetVersion();

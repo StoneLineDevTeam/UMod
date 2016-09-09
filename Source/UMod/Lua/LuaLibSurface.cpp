@@ -1,7 +1,8 @@
 #include "UMod.h"
 #include "LuaLibSurface.h"
-#include "LuaEngine.h"
 #include "Renderer/Render2D.h"
+
+#define LUA_AUTOREPLICATE
 
 /*Base surface.* library*/
 static bool Check2DRenderingContext(lua_State *L) {
@@ -12,79 +13,69 @@ static bool Check2DRenderingContext(lua_State *L) {
 	}
 	return true;
 }
-static int LoadFont(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	uint32 i = URender2D::LoadFont(Lua.CheckString(1), Lua.CheckInt(2), FName(*Lua.CheckString(3)));
+
+DECLARE_LUA_FUNC(SurfaceLoadFont)
+	uint32 i = 0;
+	if (Lua.IsNil(3)) {
+		i = URender2D::LoadFont(Lua.CheckString(1), Lua.CheckInt(2));
+	} else {
+		i = URender2D::LoadFont(Lua.CheckString(1), Lua.CheckInt(2), FName(*Lua.CheckString(3)));
+	}	
 	Lua.PushInt(i);
 	return 1;
 }
-static int LoadTexture(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(SurfaceLoadTexture)
 	uint32 i = URender2D::LoadTexture(Lua.CheckString(1));
 	Lua.PushInt(i);
 	return 1;
 }
-static int UnloadFont(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(SurfaceUnloadFont)
 	URender2D::UnloadFont(Lua.CheckInt(1));
 	return 0;
 }
-static int UnloadTexture(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(SurfaceUnloadTexture)
 	URender2D::UnloadTexture(Lua.CheckInt(1));
 	return 0;
 }
-static int SetColor(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::SetColor(Lua.CheckColor(1));
+#undef LUA_AUTOREPLICATE
+#define LUA_AUTOREPLICATE if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceSetColor)
+	if (Lua.IsNil(4)) {
+		URender2D::SetColor(FColor(Lua.CheckInt(1), Lua.CheckInt(2), Lua.CheckInt(3)));
+	} else {
+		URender2D::SetColor(FColor(Lua.CheckInt(1), Lua.CheckInt(2), Lua.CheckInt(3), Lua.CheckInt(4)));
+	}
 	return 0;
 }
-static int SetTexture(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceSetTexture)
 	URender2D::SetTexture(Lua.CheckInt(1));
 	return 0;
 }
-static int ResetTexture(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceResetTexture)
 	URender2D::ResetTexture();
 	return 0;
 }
-static int SetFont(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceSetFont)
 	URender2D::SetFont(Lua.CheckInt(1));
 	return 0;
 }
-static int DrawRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawRect)
 	URender2D::DrawRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4));
 	return 0;
 }
-static int DrawOutlineRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawOutlineRect)
 	URender2D::DrawOutlineRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckFloat(5));
 	return 0;
 }
-static int SetScissorRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceSetScissorRect)
 	URender2D::SetScissorRect(Lua.CheckInt(1), Lua.CheckInt(2), Lua.CheckInt(3), Lua.CheckInt(4));
 	return 0;
 }
-static int DrawText(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawText)
 	URender2D::DrawText(Lua.CheckString(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckInt(4));
 	return 0;
 }
-static int GetTextSize(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceGetTextSize)
 	float w;
 	float h;
 	URender2D::GetTextSize(Lua.CheckString(1), w, h);
@@ -92,34 +83,21 @@ static int GetTextSize(lua_State *L) {
 	Lua.PushFloat(h);
 	return 2;
 }
-static int SetFontScale(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceSetFontScale)
 	URender2D::SetFontScale(Lua.CheckFloat(1), Lua.CheckFloat(2));
 	return 0;
 }
-static int DrawLine(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawLine)
 	URender2D::DrawLine(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckFloat(5));
 	return 0;
 }
-static int DrawCircle(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
-	URender2D::DrawCircle(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckInt(3));
-	return 0;
-}
-static int DrawRoundedRect(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawRoundedRect)
 	URender2D::DrawRoundedRect(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckFloat(3), Lua.CheckFloat(4), Lua.CheckInt(5));
 	return 0;
 }
 //FUTURE METHODS : NEEDS UE4 C++ TRICKS
-static int DrawPoly(lua_State *L) { //Not sure that the function works (lua side as in all cases URender2D has empty function body for DrawPoly...
-	LuaInterface Lua = LuaInterface::Get(L);
-	if (!Check2DRenderingContext(L)) { return 0; }
+DECLARE_LUA_FUNC(SurfaceDrawPoly)
+	//Not sure that the function works (lua side as in all cases URender2D has empty function body for DrawPoly)...
 	Lua.ArgumentCheck(Lua.GetType(1) == TABLE, 1, "expected table");
 	TArray<FVertex> Vertices;
 	while (Lua.Next(-1) != 0) {
@@ -141,29 +119,35 @@ static int DrawPoly(lua_State *L) { //Not sure that the function works (lua side
 	URender2D::DrawPoly(Vertices);
 	return 0;
 }
+DECLARE_LUA_FUNC(SurfaceDrawCircle)
+	URender2D::DrawCircle(Lua.CheckFloat(1), Lua.CheckFloat(2), Lua.CheckInt(3));
+	return 0;
+}
 /*End*/
 
-void LuaLibSurface::RegisterSurfaceLib(LuaEngine *Lua)
+#undef LUA_AUTOREPLICATE
+
+void LuaLibSurface::RegisterLib(LuaEngine *Lua)
 {
 	Lua->BeginLibReg("surface");
-	Lua->AddLibFunction("LoadFont", LoadFont);
-	Lua->AddLibFunction("LoadTexture", LoadTexture);
-	Lua->AddLibFunction("UnloadFont", UnloadFont);
-	Lua->AddLibFunction("UnloadTexture", UnloadTexture);
-	Lua->AddLibFunction("SetColor", SetColor);
-	Lua->AddLibFunction("SetTexture", SetTexture);
-	Lua->AddLibFunction("ResetTexture", ResetTexture);
-	Lua->AddLibFunction("SetFont", SetFont);
-	Lua->AddLibFunction("DrawRect", DrawRect);
-	Lua->AddLibFunction("DrawOutlineRect", DrawOutlineRect);
-	Lua->AddLibFunction("SetScissorRect", SetScissorRect);
-	Lua->AddLibFunction("DrawText", DrawText);
-	Lua->AddLibFunction("GetTextSize", GetTextSize);
-	Lua->AddLibFunction("SetFontScale", SetFontScale);
-	Lua->AddLibFunction("DrawLine", DrawLine);
-	Lua->AddLibFunction("DrawCircle", DrawCircle);
-	Lua->AddLibFunction("DrawRoundedRect", DrawRoundedRect);
-	Lua->AddLibFunction("DrawPoly", DrawPoly);
+	Lua->AddLibFunction("LoadFont", LUA_SurfaceLoadFont);
+	Lua->AddLibFunction("LoadTexture", LUA_SurfaceLoadTexture);
+	Lua->AddLibFunction("UnloadFont", LUA_SurfaceUnloadFont);
+	Lua->AddLibFunction("UnloadTexture", LUA_SurfaceUnloadTexture);
+	Lua->AddLibFunction("SetColor", LUA_SurfaceSetColor);
+	Lua->AddLibFunction("SetTexture", LUA_SurfaceSetTexture);
+	Lua->AddLibFunction("ResetTexture", LUA_SurfaceResetTexture);
+	Lua->AddLibFunction("SetFont", LUA_SurfaceSetFont);
+	Lua->AddLibFunction("DrawRect", LUA_SurfaceDrawRect);
+	Lua->AddLibFunction("DrawOutlineRect", LUA_SurfaceDrawOutlineRect);
+	Lua->AddLibFunction("SetScissorRect", LUA_SurfaceSetScissorRect);
+	Lua->AddLibFunction("DrawText", LUA_SurfaceDrawText);
+	Lua->AddLibFunction("GetTextSize", LUA_SurfaceGetTextSize);
+	Lua->AddLibFunction("SetFontScale", LUA_SurfaceSetFontScale);
+	Lua->AddLibFunction("DrawLine", LUA_SurfaceDrawLine);
+	Lua->AddLibFunction("DrawCircle", LUA_SurfaceDrawCircle);
+	Lua->AddLibFunction("DrawRoundedRect", LUA_SurfaceDrawRoundedRect);
+	Lua->AddLibFunction("DrawPoly", LUA_SurfaceDrawPoly);
 	Lua->CreateLibrary();
 
 	Lua->BeginLibReg("DrawEnums");
@@ -171,4 +155,9 @@ void LuaLibSurface::RegisterSurfaceLib(LuaEngine *Lua)
 	Lua->AddLibConstant("TEXT_ALIGN_LEFT", 0);
 	Lua->AddLibConstant("TEXT_ALIGN_RIGHT", 2);
 	Lua->CreateLibrary();
+}
+
+bool LuaLibSurface::IsClientOnly()
+{
+	return true;
 }

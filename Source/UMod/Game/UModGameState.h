@@ -15,4 +15,8 @@ public:
 
 	FVector SpawnPos;
 	FRotator SpawnRot;
+private:
+	UUModGameInstance *Game;
+
+	void LuaInitShared();
 };

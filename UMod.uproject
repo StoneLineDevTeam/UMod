@@ -7,7 +7,7 @@
 		{
 			"Name": "UMod",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PreLoadingScreen",
 			"AdditionalDependencies": [
 				"Engine",
 				"UMG",

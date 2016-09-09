@@ -31,8 +31,13 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		uint8 ConnectType;
 		FNetControlMessage<NMT_UModStart>::Receive(Bunch, ConnectType);
 		if (ConnectType == 0) {
-			FNetControlMessage<NMT_UModStartVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModStartVars);
+			uint8 flags = 0;
+			FString GM = GEngine->GetGame()->GetGameMode();
+			FString HN = GEngine->GetGame()->GetHostName();
+			FNetControlMessage<NMT_UModConnectVars>::Send(Connection, GM, HN, flags);
+			Connection->FlushNet(true);
+			Connection->Challenge = "UModLua";
+			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
 
 			//Create the voice channel (test purposes)
 			Connection->CreateChannel(CHANNEL_VOICE, true, 5);
@@ -48,51 +53,6 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 			Connection->Close();
 		}
 		break;
-	case NMT_UModStartVars:
-	{
-		//Send the first variable or NMT_UModEndVars
-		Connection->Challenge = "UModVars";
-		Connection->ResponseId = 0;
-		if (GEngine->GetGame()->ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
-			//We have not currently reached integers limit
-			int t = GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
-			FString name = GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else {
-			//We have no console vars to send
-			Connection->Challenge = "UModLua";
-			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-		}
-		Connection->FlushNet();
-		break;
-	}
-	case NMT_UModEndVars:
-	{
-		Connection->ResponseId++;
-		//Send the next variable or NMT_UModEndVars in case nothing else
-		if (GEngine->GetGame()->ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].Synced) {
-			//We have not currently reached integers limit
-			int t = GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].Value;
-			FString name = GEngine->GetGame()->ConsoleManager->ConsoleIntegers[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsInt>::Send(Connection, name, t);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else if (GEngine->GetGame()->ConsoleManager->ConsoleBooleans.Num() + GEngine->GetGame()->ConsoleManager->ConsoleIntegers.Num() > Connection->ResponseId && GEngine->GetGame()->ConsoleManager->ConsoleBooleans[Connection->ResponseId].Synced) {
-			//We have reached integer limit but not bool limit
-			bool b = GEngine->GetGame()->ConsoleManager->ConsoleBooleans[Connection->ResponseId].Value;
-			FString name = GEngine->GetGame()->ConsoleManager->ConsoleBooleans[Connection->ResponseId].VarName;
-			FNetControlMessage<NMT_UModSendVarsBool>::Send(Connection, name, b);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEndVars);
-		} else {
-			Connection->Challenge = "UModLua";
-			Connection->ResponseId = 0;
-			FNetControlMessage<NMT_UModEndVars>::Send(Connection);
-			Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
-		}
-		Connection->FlushNet();
-		break;
-	}
 	case NMT_UModEndLua:
 		//TODO : Send the next lua file or UModEndLua if no more files
 		if (Connection->Challenge == "UModLua_End") {
@@ -141,6 +101,7 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 		}
 		break;
 	case NMT_UModEnd:
+		UE_LOG(UMod_Game, Log, TEXT("[DEBUG]UModEnd Challenge : %s"), *Connection->Challenge);
 		if (Connection->Challenge == "UModLua") {
 			//TODO : Start sending first lua file
 			if (GEngine->GetGame()->AssetsManager->GetAllRegisteredFiles().Num() > Connection->ResponseId) {
@@ -149,16 +110,14 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 				FNetControlMessage<NMT_UModStartLua>::Send(Connection, str);
 				Connection->SetExpectedClientLoginMsgType(NMT_UModEndLua);
 				Connection->FlushNet();
-			}
-			else {
+			} else {
 				Connection->Challenge = "";
 				Connection->ResponseId = 0;
 				FNetControlMessage<NMT_UModEndLua>::Send(Connection);
 				Connection->SetExpectedClientLoginMsgType(NMT_UModEnd);
 				Connection->FlushNet();
 			}
-		}
-		else {
+		} else {
 			//We are ready to resume UE4 normal connection system
 			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
 			Connection->SetExpectedClientLoginMsgType(NMT_Login);
@@ -171,7 +130,7 @@ void UServerHandler::NotifyControlMessage(UNetConnection* Connection, uint8 Mess
 	}
 
 	//This runs if we have a zero param message
-	if (MessageType == NMT_UModStartVars || MessageType == NMT_UModEndVars || MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd) {
+	if (MessageType == NMT_UModEndLua || MessageType == NMT_UModEnd) {
 		Bunch.SetData(Bunch, 0); //Trying to hack bunch reset pos ! Working !
 		//NOTE : This may cause memory leaks, I'm not sure how UE4 handles bunches I don't know if those are getting deleted after reading.
 	}

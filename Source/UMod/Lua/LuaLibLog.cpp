@@ -2,32 +2,38 @@
 #include "LuaLibLog.h"
 #include "LuaEngine.h"
 
+#define LUA_AUTOREPLICATE
+
 /*Base log.* library*/
-static int LogInfo(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(LogInfo)
 	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Log, TEXT("%s"), *msg);
 	return 0;
 }
-static int LogWarn(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(LogWarn)
 	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Warning, TEXT("%s"), *msg);
 	return 0;
 }
-static int LogErr(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
+DECLARE_LUA_FUNC(LogErr)
 	FString msg = Lua.CheckString(1);
 	UE_LOG(UMod_Lua, Error, TEXT("%s"), *msg);
 	return 0;
 }
 /*End*/
 
-void LuaLibLog::RegisterLogLib(LuaEngine *Lua)
+#undef LUA_AUTOREPLICATE
+
+void LuaLibLog::RegisterLib(LuaEngine *Lua)
 {
 	Lua->BeginLibReg("log");
-	Lua->AddLibFunction("Info", LogInfo);
-	Lua->AddLibFunction("Warning", LogWarn);
-	Lua->AddLibFunction("Error", LogErr);
+	Lua->AddLibFunction("Info", LUA_LogInfo);
+	Lua->AddLibFunction("Warning", LUA_LogWarn);
+	Lua->AddLibFunction("Error", LUA_LogErr);
 	Lua->CreateLibrary();	
+}
+
+bool LuaLibLog::IsClientOnly()
+{
+	return false;
 }

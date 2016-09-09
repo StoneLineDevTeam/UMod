@@ -2,211 +2,128 @@
 #include "LuaInterface.h"
 #include "UMod.h"
 
-static int Ang_RotateArroundAxis(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1); //The "self" angle
+//The "self" angle
+#define LUA_AUTOREPLICATE FRotator self = Lua.CheckAngle(1);
+
+DECLARE_LUA_FUNC(Angle_RotateArroundAxis, Vector, Float)
 	FVector axis = Lua.CheckVector(2);
 	float rot = Lua.CheckFloat(3);
-	FVector v = r.Vector().RotateAngleAxis(rot, axis);
+	FVector v = self.Vector().RotateAngleAxis(rot, axis);
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(v.Rotation().Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(v.Rotation().Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(v.Rotation().Roll);
-	Lua.SetTable(-3);
+	LUA_SETTABLE("Pitch", Float, v.Rotation().Pitch);
+	LUA_SETTABLE("Yaw", Float, v.Rotation().Yaw);
+	LUA_SETTABLE("Roll", Float, v.Rotation().Roll);
 	return 0;
 }
 
-static int Ang_Up(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_Up)
 	//Up vector is BP only, I'll find a hack later
 
 	return 1;
 }
 
-static int Ang_Forward(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_Forward)
 	//Forward vector is BP only, I'll find a hack later
 
 	return 1;
 }
 
-static int Ang_Left(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_Left)
 	//Left vector is BP only, I'll find a hack later
 
 	return 1;
 }
 
-static int Ang_Clamp(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
-	FRotator result = r.Clamp();
+DECLARE_LUA_FUNC(Angle_Clamp)
+	FRotator result = self.Clamp();
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(result.Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(result.Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(result.Roll);
-	Lua.SetTable(-3);
+	LUA_SETTABLE("Pitch", Float, result.Pitch);
+	LUA_SETTABLE("Yaw", Float, result.Yaw);
+	LUA_SETTABLE("Roll", Float, result.Roll);
 	return 0;
 }
 
-static int Ang_IsZero(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator v = Lua.CheckAngle(1); //Get the "self" vector
+DECLARE_LUA_FUNC(Angle_IsZero, (Float))
 	if (!Lua.IsNil(2)) {
 		float f = Lua.CheckFloat(2);
-		Lua.PushBool(v.IsNearlyZero(f));
+		Lua.PushBool(self.IsNearlyZero(f));
 	} else {
-		Lua.PushBool(v.IsZero());
+		Lua.PushBool(self.IsZero());
 	}
 	return 1;
 }
 
-static int Ang_ContainsNaN(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
-	Lua.PushBool(r.ContainsNaN());
+DECLARE_LUA_FUNC(Angle_ContainsNaN)
+	Lua.PushBool(self.ContainsNaN());
 	return 1;
 }
 
-static int Ang_Equals(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_Equals, Angle, Float)
 	FRotator r1 = Lua.CheckAngle(2);
 	float t = Lua.CheckFloat(3);
-	Lua.PushBool(r.Equals(r1, t));	
+	Lua.PushBool(self.Equals(r1, t));
 	return 1;
 }
 
-static int Ang_Denormalize(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
-	FRotator r1 = r.GetDenormalized();
+DECLARE_LUA_FUNC(Angle_Denormalize)
+	FRotator r1 = self.GetDenormalized();
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(r1.Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(r1.Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(r1.Roll);
-	Lua.SetTable(-3);
+	LUA_SETTABLE("Pitch", Float, r1.Pitch);
+	LUA_SETTABLE("Yaw", Float, r1.Yaw);
+	LUA_SETTABLE("Roll", Float, r1.Roll);
 	return 0;
 }
 
-static int Ang_Inverse(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
-	FRotator r1 = r.GetInverse();
+DECLARE_LUA_FUNC(Angle_Inverse)	
+	FRotator r1 = self.GetInverse();
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(r1.Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(r1.Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(r1.Roll);
-	Lua.SetTable(-3);
+	LUA_SETTABLE("Pitch", Float, r1.Pitch);
+	LUA_SETTABLE("Yaw", Float, r1.Yaw);
+	LUA_SETTABLE("Roll", Float, r1.Roll);
 	return 0;
 }
 
-static int Ang_Normalize(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
-	FRotator r1 = r.GetNormalized();
+DECLARE_LUA_FUNC(Angle_Normalize)
+	FRotator r1 = self.GetNormalized();
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(r1.Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(r1.Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(r1.Roll);
-	Lua.SetTable(-3);
+	LUA_SETTABLE("Pitch", Float, r1.Pitch);
+	LUA_SETTABLE("Yaw", Float, r1.Yaw);
+	LUA_SETTABLE("Roll", Float, r1.Roll);
 	return 0;
 }
 
-static int Ang_GridSnap(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_GridSnap, Angle)
 	FRotator r1 = Lua.CheckAngle(2);
-	Lua.PushAngle(r.GridSnap(r1));
+	Lua.PushAngle(self.GridSnap(r1));
 	return 1;
 }
 
-static int Ang_Add(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FRotator r = Lua.CheckAngle(1);
+DECLARE_LUA_FUNC(Angle_Add, Float, Float, Float)
 	float deltaP = Lua.CheckFloat(2);
 	float deltaY = Lua.CheckFloat(3);
 	float deltaR = Lua.CheckFloat(4);
-	FRotator r1 = r.Add(deltaP, deltaY, deltaR);
+	FRotator r1 = self.Add(deltaP, deltaY, deltaR);
 	Lua.PushValue(1);
-	Lua.PushString("Pitch");
-	Lua.PushFloat(r1.Pitch);
-	Lua.SetTable(-3);
-	Lua.PushString("Yaw");
-	Lua.PushFloat(r1.Yaw);
-	Lua.SetTable(-3);
-	Lua.PushString("Roll");
-	Lua.PushFloat(r1.Roll);
-	Lua.SetTable(-3);	
+	LUA_SETTABLE("Pitch", Float, r1.Pitch);
+	LUA_SETTABLE("Yaw", Float, r1.Yaw);
+	LUA_SETTABLE("Roll", Float, r1.Roll);
 	return 0;
 }
 
+#undef LUA_AUTOREPLICATE
+
 static void Ang_AddCFunctions(LuaInterface *Lua) {
-	Lua->PushString("RotateArroundAxis");
-	Lua->PushCFunction(Ang_RotateArroundAxis);
-	Lua->SetTable(-3);
-	Lua->PushString("Up");
-	Lua->PushCFunction(Ang_Up);
-	Lua->SetTable(-3);
-	Lua->PushString("Forward");
-	Lua->PushCFunction(Ang_Forward);
-	Lua->SetTable(-3);
-	Lua->PushString("Left");
-	Lua->PushCFunction(Ang_Left);
-	Lua->SetTable(-3);
-	Lua->PushString("Clamp");
-	Lua->PushCFunction(Ang_Clamp);
-	Lua->SetTable(-3);
-	Lua->PushString("IsZero");
-	Lua->PushCFunction(Ang_IsZero);
-	Lua->SetTable(-3);
-	Lua->PushString("ContainsNaN");
-	Lua->PushCFunction(Ang_ContainsNaN);
-	Lua->SetTable(-3);
-	Lua->PushString("Equals");
-	Lua->PushCFunction(Ang_Equals);
-	Lua->SetTable(-3);
-	Lua->PushString("Denormalize");
-	Lua->PushCFunction(Ang_Denormalize);
-	Lua->SetTable(-3);
-	Lua->PushString("Normalize");
-	Lua->PushCFunction(Ang_Normalize);
-	Lua->SetTable(-3);
-	Lua->PushString("Inverse");
-	Lua->PushCFunction(Ang_Inverse);
-	Lua->SetTable(-3);
-	Lua->PushString("GridSnap");
-	Lua->PushCFunction(Ang_GridSnap);
-	Lua->SetTable(-3);
-	Lua->PushString("Add");
-	Lua->PushCFunction(Ang_Add);
-	Lua->SetTable(-3);
+	LUA_TYPEDEF_FUNC(RotateArroundAxis, Angle_RotateArroundAxis);
+	LUA_TYPEDEF_FUNC(Up, Angle_Up);
+	LUA_TYPEDEF_FUNC(Forward, Angle_Forward);
+	LUA_TYPEDEF_FUNC(Left, Angle_Left);
+	LUA_TYPEDEF_FUNC(Clamp, Angle_Clamp);
+	LUA_TYPEDEF_FUNC(IsZero, Angle_IsZero);
+	LUA_TYPEDEF_FUNC(ContainsNaN, Angle_ContainsNaN);
+	LUA_TYPEDEF_FUNC(Equals, Angle_Equals);
+	LUA_TYPEDEF_FUNC(Denormalize, Angle_Denormalize);
+	LUA_TYPEDEF_FUNC(Normalize, Angle_Normalize);
+	LUA_TYPEDEF_FUNC(Inverse, Angle_Inverse);
+	LUA_TYPEDEF_FUNC(GridSnap, Angle_GridSnap);
+	LUA_TYPEDEF_FUNC(Add, Angle_Add);	
 }

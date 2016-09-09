@@ -1,6 +1,13 @@
 #pragma once
 #include "UModEditor.h"
 
+enum ELuaDocType {
+	LUA_LIBRARY,
+	LUA_TYPE,
+	LUA_BASETYPE,
+	LUA_OTHER
+};
+
 class UUModEditorEngine;
 
 class UIExtentions {
@@ -16,4 +23,7 @@ protected:
 	void ConvertSingleFile();
 	void ConvertEntireFolder();
 	void OpenLauncher();
+	void LuaMenu(FMenuBuilder &MenuBuilder);
+	void PrepareLuaDocs();
+	void GenerateLuaDocs();
 };

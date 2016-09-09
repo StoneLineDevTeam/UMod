@@ -19,55 +19,57 @@ AEntityBase::AEntityBase() : Super()
 	bAlwaysRelevant = true;
 
 	EntityModel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EntityModel"));
+	SetRootComponent(EntityModel);
 
 	LuaReference = LUA_NOREF;
 }
-void AEntityBase::BeginPlay()
-{
-	Super::BeginPlay();
 
-	Game = Cast<UUModGameInstance>(GetGameInstance());
+void AEntityBase::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	if (GIsEditor) { return; }
 	
+	Game = Cast<UUModGameInstance>(GetGameInstance());
+
 	this->OnInit();
 
 	EntityModel->SetMobility(EComponentMobility::Movable);
-	SetRootComponent(EntityModel);
-	
+
 	if (Role == ROLE_Authority) {
 		EntityModel->bGenerateOverlapEvents = true;
 		EntityModel->SetNotifyRigidBodyCollision(true);
+		EntityModel->OnComponentBeginOverlap.AddDynamic(this, &AEntityBase::ActorBeginOverlap);
+		EntityModel->OnComponentEndOverlap.AddDynamic(this, &AEntityBase::ActorEndOverlap);
 	}
 
 	if (PhysObj != NULL) {
 		if (Role == ROLE_Authority) {
 			EntityModel->WakeRigidBody();
 			EntityModel->SetSimulatePhysics(true);
-		} else {
+		}
+		else {
 			DisableComponentsSimulatePhysics();
 			EntityModel->SetSimulatePhysics(false);
 		}
-	}	
-
-	if (Role == ROLE_Authority) {
-		EntityModel->OnComponentBeginOverlap.AddDynamic(this, &AEntityBase::ActorBeginOverlap);
-		EntityModel->OnComponentEndOverlap.AddDynamic(this, &AEntityBase::ActorEndOverlap);
-		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-		gm->OnEntitySpawn(this);
 	}
 
 	Initializing = false;
 }
-void FPhysObj::UpdateObj()
+
+void AEntityBase::BeginPlay()
 {
-	if (GravityScale < 1 && GravityScale > 0) {
-		APhysicsVolume *v = PhysComp->GetPhysicsVolume();
-		float grav = -v->GetGravityZ() * PhysComp->GetMass() * (1 - GravityScale);
-		FVector GravityVec = FVector(0, 0, grav);
-		PhysComp->AddForce(GravityVec);
-	}
+	Super::BeginPlay();
+	
+	if (Role == ROLE_Authority) {
+		UE_LOG(UMod_Game, Log, TEXT("test"));
+		AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
+		gm->OnEntitySpawn(this);
+	}	
 }
 void AEntityBase::Tick(float DeltaTime)
 {
+	UMOD_STAT(PHYSICSSync);
+
 	Super::Tick(DeltaTime);
 	
 	if (Role == ROLE_Authority) {
@@ -97,6 +99,7 @@ void AEntityBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 	DOREPLIFETIME(AEntityBase, DesiredRot);
 	DOREPLIFETIME(AEntityBase, CurCollisionProfile);
 	DOREPLIFETIME(AEntityBase, ServerMDLSync);
+	AUTO_NWVARS_REP_CODE(AEntityBase);
 	//DOREPLIFETIME(AEntityBase, ServerMATSync);
 }
 void AEntityBase::UpdateClientMDL()
@@ -139,20 +142,19 @@ void AEntityBase::UpdateCollisionStatus()
 		EntityModel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 }
+#undef dynamic_cast
 void AEntityBase::ActorBeginOverlap(UPrimitiveComponent* comp, AActor* OtherActor, UPrimitiveComponent *C, int32 i, bool b, const FHitResult &Result)
-{
-	UE_LOG(UMod_Game, Warning, TEXT("Start overlap !"));
-	if (OtherActor->IsA(AEntityBase::StaticClass())) {
-		AEntityBase *Ent = Cast<AEntityBase>(OtherActor);
-		OnBeginOverlap(Ent);
+{	
+	Entity *ent = UModCasts::FromActor(OtherActor);
+	if (ent != NULL) {
+		OnBeginOverlap(ent);
 	}
 }
 void AEntityBase::ActorEndOverlap(UPrimitiveComponent* comp, AActor* OtherActor, UPrimitiveComponent *C, int32 i)
 {
-	UE_LOG(UMod_Game, Warning, TEXT("End overlap !"));
-	if (OtherActor->IsA(AEntityBase::StaticClass())) {
-		AEntityBase *Ent = Cast<AEntityBase>(OtherActor);
-		OnEndOverlap(Ent);
+	Entity *ent = UModCasts::FromActor(OtherActor);
+	if (ent != NULL) {
+		OnEndOverlap(ent);
 	}
 }
 void AEntityBase::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
@@ -199,31 +201,6 @@ void AEntityBase::AddPhysicsObject()
 FPhysObj *AEntityBase::GetPhysicsObject()
 {
 	return PhysObj;
-}
-
-void FPhysObj::SetGravityScale(float f)
-{
-	GravityScale = f;
-	if (GravityScale == 0) {
-		PhysComp->SetEnableGravity(false);
-	} else if (GravityScale == 1) {
-		PhysComp->SetEnableGravity(true);
-	}
-}
-
-float FPhysObj::GetGravityScale()
-{
-	return GravityScale;
-}
-
-void FPhysObj::SetMassScale(float f)
-{	
-	PhysComp->SetMassScale(NAME_None, f);
-}
-
-float FPhysObj::GetMassScale()
-{	
-	return PhysComp->GetMassScale(NAME_None);
 }
 
 void AEntityBase::SetModel(FString path)
@@ -316,28 +293,18 @@ void AEntityBase::SetSubMaterial(int32 index, FString path)
 
 FString AEntityBase::GetMaterial()
 {
-	return GetObjPath(EntityModel->GetMaterial(0));
+	return "";//GetObjPath(EntityModel->GetMaterial(0));
 }
 
 FString AEntityBase::GetSubMaterial(int32 index)
 {
 	if (GetSubMaterialsNum() < index) { return FString(); }
-	return GetObjPath(EntityModel->GetMaterial(index));
+	return "";//GetObjPath(EntityModel->GetMaterial(index));
 }
 
 int32 AEntityBase::GetSubMaterialsNum()
 {
 	return EntityModel->GetNumMaterials();
-}
-
-void FPhysObj::Freeze()
-{	
-	PhysComp->SetSimulatePhysics(false);	
-}
-
-void FPhysObj::UnFreeze()
-{
-	PhysComp->SetSimulatePhysics(true);
 }
 
 int AEntityBase::GetLuaRef()
@@ -369,6 +336,53 @@ FString AEntityBase::GetClass()
 	return "NULL";
 }
 
+void AEntityBase::Remove()
+{
+	Destroy();
+}
+
+void AEntityBase::SetPos(FVector vec)
+{
+	SetActorLocation(vec);
+}
+
+void AEntityBase::SetAngles(FRotator ang)
+{
+	SetActorRotation(ang);
+}
+
+FVector AEntityBase::GetPos()
+{
+	return GetActorLocation();
+}
+
+FRotator AEntityBase::GetAngles()
+{
+	return GetActorRotation();
+}
+
+void AEntityBase::SetColor(FColor col)
+{
+	//I need my material utilities for that
+}
+
+FColor AEntityBase::GetColor()
+{
+	return FColor(0, 0, 0); //I need my material utilities for that
+}
+
+AUTO_NWVARS_BODY(AEntityBase)
+
+EWaterLevel AEntityBase::GetWaterLevel()
+{
+	return EWaterLevel::NULL_SUMBERGED;
+}
+
+int AEntityBase::EntIndex()
+{
+	return GetUniqueID();
+}
+
 void AEntityBase::OnTick()
 {
 
@@ -377,15 +391,15 @@ void AEntityBase::OnInit()
 {
 
 }
-void AEntityBase::OnPhysicsCollide(AEntityBase *other)
+void AEntityBase::OnPhysicsCollide(Entity *other)
 {
 
 }
-void AEntityBase::OnBeginOverlap(AEntityBase *other)
+void AEntityBase::OnBeginOverlap(Entity *other)
 {
 
 }
-void AEntityBase::OnEndOverlap(AEntityBase *other)
+void AEntityBase::OnEndOverlap(Entity *other)
 {
 
 }

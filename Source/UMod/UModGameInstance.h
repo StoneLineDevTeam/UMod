@@ -12,8 +12,9 @@ struct FConnectionStats {
 	FString HostIP; //Resolved IP
 	FString HostAddress; //Entered IP in main menu
 	FString HostName; //Retrieved by console vars
-	bool ConnectionProblem;
-	float SecsBeforeDisconnect;
+	FString GameMode; //Server's sent game mode name
+	bool ConnectionProblem; //Is there anything wrong with the connection at this time
+	float SecsBeforeDisconnect; //If there's a problem with the connection, how many seconds remaining before automatic disconnect
 };
 
 USTRUCT(BlueprintType)
@@ -111,6 +112,8 @@ public:
 
 	//Reloads lua (WARNING : will erase EVERY loaded files in the RAM, as it basicaly close then open the lua VM)
 	void ReloadLua();
+
+	void SetupClientConnection(FString GM, FString HN, uint8 Flags);
 
 	virtual void Init();
 	virtual void Shutdown();

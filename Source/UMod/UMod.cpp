@@ -1,6 +1,9 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 #include "UMod.h"
+#include "UModGameEngine.h"
+#include <iostream>
+#include <functional>
 
 
 IMPLEMENT_PRIMARY_GAME_MODULE(FUModGameModule, UMod, "UMod");
@@ -10,39 +13,59 @@ DEFINE_LOG_CATEGORY(UMod_Maps);
 DEFINE_LOG_CATEGORY(UMod_Input);
 DEFINE_LOG_CATEGORY(UMod_Lua);
 
+void FUModEntityClass::InfoMessage()
+{
+	UE_LOG(UMod_Game, Log, TEXT("UMod Entity [ Class='%s' | CClass='%s' | LuaSpawn='%s' ]"), *EntClass, *UEClass->GetName(), *StringFromBool(LuaSpawn));
+}
+
 void FUModGameModule::StartupModule()
 {
-/*	UE_LOG(UMod_Game, Log, TEXT("Installing LUA binaries..."));
+	UMOD_STAT(LOADINGModule);
 
-	FString LuaPath = FPaths::GameDir() + FString("ThirdParty/Lua/");
-	FString LuaDllFile = FPaths::GameDir() + FString("ThirdParty/Lua/");
-#if PLATFORM_WINDOWS
-	#if PLATFORM_32BITS
-	LuaPath += FString("Win32/");
-	LuaDllFile += FString("Win32/lua53.dll");
-	#elif PLATFORM_64BITS
-	LuaPath += FString("Win64/");
-	LuaDllFile += FString("Win64/lua53.dll");
-	#endif
-#elif PLATFORM_MAC
-	LuaPath += FString("MacOS/");
-	LuaDllFile += FString("MacOS/lua53.a");
-#elif PLATFORM_LINUX
-	LuaPath += FString("Linux/");
-	LuaDllFile += FString("Linux/lua53.a");
+	UE_LOG(UMod_Game, Log, TEXT("--> UMod - Program Startup <--"));
+		
+	TArray<FString> args;
+	FString s = FCommandLine::Get();
+	s.ParseIntoArray(args, TEXT(" "));
+	
+	//Trying to deconstruct UE4 window init shit
+	if (!GIsEditor && !args.Contains("-server")) {
+		int width;
+		int height;
+		bool full;
+		UUModGameEngine::GetDisplayProperties(width, height, full);		
+		FString begin;
+		if (args.Contains("-game")) {
+			begin = "-game";
+		}
+		begin += " -ResX=" + FString::FromInt(width);
+		begin += " -ResY=" + FString::FromInt(height);
+		begin += " -FORCERES";
+		if (full) {
+			begin += " -FULLSCREEN";
+		} else {
+			begin += " -WINDOWED";
+		}
+#ifdef UE4_UMOD_PROFILING
+		begin += "-messaging";
+		FString UFrontEndExe = FPaths::EngineDir() + "/Binaries/Win64/UnrealFrontend.exe";
+		FString Params = "-messaging";
+		FPlatformProcess::CreateProc(*UFrontEndExe, *Params, true, false, false, NULL, 0, NULL, NULL);
 #endif
+		FCommandLine::Set(*begin);
 
-	UE_LOG(UMod_Game, Log, TEXT("LuaPath = %s"), *LuaPath);
-	UE_LOG(UMod_Game, Log, TEXT("LuaDllFile = %s"), *LuaDllFile);
+		UE_LOG(UMod_Game, Log, TEXT("Deconstructed UE4 Window init, New CMD '%s'"), FCommandLine::Get());
+		UE_LOG(UMod_Game, Log, TEXT("Have fun UE4, you ate the resolution by your ASS, HEHE !!"));
+	}
+	UE_LOG(UMod_Game, Log, TEXT("Entity registry dump start"));
+	for (TPair<UClass*, FUModEntityClass*> Elem : EntityClassFromUE4) {
+		Elem.Value->InfoMessage();
+	}
+	UE_LOG(UMod_Game, Log, TEXT("Entity registry dump end"));
 
-	FPlatformProcess::PushDllDirectory(*LuaPath);
-	LuaDLLHandle = FPlatformProcess::GetDllHandle(*LuaDllFile);
-	FPlatformProcess::PopDllDirectory(*LuaPath);*/
+	UE_LOG(UMod_Game, Log, TEXT("--> UMod - End <--"));
 }
 
 void FUModGameModule::ShutdownModule()
 {
-	/*if (LuaDLLHandle != NULL) {
-		FPlatformProcess::FreeDllHandle(LuaDLLHandle);
-	}*/
 }

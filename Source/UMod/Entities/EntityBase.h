@@ -3,19 +3,8 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
+#include "Entity.h"
 #include "EntityBase.generated.h"
-
-enum ECollisionType {
-	COLLISION_NONE, //No collisions
-	COLLISION_PHYSICS, //Collides with everything used for physics simulation
-	COLLISION_NOT_PLAYER, //Collides with everything but not player
-	COLLISION_WORLD_ONLY //Collides only with non dynamic entities
-};
-enum EWaterLevel {
-	FULL_SUBMERGED,
-	HALF_SUBMERGED,
-	NULL_SUMBERGED
-};
 
 USTRUCT()
 struct FInitProperty {
@@ -39,36 +28,10 @@ struct FInitProperty {
 	}
 };
 
-//ServerSide only structure
-struct FPhysObj {
-	UPrimitiveComponent *PhysComp;
-	float GravityScale;
-
-	FPhysObj(UPrimitiveComponent *Phys) {
-		PhysComp = Phys;
-	}
-
-	//Call that yourself to update that physics object
-	void UpdateObj();
-	//Sets the velocity of that object
-	void SetVelocity(FVector NewVel);
-	//Sets the angle velocity of that object
-	void SetAngleVelocity(FRotator NewAngleVel);
-	void AddForceOffset(FVector Offset, FVector Force);
-	void AddForceCenter(FVector Force);
-	void SetGravityScale(float f);
-	void SetMassScale(float f);
-	float GetGravityScale();
-	float GetMassScale();
-	void Freeze();
-	void UnFreeze();
-	bool IsFrozen();
-};
-
 class UUModGameInstance;
 
 UCLASS()
-class AEntityBase : public AActor
+class AEntityBase : public AActor, public Entity
 {
 	GENERATED_BODY()
 	
@@ -94,6 +57,16 @@ private:
 	void UpdateClientMAT();
 	//End
 
+	/* Tried to do this in macros however it seam that UBT runs UHT before C++ preprocessor... */
+	UPROPERTY(Replicated)
+	TMap<FString, int> NWInts;
+	UPROPERTY(Replicated)
+	TMap<FString, FString> NWStrings;
+	UPROPERTY(Replicated)
+	TMap<FString, uint32> NWUInts;
+	UPROPERTY(Replicated)
+	TMap<FString, float> NWFloats;
+
 	//Does this entity manages physics
 	//bool PhysEnabled = false; //Removal 17/08/2014 : Physics implementation restructuration for easier usage (all physics methods are inside FPhysObj now
 
@@ -118,6 +91,7 @@ public:
 	AEntityBase();
 
 	/*Begin AActor interface*/
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;	
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;	
 	virtual void Tick(float DeltaSeconds) override;
@@ -132,25 +106,47 @@ public:
 #endif
 	/*End*/
 
-	/*Lua integration*/
-	int GetLuaRef();
-	void SetLuaRef(int r);
-	void LuaUnRef();
-	void SetLuaClass(FString s);
-	/*End*/
+	/*Entity Inetrface start*/
+	//Lua
+	virtual int GetLuaRef();
+	virtual void SetLuaRef(int r);
+	virtual void LuaUnRef();
+	virtual void SetLuaClass(FString s);
 
-	/* Begin entity base lib */
-	void AddPhysicsObject(); //Works only in OnInit(), used to remove the synced physics system, ServerSide
-	FPhysObj *GetPhysicsObject();
-	void SetCollisionModel(ECollisionType collision); //ServerSide
-	ECollisionType GetCollisionModel();
-	void SetModel(FString path);
-	FString GetModel();	
-	void SetMaterial(FString path); //No sync possible : UE4 does not allow c array replication
-	void SetSubMaterial(int32 index, FString path); //No sync possible : UE4 does not allow c array replication
-	FString GetMaterial();
-	FString GetSubMaterial(int32 index);
-	int32 GetSubMaterialsNum();
+	virtual void Remove();
+	virtual int EntIndex();
+	virtual void SetPos(FVector vec);
+	virtual void SetAngles(FRotator ang);
+	virtual FVector GetPos();
+	virtual FRotator GetAngles();
+	virtual void SetColor(FColor col);
+	virtual FColor GetColor();
+
+	//lib
+	virtual void AddPhysicsObject(); //Works only in OnInit(), used to remove the synced physics system, ServerSide
+	virtual FPhysObj *GetPhysicsObject();
+	virtual void SetCollisionModel(ECollisionType collision); //ServerSide
+	virtual ECollisionType GetCollisionModel();
+	virtual void SetModel(FString path);
+	virtual FString GetModel();
+	virtual void SetMaterial(FString path); //No sync possible : UE4 does not allow c array replication
+	virtual void SetSubMaterial(int32 index, FString path); //No sync possible : UE4 does not allow c array replication
+	virtual FString GetMaterial();
+	virtual FString GetSubMaterial(int32 index);
+	virtual int32 GetSubMaterialsNum();
+	virtual FString GetClass();
+	//NW Vars (Future) (Using spacial macro)
+	AUTO_NWVARS_HEADER();
+	virtual EWaterLevel GetWaterLevel();
+	/* Entity Interface end */	
+
+	virtual void OnTick(); //Shared
+	virtual void OnInit(); //Shared	
+	virtual void OnPhysicsCollide(Entity *other); //ServerSide
+	virtual void OnBeginOverlap(Entity *other); //ServerSide
+	virtual void OnEndOverlap(Entity *other); //ServerSide
+
+	//Init properties
 	template <typename T>
 	bool GetInitProperty(FString name, T &out);
 	template <>
@@ -186,22 +182,5 @@ public:
 		}
 		return false;
 	}
-	//NW Vars (Future)
-	void SetNWInt(FString id, int i);
-	void SetNWString(FString id, FString str);
-	void SetNWUnsined(FString id, uint32 i);
-	void SetNWFloat(FString id, float f);
-	int GetNWInt(FString id);
-	FString GetNWString(FString id);
-	uint32 GetNWUnsined(FString id);
-	float GetNWFloat(FString id);
-	void RemoveNWVar(FString id);
-	/* End */
-
-	virtual FString GetClass(); //Shared
-	virtual void OnTick(); //Shared
-	virtual void OnInit(); //Shared	
-	virtual void OnPhysicsCollide(AEntityBase *other); //ServerSide
-	virtual void OnBeginOverlap(AEntityBase *other); //ServerSide
-	virtual void OnEndOverlap(AEntityBase *other); //ServerSide
+	//End
 };

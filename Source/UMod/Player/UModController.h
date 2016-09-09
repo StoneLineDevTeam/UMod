@@ -61,7 +61,7 @@ public:
 	void EnterMenu();
 	void ExitMenu();
 
-	AUModCharacter *Player;
+	AUModCharacter *NativePlayer;
 
 	FControllerOnMouseClick OnMouseClick;
 private:

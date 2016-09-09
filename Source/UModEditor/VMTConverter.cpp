@@ -17,7 +17,7 @@ UMaterialInstanceConstant* VMTConverter::StartFileConversion(FString file)
 	FString nextDivisionName;	
 
 	TArray<FString> FileData;
-	FFileHelper::LoadANSITextFileToStrings(*file, NULL, FileData);	
+	FFileHelper::LoadANSITextFileToStrings(*file, NULL, FileData);
 	for (int i = 0; i < FileData.Num(); i++) {
 		FString s = FileData[i];
 		s = s.Replace(TEXT(" "), TEXT(""));

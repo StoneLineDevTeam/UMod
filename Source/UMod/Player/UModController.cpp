@@ -61,37 +61,37 @@ void AUModController::Tick(float f)
 	
 	if (Role == ROLE_Authority) {
 		if (NeedInitialSpawn && GetCharacter() != NULL) {
-			Player = Cast<AUModCharacter>(GetCharacter());
+			NativePlayer = Cast<AUModCharacter>(GetCharacter());
 			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());
-			UE_LOG(UMod_Game, Log, TEXT("[DEBUG]Sending initial spawn notification for %s"), *Player->PlayerState->PlayerName);			
-			gm->OnPlayerInitialSpawn(Player);
+			UE_LOG(UMod_Game, Log, TEXT("[DEBUG]Sending initial spawn notification for %s"), *NativePlayer->PlayerState->PlayerName);
+			gm->OnPlayerInitialSpawn(NativePlayer);
 
 			NeedInitialSpawn = false;			
 		}
 
-		if (Player != NULL && GetCharacter() == NULL) { //Needed as UE4 seam to work realy weird with variables
-			Player = NULL;
+		if (NativePlayer != NULL && GetCharacter() == NULL) { //Needed as UE4 seam to work realy weird with variables
+			NativePlayer = NULL;
 			UE_LOG(UMod_Game, Log, TEXT("Player death detected !"));
 			AUModGameMode *gm = Cast<AUModGameMode>(GetWorld()->GetAuthGameMode());			
 			if (gm->CanPlayerRespawn(this)) {
 				UE_LOG(UMod_Game, Log, TEXT("Player respawn requested !"));
 				if (gm->GameState != NULL) {
 					AUModGameState *State = Cast<AUModGameState>(gm->GameState);
-					Player = GetWorld()->SpawnActor<AUModCharacter>(gm->DefaultPawnClass, State->SpawnPos, State->SpawnRot);
-					Possess(Player);
+					NativePlayer = GetWorld()->SpawnActor<AUModCharacter>(gm->DefaultPawnClass, State->SpawnPos, State->SpawnRot);
+					Possess(NativePlayer);
 				}
 			}
 		}
 	} else {
 		if (NeedInitialSpawn) {
-			Player = Cast<AUModCharacter>(GetCharacter());
-			if (Player != NULL) {
+			NativePlayer = Cast<AUModCharacter>(GetCharacter());
+			if (NativePlayer != NULL) {
 				NeedInitialSpawn = false;
 			}
 		}
 
-		if (GetCharacter() != Player) { //Needed as UE4 seam to work realy weird with variables
-			Player = Cast<AUModCharacter>(GetCharacter());
+		if (GetCharacter() != NativePlayer) { //Needed as UE4 seam to work realy weird with variables
+			NativePlayer = Cast<AUModCharacter>(GetCharacter());
 		}
 	}
 }
@@ -199,7 +199,7 @@ bool AUModController::InputKey(FKey Key, EInputEvent EventType, float AmountDepr
 			ExitIngameMenu();
 		}
 	}
-	if (EventType == IE_Pressed && Key == EKeys::LeftMouseButton) {
+	if (InMenu && EventType == IE_Pressed && Key == EKeys::LeftMouseButton) {
 		float x = 0;
 		float y = 0;
 		GetMousePosition(x, y);

@@ -5,13 +5,14 @@
 #include "UModGameInstance.h"
 #include "Renderer/Render2D.h"
 #include "Renderer/Render3D.h"
-#include "LuaLibSurface.h"
-#include "LuaLibLog.h"
-#include "LuaLibGame.h"
+
+#include "Lib.h"
+
+#include "LibsInclude.h"
 
 #include "Entities/EntityBase.h"
 
-static UUModGameInstance *Game;
+//TArray<LuaLib*> LuaEngine::LibRegistry;
 
 /*Base replacement methods*/
 static int Print(lua_State *L) {
@@ -24,50 +25,6 @@ static int Type(lua_State *L) {
 	LuaInterface Lua = LuaInterface::Get(L);
 	ELuaType t = Lua.GetType(-1);
 	Lua.PushInt((int)t);
-	return 1;
-}
-/*End*/
-
-/*Global methods*/
-static int Color(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	int r = Lua.CheckInt(1);
-	int g = Lua.CheckInt(2);
-	int b = Lua.CheckInt(3);
-	int a = Lua.CheckInt(4);
-	Lua.PushColor(FColor(r, g, b, a));
-	return 1;
-}
-static int Vector(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	float x = Lua.CheckInt(1);
-	float y = Lua.CheckInt(2);
-	float z = Lua.CheckInt(3);	
-	Lua.PushVector(FVector(x, y, z));
-	return 1;
-}
-static int Include(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString ToInclude = Lua.CheckString(1);
-	if (Game->IsDedicatedServer() || Game->IsListenServer()) { //We are a server
-		Game->Lua->RunScript(ToInclude);
-	} else { //We are a client
-		FString real = Game->AssetsManager->GetLuaFile(ToInclude);
-		Game->Lua->RunScript(real);
-	}
-	return 0;
-}
-static int AddCSLuaFile(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString ToAdd = Lua.CheckString(1);
-	Game->AssetsManager->AddSVLuaFile(FPaths::GameDir() + ToAdd, ToAdd);
-	UE_LOG(UMod_Lua, Log, TEXT("Added lua file for upload : '%s'."), *ToAdd);
-	return 0;
-}
-static int HasAuthority(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	bool b = Game->IsDedicatedServer() || Game->IsListenServer();
-	Lua.PushBool(b);
 	return 1;
 }
 /*End*/
@@ -89,41 +46,16 @@ static int RenderRender3D2DTarget(lua_State *L) {
 }
 /*End*/
 
-/*Add ents lib*/
-static int Ents_Create(lua_State *L) {
-	LuaInterface Lua = LuaInterface::Get(L);
-	FString cl = Lua.CheckString(-1);	
-	UClass **OutPtr = EntityClasses.Find(cl);
-	if (OutPtr == NULL) {
-		AEntityBase *Base = Cast<AEntityBase>(Game->GetWorld()->SpawnActor(AEntityBase::StaticClass())); //We are a going to spawn a Lua entity
-		//Base->SetLuaClass(cl);
-		LuaEntity::PushEntity(Base, &Lua);
-		return 1;
-	}
-	AEntityBase *Base = Cast<AEntityBase>(Game->GetWorld()->SpawnActor(*OutPtr)); //We are going to spawn a C++ entity
-	LuaEntity::PushEntity(Base, &Lua);
-	return 1;
-}
-static int Ents_Register(lua_State *L) {
-	return 0;
-}
-/*End*/
-
 LuaEngine::LuaEngine(UUModGameInstance *g)
 {
-	Game = g;
+	UMOD_STAT(LUALoad);
+
 	Lua = LuaInterface::New();
 	if (Lua == NULL) {
 		UE_LOG(UMod_Lua, Error, TEXT("Lua failed to initialize !"));
 		return;
 	}
-
-	//Leave this block here so we have a LuaInterface and LuaEngine running but empty in editor
-	if (g->IsEditor()) {
-		UE_LOG(UMod_Lua, Error, TEXT("Lua did not initialize as running lua in editor is not allowed !"));
-		return;
-	}
-
+	
 	Lua->OpenLibs();
 
 	//Overwrite print function
@@ -151,33 +83,31 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Remove os lib (will replace by a system lib which will bridge with UE4)
 	Lua->PushNil();
 	Lua->SetGlobal("os");
-	//Add Color()/Vector() functions
-	Lua->PushCFunction(Color);
-	Lua->SetGlobal("Color");
-	Lua->PushCFunction(Vector);
-	Lua->SetGlobal("Vector");
-	//Add Include/AddCSLuaFile functions
-	Lua->PushCFunction(Include);
-	Lua->SetGlobal("Include");
-	Lua->PushCFunction(AddCSLuaFile);
-	Lua->SetGlobal("AddCSLuaFile");
-	//Add HasAuthority function
-	Lua->PushCFunction(HasAuthority);
-	Lua->SetGlobal("HasAuthority");
-
+	
 	//Custom UMod libs
-	LuaLibGame::RegisterGameLib(this, Game);
-	LuaLibLog::RegisterLogLib(this);
+	//LuaLibGame::RegisterGameLib(this, Game);
+	//LuaLibLog::RegisterLogLib(this);
 	if (!g->IsDedicatedServer()) {
-		LuaLibSurface::RegisterSurfaceLib(this);
+		//LuaLibSurface::RegisterSurfaceLib(this);
 		BeginLibReg("render");
 		AddLibFunction("Create3D2DTarget", RenderCreate3D2DTarget);
 		AddLibFunction("Render3D2DTarget", RenderRender3D2DTarget);
 		CreateLibrary();
 	}
-	BeginLibReg("ents");
-	AddLibFunction("Create", Ents_Create);
-	CreateLibrary();
+
+	LuaLib::Game = g;
+
+	UE_LOG(UMod_Lua, Log, TEXT("[DEBUG]Registered %i Lua API classes"), LibRegistry.Num());
+	for (int i = 0; i < LibRegistry.Num(); i++) {
+		LuaLib *Lib = LibRegistry[i];
+		if (Lib->IsClientOnly()) {
+			if (!g->IsDedicatedServer()) {				
+				Lib->RegisterLib(this);
+			}
+		} else {			
+			Lib->RegisterLib(this);
+		}
+	}
 
 	//Global MetaTables
 	LuaEntity::RegisterEntityMetaTable(Lua);
@@ -200,11 +130,19 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	//Add the GM (GameMode) global table
 	Lua->NewTable();
 	Lua->SetGlobal("GM");
+
+	//Again a test failure
+	Lua->Register("LUA_InternalErrorHandler", LUA_InternalErrorHandler);
 }
 
 LuaEngine::~LuaEngine()
-{
+{	
 	Lua->Close();
+}
+
+void LuaEngine::AddClassToRegistry(LuaLib *Lib)
+{
+	LibRegistry.Add(Lib);
 }
 
 /*Lib reg*/
@@ -232,34 +170,63 @@ void LuaEngine::CreateLibrary()
 }
 /*End*/
 
-void LuaEngine::HandleLuaError(ELuaErrorType t, FString msg)
+void LuaEngine::HandleLuaError(ELuaErrorType t, FString msg, TArray<FString> &trace)
 {
 	if (t == ELuaErrorType::PARSER) {
 		UE_LOG(UMod_Lua, Error, TEXT("LuaScript syntax error :"));
 		UE_LOG(UMod_Lua, Error, TEXT("      %s"), *msg);
 	} else if (t == ELuaErrorType::RUNTIME) {
-		UE_LOG(UMod_Lua, Error, TEXT("LuaScript runtime error :"));
-		UE_LOG(UMod_Lua, Error, TEXT("      %s"), *msg);
-	}
+		UE_LOG(UMod_Lua, Error, TEXT("LuaScript runtime error : %s"), *msg);
+		for (int i = 1; i < trace.Num(); i++) {
+			//Remove first 20 characters from file path
+			FString stackElem = trace[i];
+			stackElem = stackElem.Replace(TEXT("../"), TEXT(""));
+			UE_LOG(UMod_Lua, Error, TEXT("      %s"), *stackElem);
+		}		
+	}	
 }
 
 void LuaEngine::RunScript(FString path)
 {
+	TArray<FString> empty;
 	ELuaErrorType type = Lua->LoadFile(path);
 	if (type != ELuaErrorType::NONE) {
 		FString str = Lua->ToString(-1);
-		HandleLuaError(type, str);
+		HandleLuaError(type, str, empty);
 	}
 	ELuaErrorType t = Lua->PCall(0, 0, 0);
 	if (t != ELuaErrorType::NONE) {		
 		FString str = Lua->ToString(-1);
-		HandleLuaError(t, str);
+		HandleLuaError(t, str, empty);
 	}
 }
 
-void LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName)
+void LuaEngine::InitGameMode()
 {
-	//Lua->TraceBack(-1);
+	Lua->GetGlobal("LUA_InternalErrorHandler");
+
+	Lua->GetGlobal("GM");
+	Lua->PushString("Initialize");
+	Lua->GetTable(-2);
+
+	ELuaErrorType t = Lua->PCall(0, 0, -3);
+	if (t != ELuaErrorType::NONE) {
+		GameModeInitialized = false;
+		UE_LOG(UMod_Lua, Error, TEXT("An error has occured while initializing GameMode '%s'"), *LuaLib::Game->GetGameMode());
+	} else {
+		GameModeInitialized = true;
+	}
+}
+
+bool LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, FString FuncName)
+{
+	UMOD_STAT(LUAFuncCall0);
+
+	if (!GameModeInitialized) {
+		return false;
+	}
+
+	Lua->GetGlobal("LUA_InternalErrorHandler");
 
 	switch (Tbl) {
 	case GLOBAL:
@@ -272,11 +239,11 @@ void LuaEngine::RunScriptFunctionZeroParam(ETableType Tbl, uint8 resultNumber, F
 	Lua->PushString(FuncName);
 	Lua->GetTable(-2);
 
-	ELuaErrorType t = Lua->PCall(0, resultNumber, 0);
+	ELuaErrorType t = Lua->PCall(0, resultNumber, -3);
 	if (t != ELuaErrorType::NONE) {
-		FString msg = Lua->ToString(-1);
-		HandleLuaError(t, msg);
+		return false;
 	}
+	return true;
 }
 
 FString LuaEngine::GetLuaVersion()
