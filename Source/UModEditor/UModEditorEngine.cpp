@@ -1,5 +1,6 @@
 #include "UModEditor.h"
 #include "UModEditorEngine.h"
+#include "IPlacementModeModule.h"
 
 void UUModEditorEngine::Init(IEngineLoop* InEngineLoop)
 {
@@ -23,6 +24,10 @@ void UUModEditorEngine::Init(IEngineLoop* InEngineLoop)
 	//For windows : cmd.exe
 	//For Linux : /bin/bash
 	//For mac : /bin/sh
+	
+	IPlacementModeModule &EntryPoint = FModuleManager::LoadModuleChecked<IPlacementModeModule>("PlacementMode");
+	FPlacementCategoryInfo UModPlaceCat(FText::FromString("UMod"), "UMod", "UMod", 35);
+	EntryPoint.RegisterPlacementCategory(UModPlaceCat);
 }
 
 void UUModEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor)

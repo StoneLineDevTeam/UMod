@@ -93,6 +93,10 @@ void AUModController::Tick(float f)
 		if (GetCharacter() != NativePlayer) { //Needed as UE4 seam to work realy weird with variables
 			NativePlayer = Cast<AUModCharacter>(GetCharacter());
 		}
+
+		if (InMenu) {
+			GetMousePosition(FVUIUtils::MouseX, FVUIUtils::MouseY);
+		}
 	}
 }
 
@@ -199,11 +203,25 @@ bool AUModController::InputKey(FKey Key, EInputEvent EventType, float AmountDepr
 			ExitIngameMenu();
 		}
 	}
-	if (InMenu && EventType == IE_Pressed && Key == EKeys::LeftMouseButton) {
-		float x = 0;
-		float y = 0;
-		GetMousePosition(x, y);
-		OnMouseClick.Broadcast(x, y);
+	if (InMenu && EventType == IE_Pressed) {
+		if (Key == EKeys::LeftMouseButton) {
+			float x = 0;
+			float y = 0;
+			GetMousePosition(x, y);
+			OnMouseClick.Broadcast(x, y);
+
+			//Broadcast to VUI
+			FVUIApp::Get()->EventMouseClick(EMouseButton::LEFT_CLICK);
+		} else if (Key == EKeys::RightMouseButton) {
+			//Broadcast to VUI
+			FVUIApp::Get()->EventMouseClick(EMouseButton::RIGHT_CLICK);
+		} else if (Key == EKeys::MiddleMouseButton) {
+			//Broadcast to VUI
+			FVUIApp::Get()->EventMouseClick(EMouseButton::MIDDLE_CLICK);
+		} else {
+			//Broadcast to VUI
+			FVUIApp::Get()->EventKeyTyped(Key);
+		}
 	}
 	if (InMenu) {
 		return true;

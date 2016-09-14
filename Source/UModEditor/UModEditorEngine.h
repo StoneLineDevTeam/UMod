@@ -9,7 +9,7 @@ class UUModEditorEngine : public UUnrealEdEngine
 {
 	GENERATED_BODY()
 
-public:
+public:	
 	virtual void Init(IEngineLoop* InEngineLoop) override;
 	virtual void PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor);
 private:

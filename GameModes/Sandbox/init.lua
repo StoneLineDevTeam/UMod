@@ -4,7 +4,7 @@ Include("Addons/test.lua")
 GlobalTest = nil
 
 function GM:EntitySpawned(ent)
-	--print(ent)
+	print(ent)
 end
 
 --Stack trace system test

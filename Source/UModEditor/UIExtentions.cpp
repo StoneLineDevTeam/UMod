@@ -229,10 +229,81 @@ void UIExtentions::OpenLauncher()
 		FDesktopPlatformModule::Get()->OpenLauncher(FOpenLauncherOptions(false, TEXT("")));
 	}
 }
+void UIExtentions::OpenMessageLog()
+{
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	MessageLogModule.EnableMessageLogDisplay(true);
+	MessageLogModule.OpenMessageLog("UModEditor");
+}
+bool IsUModEntity(UClass *cl) {
+	return cl->GetName().StartsWith("Entity");
+}
+void UIExtentions::MapCheckErrors()
+{
+	bool HasSpawn = false;
+	bool HasSkybox = false;
+	UWorld *WorldCtx = GEngine->GetEditorWorldContext().World();
+	LogEditorMessage(LEVEL_INFO, "--> Running Map Check <--");
+	int CntBase = 0;
+	int CntUE4 = 0;
+	for (TObjectIterator<AActor> Itr; Itr; ++Itr) {
+		if (*Itr != NULL && Itr->GetWorld() == WorldCtx) {
+			LogEditorMessage(LEVEL_INFO, "Checking Actor '" + Itr->GetName() + "' of type '" + Itr->GetClass()->GetName() + "'...");
+			if (IsUModEntity(Itr->GetClass())) {
+				CntBase++;
+			} else {
+				FString act = Itr->GetClass()->GetName();
+				if (act == "PlayerStart") {
+					HasSpawn = true;
+				} else if (act == "BP_Sky_Sphere_C") {
+					HasSkybox = true;
+				} else if (act == "StaticMeshActor") {
+					TArray<UStaticMeshComponent*> comps;
+					Itr->GetComponents<UStaticMeshComponent>(comps);
+					bool del = false;
+					for (int32 i = 0; i < comps.Num(); i++) {
+						UStaticMeshComponent *c = comps[i];
+						if (c->IsSimulatingPhysics()) {
+							del = true;
+							break;
+						}
+					}
+					if (del) {
+						LogEditorMessage(LEVEL_ERROR, "StaticMeshComponent with physics detected ! That is not allowed, please use EntityPhysicsProp instead.");
+					}
+				}
+
+				CntUE4++;
+			}			
+		}
+	}
+	LogEditorMessage(LEVEL_INFO, "--> Map specs for '" + WorldCtx->GetName() + "' <--");
+	if (CntBase > 1) {
+		LogEditorMessage(LEVEL_INFO, FString::FromInt(CntBase + CntUE4) + " total checked actors (" + FString::FromInt(CntBase) + " UMod entities, " + FString::FromInt(CntUE4) + " UE4 actor(s))");
+	} else {
+		LogEditorMessage(LEVEL_INFO, FString::FromInt(CntBase + CntUE4) + " total checked actors (" + FString::FromInt(CntBase) + " UMod entity, " + FString::FromInt(CntUE4) + " UE4 actor(s))");
+	}
+	if (!HasSpawn) {
+		LogEditorMessage(LEVEL_ERROR, "This map has no spawn location defined, please add a PlayerStart actor !");
+	}
+	if (!HasSkybox) {
+		LogEditorMessage(LEVEL_WARNING, "This map has no Skybox, this may cause rendering issues...");
+	}
+	LogEditorMessage(LEVEL_INFO, "--> End section <--");
+}
+void UIExtentions::MapSetupSkybox()
+{
+	
+}
 void UIExtentions::LuaMenu(FMenuBuilder &MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(FText::FromString("Prepare Lua docs"), FText::FromString("Prepare Lua docs (Requires Source Code)"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::PrepareLuaDocs)));
 	MenuBuilder.AddMenuEntry(FText::FromString("Generate Lua docs"), FText::FromString("Generates Lua docs (Requires Source Code)"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::GenerateLuaDocs)));
+}
+void UIExtentions::MapToolsMenu(FMenuBuilder &MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(FText::FromString("Check Errors"), FText::FromString("Check mapping errors"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::MapCheckErrors)));
+	MenuBuilder.AddMenuEntry(FText::FromString("Setup Skybox"), FText::FromString("Sets up a map with a default skybox and a light"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::MapSetupSkybox)));
 }
 void UIExtentions::ConvertMaterialMenu(FMenuBuilder &MenuBuilder)
 {
@@ -245,8 +316,10 @@ void UIExtentions::FillUModMenu(FMenuBuilder &MenuBuilder)
 	MenuBuilder.AddMenuEntry(FText::FromString("Compile Addon Content"), FText::FromString("Compile Addon Content"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::CompileAddonContent)));
 	MenuBuilder.AddSubMenu(FText::FromString("VMT Converter"), FText::FromString("Convert VMT file representation into UMod Lua ready materials"), FNewMenuDelegate::CreateRaw(this, &UIExtentions::ConvertMaterialMenu));
 	MenuBuilder.AddSubMenu(FText::FromString("Lua"), FText::FromString("Lua doc generator commands"), FNewMenuDelegate::CreateRaw(this, &UIExtentions::LuaMenu));
+	MenuBuilder.AddSubMenu(FText::FromString("MapTools"), FText::FromString("UMod map tools"), FNewMenuDelegate::CreateRaw(this, &UIExtentions::MapToolsMenu));
+	MenuBuilder.AddMenuEntry(FText::FromString("Message Log"), FText::FromString("Opens UE4's message log in UModEditor category"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::OpenMessageLog)));
 	MenuBuilder.AddMenuEntry(FText::FromString("Open Launcher"), FText::FromString("Opens the Epic Games Launcher"), FSlateIcon::FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &UIExtentions::OpenLauncher)));
-	MenuBuilder.EndSection();
+	MenuBuilder.EndSection();	
 }
 void UIExtentions::CreateUModMenu(FMenuBarBuilder &MenuBuilder)
 {

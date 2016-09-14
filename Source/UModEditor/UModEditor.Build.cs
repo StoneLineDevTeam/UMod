@@ -9,7 +9,7 @@ public class UModEditor : ModuleRules
     {
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "OnlineSubsystem", "OnlineSubsystemUtils", "UMG", "Slate", "SlateCore", "Networking", "Sockets", "PakFile", "RHI", "RenderCore", "ShaderCore", "EngineSettings", "Messaging", "EngineMessages", "UMod", "UnrealEd", "MainFrame", "ContentBrowser" });
 
-        PrivateDependencyModuleNames.AddRange(new string[] { "DesktopPlatform", "AssetTools" });
+        PrivateDependencyModuleNames.AddRange(new string[] { "DesktopPlatform", "AssetTools", "MessageLog", "PlacementMode" });
 
         DynamicallyLoadedModuleNames.Add("OnlineSubsystemNull");
     }

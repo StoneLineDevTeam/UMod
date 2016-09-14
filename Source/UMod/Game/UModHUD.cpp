@@ -93,7 +93,7 @@ void AUModHUD::HandleMouseClick(float x, float y)
 	for (int i = 0; i < 16; i++) {
 		const Button* but = Buttons[i];
 		if (but != NULL) {
-			if (IsMouseInRect(x, y, size.X / 2 - 256, 200 + i * 70, 512, 64)) {
+			if (FVUIUtils::IsMouseInRect(size.X / 2 - 256, 200 + i * 70, 512, 64)) {
 				OnButtonClick(but->id);
 			}
 		}
@@ -115,7 +115,7 @@ void AUModHUD::DrawIngameMenu()
 	for (int i = 0; i < 16; i++) {
 		const Button* but = Buttons[i];
 		if (but != NULL) {
-			if (IsMouseInRect(msPosX, msPosY, size.X / 2 - 256, 200 + i * 70, 512, 64)) {
+			if (FVUIUtils::IsMouseInRect(size.X / 2 - 256, 200 + i * 70, 512, 64)) {
 				URender2D::SetColor(FColor(200, 200, 200, 200));
 				URender2D::DrawRect(size.X / 2 - 256, 200 + i * 70, 512, 64);
 			} else {

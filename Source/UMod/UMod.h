@@ -26,6 +26,8 @@
 #include "OS/UModPlatformUtils.h"
 #include "Game/SurfaceTypes.h"
 
+#include "VUI/VUIMain.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Game, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Maps, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(UMod_Input, Log, All);

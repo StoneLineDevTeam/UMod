@@ -24,6 +24,10 @@ protected:
 	void ConvertEntireFolder();
 	void OpenLauncher();
 	void LuaMenu(FMenuBuilder &MenuBuilder);
+	void MapToolsMenu(FMenuBuilder &MenuBuilder);
+	void MapCheckErrors();
+	void MapSetupSkybox();
 	void PrepareLuaDocs();
 	void GenerateLuaDocs();
+	void OpenMessageLog();
 };

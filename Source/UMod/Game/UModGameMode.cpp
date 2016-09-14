@@ -68,7 +68,7 @@ void AUModGameMode::OnPlayerInitialSpawn(AUModCharacter *player)
 
 void AUModGameMode::OnEntitySpawn(AEntityBase *ent)
 {
-	Game->Lua->RunScriptFunctionOneParam(ETableType::GLOBAL, 0, "EntitySpawned", FLuaParam<Entity>(ent));
+	Game->Lua->RunScriptFunctionOneParam(ETableType::GAMEMODE, 0, "EntitySpawned", FLuaParam<Entity>(ent));
 }
 
 //TODO : Bind to Lua

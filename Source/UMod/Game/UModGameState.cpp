@@ -43,15 +43,16 @@ void AUModGameState::HandleMatchIsWaitingToStart()
 				bool del = false;
 				for (int32 i = 0; i < comps.Num(); i++) {
 					UStaticMeshComponent *c = comps[i];
-					if (c->HasValidPhysicsState()) {
+					if (c->IsSimulatingPhysics()) {
 						del = true;
 						break;
 					}
 				}
 
 				if (del) {
-					UE_LOG(UMod_Maps, Error, TEXT("StaticMeshActor with physics : this is not allowed, use SyncedPhysicsEntity instead ! Disabling physics."));
-					Itr->DisableComponentsSimulatePhysics();
+					UE_LOG(UMod_Maps, Error, TEXT("StaticMeshActor with physics : this is not allowed, use SyncedPhysicsEntity instead ! Disabling physics."));					
+					FPlatformMisc::RequestExit(false); //EDIT 14/09/16 shut down the game in order to prevent physics desynchronization bug and potential Lua bugs/crashes ; use MapTools>CheckErrors in UMod Editor
+					return;
 				}
 			}
 		}

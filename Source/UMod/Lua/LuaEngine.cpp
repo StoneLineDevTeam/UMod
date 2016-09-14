@@ -85,10 +85,7 @@ LuaEngine::LuaEngine(UUModGameInstance *g)
 	Lua->SetGlobal("os");
 	
 	//Custom UMod libs
-	//LuaLibGame::RegisterGameLib(this, Game);
-	//LuaLibLog::RegisterLogLib(this);
 	if (!g->IsDedicatedServer()) {
-		//LuaLibSurface::RegisterSurfaceLib(this);
 		BeginLibReg("render");
 		AddLibFunction("Create3D2DTarget", RenderCreate3D2DTarget);
 		AddLibFunction("Render3D2DTarget", RenderRender3D2DTarget);

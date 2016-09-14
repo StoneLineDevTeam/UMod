@@ -1,5 +1,4 @@
 --Firt GameMode file (Client) !
-
 local fntIndex = surface.LoadFont("UMod:FederationRegular", 32)
 local GVersion = game.GetVersion()
 ScrW = 0
@@ -14,4 +13,5 @@ end
 function GM:Initialize()
 	log.Info("Sandbox GameMode initializing !")
 	ScrW, ScrH = ScrSize()
+	local res = engine.GetGameResolution()
 end

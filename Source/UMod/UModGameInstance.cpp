@@ -251,6 +251,8 @@ void UUModGameInstance::Init()
 		UUModAssetsManager::PrecacheAssets.Broadcast();
 		float elapsed = (FPlatformTime::ToMilliseconds(FPlatformTime::Cycles()) - cur) / 1000.0F;
 		UE_LOG(UMod_Game, Log, TEXT("Done (%f seconds) !"), elapsed);
+
+		FVUIApp::InitVUISystem(this);
 	}
 }
 
@@ -276,6 +278,9 @@ void UUModGameInstance::DestroyCurSession(IOnlineSessionPtr Sessions)
 
 bool UUModGameInstance::StartNewGame(bool single, bool local, int32 max, FString map, FString hostName)
 {
+	//Reload Lua
+	ReloadLua();
+
 	ULocalPlayer* const Player = GetFirstGamePlayer();
 
 	Player->PlayerController->ClientTravel("LoadScreen?game=" + AMenuGameMode::StaticClass()->GetPathName(), ETravelType::TRAVEL_Absolute);
@@ -384,6 +389,9 @@ bool UUModGameInstance::PollServer(FString ip, int32 port, FString &error)
 
 bool UUModGameInstance::JoinGame(FString ip, int32 port)
 {
+	//Reload Lua
+	ReloadLua();
+
 	IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get();
 
 	IOnlineSessionPtr Sessions = NULL;
