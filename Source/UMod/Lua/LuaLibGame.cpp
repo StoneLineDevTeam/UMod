@@ -31,10 +31,10 @@ DECLARE_LUA_FUNC(GameGetMaps)
 }
 DECLARE_LUA_FUNC(GameGetAssets)
 	FString mnt = Lua.CheckString(1);
-	int i = Lua.CheckInt(2);
+	int enumIndex = Lua.CheckInt(2);
 	Lua.NewTable();
-	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), i);
-	EUModAssetType t = EUModAssetType(i);
+	UE_LOG(UMod_Lua, Warning, TEXT("[DEBUG]Asset type to list : %i"), enumIndex);
+	EUModAssetType t = EUModAssetType(enumIndex);
 	TArray<FUModAsset> Assets = LuaLib::Game->AssetsManager->GetAssetList(mnt, t);
 	for (int i = 0; i < Assets.Num(); i++) {
 		FUModAsset Asset = Assets[i];

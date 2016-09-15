@@ -1,5 +1,4 @@
 #pragma once
-
 #include "SlateBasics.h"
 
 /*class SUModPaletteButton : public SButton {

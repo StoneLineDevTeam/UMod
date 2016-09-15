@@ -7,3 +7,13 @@ Saved
 *.suo
 *.xcodeproj
 UMod.VC.db
+UModCodeCompletionFolders.txt
+UModCodeLitePreProcessor.txt
+*.pri
+core
+.codelite/*
+.kdev4/*
+UMod.kdev4
+UMod.pro
+CMakeLists.txt
+Makefile

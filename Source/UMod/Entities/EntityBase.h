@@ -149,8 +149,12 @@ public:
 	//Init properties
 	template <typename T>
 	bool GetInitProperty(FString name, T &out);
+	//End
+};
+
+//Force fucking clang++ to compile the API !!
 	template <>
-	bool GetInitProperty<float>(FString name, float &out)
+	inline bool AEntityBase::GetInitProperty<float>(FString name, float &out)
 	{
 		for (int i = 0; i < InitProperties.Num(); i++) {
 			if (InitProperties[i] == name) {
@@ -161,7 +165,7 @@ public:
 		return false;
 	}
 	template <>
-	bool GetInitProperty<FString>(FString name, FString &out)
+	inline bool AEntityBase::GetInitProperty<FString>(FString name, FString &out)
 	{
 		for (int i = 0; i < InitProperties.Num(); i++) {
 			if (InitProperties[i] == name) {
@@ -172,7 +176,7 @@ public:
 		return false;
 	}
 	template <>
-	bool GetInitProperty<int>(FString name, int &out)
+	inline bool AEntityBase::GetInitProperty<int>(FString name, int &out)
 	{
 		for (int i = 0; i < InitProperties.Num(); i++) {
 			if (InitProperties[i] == name) {
@@ -182,5 +186,3 @@ public:
 		}
 		return false;
 	}
-	//End
-};

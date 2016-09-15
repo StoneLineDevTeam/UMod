@@ -27,7 +27,7 @@ void BindKeyFromConfigIfExists(FString category, FString name, FKey &key)
 		UE_LOG(UMod_Input, Warning, TEXT("No key found in config for : %s"), *name);
 
 		FKey def = key;
-		FString str = def.ToString();
+		str = def.ToString();
 
 		GConfig->SetString(*category, *name, *str, InputCFG);
 	}

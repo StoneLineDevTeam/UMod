@@ -36,5 +36,7 @@ public:
 #elif PLATFORM_MAC
 //TODO : Add Mac implementation
 #elif PLATFORM_LINUX
+#include "UModLinux.h"
+#define FUModPlatformUtils LinuxHelper
 //TODO : Add Linux implementation
 #endif

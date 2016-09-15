@@ -1,7 +1,7 @@
 #pragma once
 #include "UMod.h"
 
-class UMOD_API WindowsHelper : public IUModPlatformUtils {
+class UMOD_API LinuxHelper : public IUModPlatformUtils {
 public:
 	virtual void* GetConsoleHandle();
 	virtual void SetConsoleTitleString(void* ConsoleHandle, FString text);
@@ -12,4 +12,4 @@ public:
 	virtual void DisableWindowResize(void* Handle);
 };
 
-#include "UModWindowsImpl.h"
+#include "UModLinuxImpl.h"

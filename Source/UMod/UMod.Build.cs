@@ -105,8 +105,13 @@ public class UMod : ModuleRules
         {
             Console.WriteLine("LuaPath is : " + LuaPath);
             Console.WriteLine("LuaDynamicLib : " + LuaDL + ", LuaStaticLib : " + LuaSL);
-            PublicLibraryPaths.Add(LuaPath);
-            PublicAdditionalLibraries.Add(LuaSL);
+            if (Target.Platform == UnrealTargetPlatform.Linux) {
+				//PublicLibraryPaths.Add(LuaPath);
+				PublicAdditionalLibraries.Add(LuaPath + LuaSL);
+			} else {
+				PublicLibraryPaths.Add(LuaPath);
+				PublicAdditionalLibraries.Add(LuaSL);
+			}
             PublicDelayLoadDLLs.Add(LuaDL); //Tried to do something but it still needs some C++ hacky ways (engine source code change)...
             PublicIncludePaths.Add(LuaIncludePath);            
             return true;

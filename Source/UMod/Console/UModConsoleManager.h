@@ -64,11 +64,20 @@ struct FUModConsoleCommand {
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLogAddedDelegate, FLogLine, LogLine);
 
+class FUModOutputDevice : public FOutputDevice {	
+public:
+	FUModOutputDevice(class UUModConsoleManager *M);
+	~FUModOutputDevice();
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+private:
+	class UUModConsoleManager *Manager;
+};
+
 /**
  * 
  */
 UCLASS()
-class UUModConsoleManager : public UObject, public FOutputDevice
+class UUModConsoleManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -76,7 +85,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Logs", Keywords = "get logs"), Category = "UMod_Specific|ConsoleManager")
 	TArray<FLogLine>& GetLogs();
 
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 	virtual void BeginDestroy();
 
 	UPROPERTY(BlueprintAssignable)
@@ -109,66 +117,9 @@ public:
 
 	template<typename T>
 	T GetConsoleVar(FString name);
-	template<>
-	int GetConsoleVar<int>(FString name)
-	{
-		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
-			if (ConsoleIntegers[i].VarName == name) {
-				return ConsoleIntegers[i].Value;
-			}
-		}
-		return 0;
-	}
-	template<>
-	bool GetConsoleVar<bool>(FString name)
-	{
-		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
-			if (ConsoleBooleans[i].VarName == name) {
-				return ConsoleBooleans[i].Value;
-			}
-		}
-		return false;
-	}
-	template<>
-	FString GetConsoleVar<FString>(FString name)
-	{
-		for (int i = 0; i < ConsoleStrings.Num(); i++) {
-			if (ConsoleStrings[i].VarName == name) {
-				return ConsoleStrings[i].Value;
-			}
-		}
-		return "";
-	}
 
 	template<typename T>
 	void SetConsoleVar(FString name, T val);
-	template<>
-	void SetConsoleVar<int>(FString name, int val)
-	{
-		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
-			if (ConsoleIntegers[i].VarName == name) {
-				ConsoleIntegers[i].Value = val;
-			}
-		}
-	}
-	template<>
-	void SetConsoleVar<bool>(FString name, bool val)
-	{
-		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
-			if (ConsoleBooleans[i].VarName == name) {
-				ConsoleBooleans[i].Value = val;
-			}
-		}
-	}
-	template<>
-	void SetConsoleVar<FString>(FString name, FString val)
-	{
-		for (int i = 0; i < ConsoleStrings.Num(); i++) {
-			if (ConsoleStrings[i].VarName == name) {
-				ConsoleStrings[i].Value = val;
-			}
-		}
-	}
 
 	void DefineConsoleInt(FUModConsoleVar<int> var);
 	void DefineConsoleString(FUModConsoleVar<FString> var);
@@ -187,9 +138,10 @@ public:
 	static FUModConsoleCommand** ConsoleCommands;
 	static int ConsoleCommandNumber;
 	//End
-
+	
+	FUModOutputDevice *Out;
 	UUModGameInstance *Game;
-private:
+private:	
 	//If we are still allowing vars registration (this way we have a fix number of vars to upload)
 	bool RegisteringVars;	
 
@@ -198,3 +150,63 @@ private:
 	//Allowing only 3 different type of console variables
 	TArray<FUModConsoleVar<FString>> ConsoleStrings;
 };
+
+//Force fucking clang++ to compile the API !!
+	template<>
+	inline int UUModConsoleManager::GetConsoleVar<int>(FString name)
+	{
+		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
+			if (ConsoleIntegers[i].VarName == name) {
+				return ConsoleIntegers[i].Value;
+			}
+		}
+		return 0;
+	}
+	template<>
+	inline bool UUModConsoleManager::GetConsoleVar<bool>(FString name)
+	{
+		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
+			if (ConsoleBooleans[i].VarName == name) {
+				return ConsoleBooleans[i].Value;
+			}
+		}
+		return false;
+	}
+	template<>
+	inline FString UUModConsoleManager::GetConsoleVar<FString>(FString name)
+	{
+		for (int i = 0; i < ConsoleStrings.Num(); i++) {
+			if (ConsoleStrings[i].VarName == name) {
+				return ConsoleStrings[i].Value;
+			}
+		}
+		return "";
+	}
+
+	template<>
+	inline void UUModConsoleManager::SetConsoleVar<int>(FString name, int val)
+	{
+		for (int i = 0; i < ConsoleIntegers.Num(); i++) {
+			if (ConsoleIntegers[i].VarName == name) {
+				ConsoleIntegers[i].Value = val;
+			}
+		}
+	}
+	template<>
+	inline void UUModConsoleManager::SetConsoleVar<bool>(FString name, bool val)
+	{
+		for (int i = 0; i < ConsoleBooleans.Num(); i++) {
+			if (ConsoleBooleans[i].VarName == name) {
+				ConsoleBooleans[i].Value = val;
+			}
+		}
+	}
+	template<>
+	inline void UUModConsoleManager::SetConsoleVar<FString>(FString name, FString val)
+	{
+		for (int i = 0; i < ConsoleStrings.Num(); i++) {
+			if (ConsoleStrings[i].VarName == name) {
+				ConsoleStrings[i].Value = val;
+			}
+		}
+	}

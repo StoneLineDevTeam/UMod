@@ -171,8 +171,9 @@ void UUModGameInstance::Init()
 	//Console log retriever hack
 	ConsoleManager = NewObject<UUModConsoleManager>();
 	ConsoleManager->Game = this;
-	GLog->AddOutputDevice(ConsoleManager);
-	GLog->SerializeBacklog(ConsoleManager);
+	ConsoleManager->Out = new FUModOutputDevice(ConsoleManager);
+	GLog->AddOutputDevice(ConsoleManager->Out);
+	GLog->SerializeBacklog(ConsoleManager->Out);
 	GLog->EnableBacklog(true);
 	//End
 		
@@ -264,6 +265,8 @@ bool UUModGameInstance::IsDedicatedServer()
 //Game shutdown
 void UUModGameInstance::Shutdown()
 {
+	GLog->RemoveOutputDevice(ConsoleManager->Out);
+	delete ConsoleManager->Out;
 	delete Lua;
 }
 

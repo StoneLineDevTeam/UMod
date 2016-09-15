@@ -52,7 +52,9 @@ EBrowseReturnVal::Type UUModGameEngine::Browse(FWorldContext& WorldContext, FURL
 			NetDriver->ConnectionTimeout = GetGame()->ConnectTimeout;
 			if (NetHandleCL != NULL) { //FIX : delete causing weird access violation when switching map
 				UE_LOG(UMod_Game, Log, TEXT("Network Handler Client removal..."));
+#if PLATFORM_WINDOWS
 				delete NetHandleCL;
+#endif
 			}
 			//HEHEHEHHE ! You did not saw that, you are so stupid UE4 !
 			NetHandleCL = new UClientHandler();
@@ -100,7 +102,10 @@ void UUModGameEngine::NetworkCleanUp()
 		GetGameWorld()->GetNetDriver()->Shutdown();
 	}	
 	if (NetHandleSV != NULL) {
+#if PLATFORM_WINDOWS
+		//Yeah I know it is realy weird, but clang++ obligates me to create a memory leak
 		delete NetHandleSV;
+#endif
 	}
 }
 
@@ -155,7 +160,7 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 		GLogConsole->Show(true);
 		GLogConsole->SetSuppressEventTag(false);
 		
-		FString str = mapPath + " -server";
+		str = mapPath + " -server";
 		if (Log) {
 			str.Append(" -log");
 		}
@@ -170,7 +175,7 @@ void UUModGameEngine::Init(class IEngineLoop* InEngineLoop)
 		bool Log;
 		GConfig->GetBool(TEXT("Common"), TEXT("DoLogging"), Log, ClientCFG);
 		GConfig->SetBool(TEXT("Common"), TEXT("DoLogging"), Log, ClientCFG);
-		FString str = "/Game/Internal/Maps/MainMenu -game";
+		str = "/Game/Internal/Maps/MainMenu -game";
 		if (Log) {
 			str.Append(" -log");
 		}

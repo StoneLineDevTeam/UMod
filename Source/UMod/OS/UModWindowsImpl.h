@@ -1,5 +1,5 @@
-#include "UMod.h"
-#include "UModWindows.h"
+//#include "UMod.h"
+//#include "UModWindows.h"
 
 #include "AllowWindowsPlatformTypes.h"
 #include <stdio.h>
@@ -11,19 +11,19 @@
 #include <thread>
 #include <iostream>
 
-void* WindowsHelper::GetConsoleHandle()
+inline void* WindowsHelper::GetConsoleHandle()
 {
 	HWND UE4Console = GetConsoleWindow();
 	return (void*)UE4Console;
 }
 
-void WindowsHelper::SetConsoleTitleString(void* ConsoleHandle, FString text)
+inline void WindowsHelper::SetConsoleTitleString(void* ConsoleHandle, FString text)
 {
 	HWND UE4Console = (HWND)ConsoleHandle;
 	SetWindowText(UE4Console, *text);
 }
 
-void WindowsHelper::SetConsoleIcon(void* ConsoleHandle, void* Icon)
+inline void WindowsHelper::SetConsoleIcon(void* ConsoleHandle, void* Icon)
 {
 	HWND UE4Console = (HWND)ConsoleHandle;
 	HICON icon = (HICON)Icon;
@@ -31,13 +31,13 @@ void WindowsHelper::SetConsoleIcon(void* ConsoleHandle, void* Icon)
 	SendMessage(UE4Console, WM_SETICON, ICON_BIG, (LPARAM)icon);
 }
 
-void* WindowsHelper::LoadIconFromFile(FString path, int width, int height)
+inline void* WindowsHelper::LoadIconFromFile(FString path, int width, int height)
 {
 	HICON icon = (HICON)LoadImage(NULL, *path, IMAGE_ICON, width, height, LR_LOADFROMFILE);
 	return (void*)icon;
 }
 
-void WindowsHelper::SetWindowIcon(void* Handle, void* Icon)
+inline void WindowsHelper::SetWindowIcon(void* Handle, void* Icon)
 {
 	HWND win = (HWND)Handle;
 	HICON icon = (HICON)Icon;
@@ -45,7 +45,7 @@ void WindowsHelper::SetWindowIcon(void* Handle, void* Icon)
 	SendMessage(win, WM_SETICON, ICON_BIG, (LPARAM)icon);
 }
 
-void WindowsHelper::BindStdIO(void* ConsoleHandle)
+inline void WindowsHelper::BindStdIO(void* ConsoleHandle)
 {
 	AttachConsole(GetProcessId((HWND)ConsoleHandle));
 	freopen("CONIN$", "r", stdin);
@@ -60,7 +60,7 @@ void WindowsHelper::BindStdIO(void* ConsoleHandle)
 	std::ios::sync_with_stdio();
 }
 
-void WindowsHelper::DisableWindowResize(void* Handle)
+inline void WindowsHelper::DisableWindowResize(void* Handle)
 {
 	LONG style = GetWindowLong((HWND)Handle, GWL_STYLE);
 	style = style &~ WS_SIZEBOX;

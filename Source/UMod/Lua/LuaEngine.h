@@ -187,8 +187,8 @@ static int LUA_##Name(lua_State *L) { \
 
 //This macro assumes that the table is at index -1 in the stack
 #define LUA_SETTABLE(StrIndex, PushType, Var) \
-Lua.PushString(##StrIndex); \
-Lua.Push##PushType(##Var); \
+Lua.PushString(StrIndex); \
+Lua.Push##PushType(Var); \
 Lua.SetTable(-3) \
 
 //Variadic macro only for arguments
@@ -218,12 +218,12 @@ struct LUA_Initializer##ClassName { \
 LUA_Initializer##ClassName LUA_Init##ClassName; \
 
 #define LUA_ASSERT_MSG(AssertCode, Msg) \
-if (!(##AssertCode)) { \
+if (!(AssertCode)) { \
 	Lua.ThrowError(Msg); \
 } \
 
 #define LUA_ASSERT(AssertCode) \
-if (!(##AssertCode)) { \
+if (!(AssertCode)) { \
 	Lua.ThrowError(#AssertCode); \
 } \
 //End

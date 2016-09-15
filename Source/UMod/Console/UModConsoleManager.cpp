@@ -12,7 +12,6 @@ int UUModConsoleManager::ConsoleCommandNumber = 0;
 
 void UUModConsoleManager::BeginDestroy()
 {	
-	GLog->RemoveOutputDevice(this);
 	OnLogAdded.RemoveAll(this);
 	Super::BeginDestroy();
 }
@@ -32,7 +31,15 @@ void UUModConsoleManager::AddLogLine(FString log, FColor col)
 	OnLogAdded.Broadcast(line);
 }
 
-void UUModConsoleManager::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
+FUModOutputDevice::FUModOutputDevice(UUModConsoleManager *M)
+{
+	Manager = M;
+}
+FUModOutputDevice::~FUModOutputDevice()
+{
+	Manager = NULL;	
+}
+void FUModOutputDevice::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
 	FColor col;
 	switch (Verbosity) {
@@ -51,7 +58,7 @@ void UUModConsoleManager::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosit
 	str += "]";
 	str += " -> ";
 	str += FString(V);
-	AddLogLine(str, col);
+	Manager->AddLogLine(str, col);
 }
 
 void UUModConsoleManager::DefineConsoleInt(FUModConsoleVar<int> var)

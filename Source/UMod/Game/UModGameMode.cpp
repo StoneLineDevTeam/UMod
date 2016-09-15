@@ -46,12 +46,12 @@ void AUModGameMode::BeginPlay()
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/init.lua"));
 		}
 	} else { //This part will not work because GameMode is server only.... I need the GameState for that...
-		/*if (FPaths::FileExists(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua")) {
+		if (FPaths::FileExists(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua")) {
 			Game->Lua->RunScript(FPaths::GameDir() + "/GameModes/" + LuaGameMode + "/cl_init.lua");
 		} else {
 			UE_LOG(UMod_Lua, Warning, TEXT("Could not load %s : file does not exist. Lua GM will not run."), *FString("GameModes/" + LuaGameMode + "/cl_init.lua"));
-		}*/
-	/*}
+		}
+	}
 	Game->Lua->RunScriptFunctionZeroParam(ETableType::GAMEMODE, 0, "Initialize");*/
 }
 

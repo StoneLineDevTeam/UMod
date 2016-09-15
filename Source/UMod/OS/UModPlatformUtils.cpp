@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#include <io.h>
+//#include <io.h>
 #include <iostream>
 
 /* STDInputThread implementation */

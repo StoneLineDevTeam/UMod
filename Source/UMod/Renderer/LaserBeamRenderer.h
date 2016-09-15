@@ -23,7 +23,7 @@ public:
 	UFUNCTION()
 	void ClientOnVarsChanged();
 
-	void ALaserBeamRenderer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> & OutLifetimeProps) const;
 
 	static ALaserBeamRenderer* CreateBeamRenderer(UWorld* world, FVector start, FVector end);
 

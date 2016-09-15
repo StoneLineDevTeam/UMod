@@ -9,10 +9,10 @@ DECLARE_LOG_CATEGORY_EXTERN(UModEditor, All, All)
 
 #define UMOD_EDIT_MSG_TITLE new FText(FText::FromString(TEXT("UMod - Unreal Editor")))
 #define UMOD_EDIT_STANDARD_MSG(msgcontent) \
-FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT(##msgcontent)), UMOD_EDIT_MSG_TITLE) \
+FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT(msgcontent)), UMOD_EDIT_MSG_TITLE) \
 
 #define SUBSTR(VarName, Str, Start, End) \
-FString VarName = ##Str.Mid(##Start, (##End) - (##Start)) \
+FString VarName = Str.Mid(Start, (End) - (Start)) \
 
 #define LEVEL_INFO 0
 #define LEVEL_ERROR 1

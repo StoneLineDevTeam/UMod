@@ -117,7 +117,7 @@ struct FUModEntityClass_##ClassName : FUModEntityClass { \
 	FUModEntityClass_##ClassName(FString Class, UClass *cl, bool lua) : FUModEntityClass(Class, cl, lua) {} \
 	virtual Entity *CastToEntity(AActor *act) \
 	{ \
-		##UClassN *CompatibleAct = static_cast<##UClassN*>(act); \
+		UClassN *CompatibleAct = static_cast<UClassN*>(act); \
 		return static_cast<Entity*>(CompatibleAct); \
 	} \
 }; \
@@ -137,7 +137,7 @@ FORCEINLINE CPPClass *CastTo##ClassName(Entity *Ent) \
 	if (Ent->GetClass() != #ClassName) { \
 		return NULL; \
 	} \
-	return static_cast<##CPPClass*>(Ent); \
+	return static_cast<CPPClass*>(Ent); \
 } \
 }; \
 
@@ -146,7 +146,7 @@ struct FUModEntityClass_##ClassName : FUModEntityClass { \
 	FUModEntityClass_##ClassName(FString Class, UClass *cl, bool lua) : FUModEntityClass(Class, cl, lua) {} \
 	virtual Entity *CastToEntity(AActor *act) \
 	{ \
-		##UClassN *CompatibleAct = Cast<##UClassN>(act); \
+		UClassN *CompatibleAct = Cast<UClassN>(act); \
 		return static_cast<Entity*>(CompatibleAct); \
 	} \
 }; \
@@ -163,7 +163,7 @@ Initializer##ClassName Init##ClassName; \
 struct InitializerCMD##id { \
 	InitializerCMD##id() \
 	{ \
-		UUModConsoleManager::ConsoleCommands[##id] = new FUModConsoleCommand(##name, ##help, ##needcxt, ##fnc); \
+		UUModConsoleManager::ConsoleCommands[id] = new FUModConsoleCommand(name, help, needcxt, fnc); \
 		UUModConsoleManager::ConsoleCommandNumber = UUModConsoleManager::ConsoleCommandNumber + 1; \
 	} \
 }; \

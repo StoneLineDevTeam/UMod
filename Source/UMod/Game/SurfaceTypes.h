@@ -18,7 +18,7 @@ struct FSurfaceType {
 
 	bool IsValid;
 
-	FSurfaceType(FString ID, FString FootSnd, FString HitSnd, FString DecalMat, FString ParticleMat);
+	FSurfaceType(FString ID, FString FootSnd, FString HitSnd, FString DecalMt, FString ParticleMt);
 	void Precache();
 
 	void Register() {

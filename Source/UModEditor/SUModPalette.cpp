@@ -1,18 +1,14 @@
-#include "UMod.h"
+#include "UModEditor.h"
 #include "SUModPalette.h"
 
 void SUModPalette::Construct(const FArguments& Args)
 {
-	ChildSlot
+	/*ChildSlot
 		[
 			//Creating the button that adds a new item on the list when pressed
 			SNew(SScrollBox)
 			+ SScrollBox::Slot()
 		[
-			SNew(SButton)
-			.Text(FString("Add new list item"))
-		.OnClicked(this, &SUModPalette::ButtonPressed)
-		]
 
 	//The actual list view creation
 	+ SScrollBox::Slot()
@@ -22,7 +18,7 @@ void SUModPalette::Construct(const FArguments& Args)
 		.ListItemsSource(&Items) //The Items array is the source of this listview
 		.OnGenerateRow(this, &SUModPalette::OnGenerateRowForList)
 		]
-		];
+		];*/
 }
 
 FReply SUModPalette::ButtonPressed()
@@ -44,6 +40,6 @@ TSharedRef<ITableRow> SUModPalette::OnGenerateRowForList(TSharedPtr<FString> Ite
 		SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
 		.Padding(2.0f)
 		[
-			SNew(SButton).Text(*Item.Get())
+			SNew(SButton).Text(FText::FromString(*Item.Get()))
 		];
 }

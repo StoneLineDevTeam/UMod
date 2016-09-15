@@ -49,11 +49,11 @@ void FSurfaceType::Precache()
 	IsValid = true;
 }
 
-FSurfaceType::FSurfaceType(FString ID, FString FootSnd, FString HitSnd, FString DecalMat, FString ParticleMat)
+FSurfaceType::FSurfaceType(FString ID, FString FootSnd, FString HitSnd, FString DecalMt, FString ParticleMt)
 {
 	Identifier = ID;
 	FootSoundPath = FootSnd;
 	HitSoundPath = HitSnd;
-	DecalMatPath = DecalMat;
-	ParticleMatPath = ParticleMat;	
+	DecalMatPath = DecalMt;
+	ParticleMatPath = ParticleMt;	
 }
