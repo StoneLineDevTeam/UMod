@@ -1,3 +1,15 @@
+# Update 21/12/2018
+UMod as an Unreal game is stopped not the idea of the project.
+
+The project is coming back however it takes a lot more time than I expected.
+
+Also I'm student now, which means I have less time than before for own projects.
+Anyways if you are interested in knowing what were the reasons of the shutdown, well it is related to the support UE4 have when it comes Modability in the way I expect for this project, the Unix based platforms support of Unreal, and other various components.
+
+Indeed I started 2 years ago a replacement Engine designed for this project.
+
+If you are interested in helping the new project going through, I suggest you take a look at the new github organisation for it : https://github.com/BlockProject3D
+
 # UMod Alpha
 
 #WARNING !! Use this command on your git otherwise you may run into large issues :
