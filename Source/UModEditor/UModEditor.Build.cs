@@ -1,16 +1,16 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
-
 using UnrealBuildTool;
 using System.Collections.Generic;
 
 public class UModEditor : ModuleRules
 {
-    public UModEditor(TargetInfo Target)
+    public UModEditor(ReadOnlyTargetRules Target) : base(Target)
     {
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "OnlineSubsystem", "OnlineSubsystemUtils", "UMG", "Slate", "SlateCore", "Networking", "Sockets", "PakFile", "RHI", "RenderCore", "ShaderCore", "EngineSettings", "Messaging", "EngineMessages", "UMod", "UnrealEd", "MainFrame", "ContentBrowser" });
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PrivateDependencyModuleNames.AddRange(new string[] { "DesktopPlatform", "AssetTools", "MessageLog", "PlacementMode" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMod" });
 
-        DynamicallyLoadedModuleNames.Add("OnlineSubsystemNull");
+        PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "Slate", "SlateCore" });
+
+        // Add any additional module dependencies your module needs here
     }
 }
