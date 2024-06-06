@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "",
+	"EngineAssociation": "4.27",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -21,8 +21,6 @@
 		}
 	],
 	"TargetPlatforms": [
-		"LinuxNoEditor",
-		"MacNoEditor",
 		"WindowsNoEditor"
 	]
 }

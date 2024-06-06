@@ -1,26 +1,13 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
-
+// UModEditor.Target.cs
 using UnrealBuildTool;
 using System.Collections.Generic;
 
 public class UModEditorTarget : TargetRules
 {
-	public UModEditorTarget(TargetInfo Target)
-	{
-		Type = TargetType.Editor;
-	}
+    public UModEditorTarget(TargetInfo Target) : base(Target)
+    {
+        Type = TargetType.Editor;
 
-	//
-	// TargetRules interface.
-	//
-
-	public override void SetupBinaries(
-		TargetInfo Target,
-		ref List<UEBuildBinaryConfiguration> OutBuildBinaryConfigurations,
-		ref List<string> OutExtraModuleNames
-		)
-	{
-		OutExtraModuleNames.Add("UMod");
-		OutExtraModuleNames.Add("UModEditor");
-	}
+        ExtraModuleNames.AddRange(new string[] { "UMod" });
+    }
 }
